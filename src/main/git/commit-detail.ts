@@ -1,61 +1,7 @@
-import path from 'node:path';
-import fs from 'node:fs';
 import { CommitDetail, FileChange, FileDiff, ComparisonResult, FileStatusKind } from '../../shared/types';
 import { withGit, errorMessage } from './core';
-import { parseUnifiedDiff } from './status-diff';
+import { parseUnifiedDiff, getWorkingDiffText } from './status-diff';
 import { gravatarHash } from './history';
-
-/** Construct synthetic full-addition diff for untracked/new text files on disk. */
-async function getUntrackedFileDiff(repoPath: string, filePath: string): Promise<FileDiff | null> {
-  const fullPath = path.resolve(repoPath, filePath);
-  try {
-    const stat = await fs.promises.stat(fullPath);
-    if (!stat.isFile()) return null;
-    const buf = await fs.promises.readFile(fullPath);
-
-    // Detect binary files (null bytes in first 8000 bytes)
-    const checkLen = Math.min(buf.length, 8000);
-    for (let i = 0; i < checkLen; i++) {
-      if (buf[i] === 0) {
-        return { path: filePath, hunks: [], insertions: 0, deletions: 0, isBinary: true };
-      }
-    }
-
-    if (buf.length === 0) {
-      return { path: filePath, hunks: [], insertions: 0, deletions: 0 };
-    }
-
-    const text = buf.toString('utf8');
-    const rawLines = text.split(/\r?\n/);
-    if (rawLines.length > 1 && rawLines[rawLines.length - 1] === '') {
-      rawLines.pop();
-    }
-    const lines = rawLines.map((content, idx) => ({
-      kind: 'add' as const,
-      oldNo: null,
-      newNo: idx + 1,
-      content
-    }));
-
-    return {
-      path: filePath,
-      hunks: [
-        {
-          header: `@@ -0,0 +1,${lines.length} @@`,
-          oldStart: 0,
-          oldLines: 0,
-          newStart: 1,
-          newLines: lines.length,
-          lines
-        }
-      ],
-      insertions: lines.length,
-      deletions: 0
-    };
-  } catch {
-    return null;
-  }
-}
 
 /** Number stats per changed file for a commit. */
 export async function getCommitDetail(repoPath: string, hash: string): Promise<CommitDetail | null> {
@@ -146,18 +92,8 @@ export async function getFileDiff(
   try {
     return await withGit(repoPath, async (git) => {
       let diffText = '';
-      if (opts?.staged) {
-        diffText = await git.diff(['--cached', '--', filePath]);
-      } else if (opts?.worktree) {
-        diffText = await git.diff(['--', filePath]);
-        // Untracked or new files return empty from standard git diff
-        if (!diffText || diffText.trim() === '') {
-          try {
-            diffText = await git.raw(['diff', '--no-index', '--', '/dev/null', filePath]);
-          } catch {
-            // git diff --no-index can fail on certain special paths or OS quirks
-          }
-        }
+      if (opts?.staged || opts?.worktree) {
+        diffText = await getWorkingDiffText(repoPath, filePath, opts.staged);
       } else {
         const parents = (await git.raw(['rev-list', '--parents', '-n', '1', hash])).trim().split(' ').slice(1);
         if (parents.length === 0) {
@@ -169,12 +105,6 @@ export async function getFileDiff(
       }
 
       const parsed = parseUnifiedDiff(diffText, filePath);
-      // If worktree diff yielded no hunks and is not binary, check direct disk content (e.g. untracked files)
-      if (opts?.worktree && parsed.hunks.length === 0 && !parsed.isBinary) {
-        const fallback = await getUntrackedFileDiff(repoPath, filePath);
-        if (fallback) return fallback;
-      }
-
       return parsed;
     });
   } catch (err) {
@@ -212,43 +142,36 @@ export async function compareCommits(
       const baseLines = baseMeta.trim().split('\n');
       const targetLines = targetMeta.trim().split('\n');
 
-      const numstat = await git.raw(['diff', '--numstat', baseHash, targetHash, '--']);
-      let nameStatus = '';
-      try {
-        nameStatus = await git.raw(['diff', '--name-status', baseHash, targetHash, '--']);
-      } catch {}
-
-      const statusMap = new Map<string, FileStatusKind>();
-      for (const line of nameStatus.split('\n')) {
-        if (!line.trim()) continue;
-        const [code, ...parts] = line.split('\t');
-        const fPath = parts[parts.length - 1];
-        const kind: FileStatusKind =
-          code.startsWith('A') ? 'added' :
-          code.startsWith('D') ? 'deleted' :
-          code.startsWith('R') ? 'renamed' : 'modified';
-        statusMap.set(fPath, kind);
-      }
-
+      // NUL-delimited output preserves tabs, Unicode, and rename source/target paths.
+      const numstat = await git.raw(['diff', '--numstat', '-z', '-M', baseHash, targetHash, '--']);
+      const nameStatus = await git.raw(['diff', '--name-status', '-z', '-M', baseHash, targetHash, '--']);
+      const statuses = nameStatus.split('\0');
       const files: FileChange[] = [];
+      for (let i = 0; i < statuses.length && statuses[i];) {
+        const code = statuses[i++];
+        const firstPath = statuses[i++];
+        const renamed = code.startsWith('R') || code.startsWith('C');
+        files.push({
+          path: renamed ? statuses[i++] : firstPath,
+          renamedFrom: renamed ? firstPath : undefined,
+          status: code.startsWith('A') ? 'added' : code.startsWith('D') ? 'deleted' : renamed ? 'renamed' : 'modified'
+        });
+      }
+      const stats = numstat.split('\0');
       let insertions = 0;
       let deletions = 0;
-
-      for (const line of numstat.split('\n')) {
-        if (!line.trim()) continue;
-        const [ins, del, ...parts] = line.split('\t');
-        const fPath = parts.join('\t');
-        if (!fPath) continue;
-        const insNum = ins === '-' ? undefined : parseInt(ins, 10);
-        const delNum = del === '-' ? undefined : parseInt(del, 10);
-        files.push({
-          path: fPath,
-          status: statusMap.get(fPath) || 'modified',
-          insertions: insNum,
-          deletions: delNum
-        });
-        if (insNum) insertions += insNum;
-        if (delNum) deletions += delNum;
+      for (let i = 0; i < stats.length && stats[i];) {
+        const record = stats[i++];
+        const match = record.match(/^(\d+|-)\t(\d+|-)\t([\s\S]*)$/);
+        if (!match) continue;
+        let filePath = match[3];
+        if (!filePath) { i++; filePath = stats[i++]; }
+        const file = files.find(f => f.path === filePath);
+        if (!file) continue;
+        file.insertions = match[1] === '-' ? undefined : Number(match[1]);
+        file.deletions = match[2] === '-' ? undefined : Number(match[2]);
+        insertions += file.insertions || 0;
+        deletions += file.deletions || 0;
       }
 
       return {
@@ -276,7 +199,10 @@ export async function getComparisonFileDiff(
 ): Promise<FileDiff | null> {
   try {
     return await withGit(repoPath, async (git) => {
-      const diffText = await git.diff([baseHash, targetHash, '--', filePath]);
+      const comparison = await compareCommits(repoPath, baseHash, targetHash);
+      const file = comparison?.files.find(f => f.path === filePath);
+      const paths = file?.renamedFrom ? [file.renamedFrom, filePath] : [filePath];
+      const diffText = await git.diff(['-M', baseHash, targetHash, '--', ...paths]);
       return parseUnifiedDiff(diffText, filePath);
     });
   } catch (err) {

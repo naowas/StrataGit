@@ -8,8 +8,9 @@ import { withGit } from './core';
 const execFileP = promisify(execFile);
 
 async function checkIsBisecting(repoPath: string): Promise<boolean> {
-  const startFile = path.join(repoPath, '.git', 'BISECT_START');
-  const logFile = path.join(repoPath, '.git', 'BISECT_LOG');
+  const gitDir = await withGit(repoPath, g => g.raw(['rev-parse', '--absolute-git-dir']));
+  const startFile = path.join(gitDir.trim(), 'BISECT_START');
+  const logFile = path.join(gitDir.trim(), 'BISECT_LOG');
   return fs.existsSync(startFile) || fs.existsSync(logFile);
 }
 
@@ -21,7 +22,8 @@ export async function getBisectState(repoPath: string): Promise<BisectState> {
 
   return await withGit(repoPath, async (git) => {
     try {
-      const logFilePath = path.join(repoPath, '.git', 'BISECT_LOG');
+      const gitDir = (await git.raw(['rev-parse', '--absolute-git-dir'])).trim();
+      const logFilePath = path.join(gitDir, 'BISECT_LOG');
       let bisectLogLines: string[] = [];
       if (fs.existsSync(logFilePath)) {
         const raw = await fs.promises.readFile(logFilePath, 'utf8');
@@ -34,7 +36,7 @@ export async function getBisectState(repoPath: string): Promise<BisectState> {
 
       // Check if culprit is already determined
       let culpritCommit: BisectState['culpritCommit'] | undefined;
-      const expectedCulpritLine = bisectLogLines.find((l) => l.includes('first bad commit'));
+      const expectedCulpritLine = bisectLogLines.find((l) => /first ['\"]?bad['\"]? commit/.test(l));
       if (expectedCulpritLine) {
         const m = expectedCulpritLine.match(/([a-f0-9]{40})/i);
         if (m) {
@@ -53,8 +55,16 @@ export async function getBisectState(repoPath: string): Promise<BisectState> {
         }
       }
 
+      const ambiguousCommits = bisectLogLines.flatMap(line => {
+        const match = line.match(/possible first (?:['"]?bad['"]? )?commit: \[([a-f0-9]{40,64})\]/i);
+        return match ? [match[1]] : [];
+      });
+      const refs = await git.raw(['for-each-ref', '--format=%(refname)', 'refs/bisect/']);
       return {
         active: true,
+        ambiguousCommits,
+        needsGood: !refs.includes('refs/bisect/good-'),
+        needsBad: !refs.split('\n').includes('refs/bisect/bad'),
         currentCommit: {
           hash,
           shortHash,
@@ -78,15 +88,28 @@ export async function startBisect(
 ): Promise<{ ok: boolean; state?: BisectState; error?: string }> {
   try {
     const isBisecting = await checkIsBisecting(repoPath);
-    if (isBisecting) {
-      await execFileP('git', ['bisect', 'reset'], { cwd: repoPath }).catch(() => {});
+    if (isBisecting && badCommit && goodCommit) {
+      throw new Error('A bisect session is already active. Reset it before starting another.');
+    }
+    // Resolve revisions before changing repository state, and reject option-like input.
+    const resolve = (ref: string) => withGit(repoPath, g => g.raw(['rev-parse', '--verify', '--end-of-options', `${ref}^{commit}`])).then(s => s.trim());
+    const bad = badCommit ? await resolve(badCommit) : undefined;
+    const good = goodCommit ? await resolve(goodCommit) : undefined;
+    if (!isBisecting) {
+      const dirty = await withGit(repoPath, g => g.status());
+      if (!dirty.isClean()) throw new Error('Commit or stash your changes before starting bisect.');
+    }
+    let stdout = '';
+    let stderr = '';
+    if (!isBisecting && bad && good) {
+      ({ stdout, stderr } = await execFileP('git', ['bisect', 'start', bad, good], { cwd: repoPath }));
+    } else {
+      if (!isBisecting) await execFileP('git', ['bisect', 'start'], { cwd: repoPath });
+      if (bad || good) {
+        ({ stdout, stderr } = await execFileP('git', ['bisect', bad ? 'bad' : 'good', (bad || good)!], { cwd: repoPath }));
+      }
     }
 
-    const args = ['bisect', 'start'];
-    if (badCommit) args.push(badCommit);
-    if (goodCommit) args.push(goodCommit);
-
-    const { stdout, stderr } = await execFileP('git', args, { cwd: repoPath });
     const output = `${stdout}\n${stderr}`;
 
     const state = await getBisectState(repoPath);
@@ -107,7 +130,18 @@ export async function stepBisect(
   verdict: 'good' | 'bad' | 'skip'
 ): Promise<{ ok: boolean; state?: BisectState; error?: string }> {
   try {
-    const { stdout, stderr } = await execFileP('git', ['bisect', verdict], { cwd: repoPath });
+    if (!await checkIsBisecting(repoPath)) throw new Error('No bisect session is active.');
+    let stdout = '';
+    let stderr = '';
+    try {
+      ({ stdout, stderr } = await execFileP('git', ['bisect', verdict], { cwd: repoPath }));
+    } catch (err) {
+      const failure = err as { code?: number; stdout?: string; stderr?: string };
+      // Git exits 2 when skips prevent choosing a unique culprit; this is a result.
+      if (failure.code !== 2 || !/first ['"]?bad['"]? commit could be any of/.test(failure.stdout || '')) throw err;
+      stdout = failure.stdout || '';
+      stderr = failure.stderr || '';
+    }
     const output = `${stdout}\n${stderr}`;
 
     const state = await getBisectState(repoPath);

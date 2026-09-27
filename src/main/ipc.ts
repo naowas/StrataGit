@@ -456,7 +456,7 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
     await dropCommit(requireRepo(), hash);
     return { ok: true };
   });
-  handle('git:apply-patch', async (hash: string) => {
+  handle('git:apply-patch-commit', async (hash: string) => {
     await applyPatchCommit(requireRepo(), hash);
     return { ok: true };
   });
@@ -759,7 +759,7 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
   });
 
   // AI Code Review & Explainer
-  handle('ai:explain-changes', async (params: { diffText?: string; commitHash?: string }) => {
+  handle('ai:explain-changes', async (params: { diffText?: string; commitHash?: string; config?: Partial<import('../shared/types').AiCommitConfig> }) => {
     try {
       let diff = params.diffText;
       if (!diff && params.commitHash) {
@@ -768,7 +768,7 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
       if (!diff) {
         return { ok: false, error: 'No diff content found to explain' };
       }
-      return explainCodeChanges(diff);
+      return explainCodeChanges(diff, params.config);
     } catch (err) {
       return { ok: false, error: errorMessage(err) };
     }

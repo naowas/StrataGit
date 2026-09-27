@@ -1,7 +1,12 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
 const call = <T>(channel: string, ...args: unknown[]): Promise<T> =>
-  ipcRenderer.invoke(channel, ...args) as Promise<T>;
+  ipcRenderer.invoke(channel, ...args).then((result) => {
+    if (result && typeof result === 'object' && '__error' in result) {
+      throw new Error(String(result.__error));
+    }
+    return result as T;
+  });
 
 export type Api = {
   openRepo(path: string): Promise<{ ok: boolean; repo?: { path: string; name: string }; error?: string }>;
@@ -99,7 +104,7 @@ export type Api = {
   getStashFileDiff(index: number, filePath: string): Promise<import('../shared/types').FileDiff | null>;
   applyStashFile(index: number, filePath: string): Promise<{ ok: boolean; error?: string }>;
   simulateMerge(targetBranch: string): Promise<import('../shared/types').MergeSimulationResult>;
-  explainChanges(params: { diffText?: string; commitHash?: string }): Promise<{ ok: boolean; explanation?: string; error?: string }>;
+  explainChanges(params: { diffText?: string; commitHash?: string; config?: Partial<import('../shared/types').AiCommitConfig> }): Promise<{ ok: boolean; explanation?: string; error?: string }>;
   startBisect(badCommit: string, goodCommit: string): Promise<{ ok: boolean; state?: import('../shared/types').BisectState; error?: string }>;
   stepBisect(verdict: 'good' | 'bad' | 'skip'): Promise<{ ok: boolean; state?: import('../shared/types').BisectState; error?: string }>;
   resetBisect(): Promise<{ ok: boolean; error?: string }>;
@@ -153,7 +158,7 @@ const api: Api = {
   editCommitMessage: (hash, message) => call('git:edit-commit-message', hash, message),
   revertCommit: (hash) => call('git:revert-commit', hash),
   dropCommit: (hash) => call('git:drop-commit', hash),
-  applyPatchCommit: (hash) => call('git:apply-patch', hash),
+  applyPatchCommit: (hash) => call('git:apply-patch-commit', hash),
   moveCommitDown: (hash) => call('git:move-commit-down', hash),
   setUpstream: (branch, upstream) => call('git:set-upstream', branch, upstream),
   pushSetUpstream: (branch) => call('git:push-set-upstream', branch),

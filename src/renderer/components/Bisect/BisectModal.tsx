@@ -11,7 +11,7 @@ import {
   Sparkles,
   GitCommit
 } from 'lucide-react';
-import { useApp } from '../../store';
+import { useApp, WIP_HASH } from '../../store';
 import { api } from '../../lib/api';
 import { BisectState } from '../../../shared/types';
 
@@ -31,8 +31,9 @@ export function BisectModal() {
     try {
       const res = await api.getBisectState();
       setState(res);
-      if (res.active && res.currentCommit) {
-        setBadInput(res.currentCommit.hash);
+      if (res.active) {
+        setBadInput(res.needsBad ? 'HEAD' : '');
+        setGoodInput('');
       }
     } catch (err) {
       console.error('Failed to get bisect state:', err);
@@ -41,7 +42,7 @@ export function BisectModal() {
 
   useEffect(() => {
     if (isOpen) {
-      if (selectedCommit) {
+      if (selectedCommit && selectedCommit !== WIP_HASH) {
         setBadInput(selectedCommit);
       }
       void refreshState();
@@ -53,9 +54,9 @@ export function BisectModal() {
   const handleStart = async () => {
     setLoading(true);
     try {
-      const res = await api.startBisect(badInput.trim() || undefined, goodInput.trim() || undefined);
+      const res = await api.startBisect(state.active && !state.needsBad ? undefined : badInput.trim() || undefined, state.active && !state.needsGood ? undefined : goodInput.trim() || undefined);
       if (!res.ok) throw new Error(res.error || 'Failed to start bisect');
-      await refreshState();
+      if (res.state) setState(res.state);
       await runAndRefresh(async () => {}, 'Git bisect session started');
     } catch (err) {
       notify('error', String(err));
@@ -69,7 +70,7 @@ export function BisectModal() {
     try {
       const res = await api.stepBisect(verdict);
       if (!res.ok) throw new Error(res.error || `Failed to mark ${verdict}`);
-      await refreshState();
+      if (res.state) setState(res.state);
       await runAndRefresh(async () => {}, `Marked commit as ${verdict}`);
     } catch (err) {
       notify('error', String(err));
@@ -83,7 +84,7 @@ export function BisectModal() {
     try {
       const res = await api.resetBisect();
       if (!res.ok) throw new Error(res.error || 'Failed to reset bisect');
-      await refreshState();
+      setState({ active: false });
       await runAndRefresh(async () => {}, 'Bisect session terminated and HEAD restored');
       close();
     } catch (err) {
@@ -114,7 +115,14 @@ export function BisectModal() {
 
         {/* Content */}
         <div className="p-5 space-y-4 max-h-[480px] overflow-y-auto">
-          {state.culpritCommit ? (
+          {state.ambiguousCommits?.length ? (
+            <div className="space-y-3 text-sm">
+              <p className="text-warn">Skipped commits prevent identifying a single culprit.</p>
+              <p className="text-dim">The first bad commit is one of these revisions:</p>
+              <ul className="font-mono text-xs space-y-1">{state.ambiguousCommits.map(hash => <li key={hash}>{hash}</li>)}</ul>
+              <p className="text-dim">Reset bisect, then restart when these revisions can be tested.</p>
+            </div>
+          ) : state.culpritCommit ? (
             /* Culprit found! */
             <div className="space-y-4">
               <div className="p-4 rounded-xl bg-del/10 border border-del/30 flex items-start gap-3">
@@ -148,7 +156,7 @@ export function BisectModal() {
                 </button>
               </div>
             </div>
-          ) : state.active ? (
+          ) : state.active && !state.needsGood && !state.needsBad ? (
             /* Active bisect session */
             <div className="space-y-4">
               {state.stepInfo && (
@@ -236,6 +244,7 @@ export function BisectModal() {
                   type="text"
                   className="input w-full font-mono text-xs"
                   placeholder="HEAD, branch, or commit hash"
+                  disabled={state.active && !state.needsBad}
                   value={badInput}
                   onChange={(e) => setBadInput(e.target.value)}
                 />
@@ -249,6 +258,7 @@ export function BisectModal() {
                   type="text"
                   className="input w-full font-mono text-xs"
                   placeholder="e.g. v1.0.0 or commit hash"
+                  disabled={state.active && !state.needsGood}
                   value={goodInput}
                   onChange={(e) => setGoodInput(e.target.value)}
                 />
@@ -276,14 +286,14 @@ export function BisectModal() {
             <button className="btn text-xs px-3 py-1.5" onClick={close}>
               Close
             </button>
-            {!state.active && (
+            {(!state.active || state.needsGood || state.needsBad) && (
               <button
                 className="btn bg-accent hover:bg-accent-hover text-white text-xs px-3.5 py-1.5 font-medium shadow-sm flex items-center gap-1.5"
                 onClick={handleStart}
-                disabled={loading}
+                disabled={loading || ((!state.active || state.needsBad) && !badInput.trim()) || ((!state.active || state.needsGood) && !goodInput.trim())}
               >
                 {loading && <Loader2 size={13} className="animate-spin" />}
-                <span>Start Bisect</span>
+                <span>{state.active ? 'Set Boundary' : 'Start Bisect'}</span>
               </button>
             )}
           </div>

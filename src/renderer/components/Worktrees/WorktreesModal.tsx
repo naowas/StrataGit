@@ -35,13 +35,12 @@ export function WorktreesModal() {
     }
     setLoading(true);
     try {
-      await runAndRefresh(async () => {
+      const succeeded = await runAndRefresh(async () => {
         const branchOrHash = newBranch.trim() || 'HEAD';
         const res = await api.createWorktree(branchOrHash, newPath.trim());
         if (!res.ok) throw new Error(res.error || 'Failed to create worktree');
       }, `Worktree created at ${newPath}`);
-      setNewPath('');
-      setNewBranch('');
+      if (succeeded) { setNewPath(''); setNewBranch(''); }
     } catch (err) {
       notify('error', String(err));
     } finally {
@@ -54,11 +53,11 @@ export function WorktreesModal() {
       notify('warn', 'Cannot remove main worktree checkout');
       return;
     }
-    if (!window.confirm(`Remove worktree at "${worktreePath}"? Any uncommitted changes in that worktree will be lost.`)) {
+    if (!window.confirm(`Remove worktree at "${worktreePath}"? Git will refuse removal if it has uncommitted changes.`)) {
       return;
     }
     await runAndRefresh(async () => {
-      const res = await api.removeWorktree(worktreePath, true);
+      const res = await api.removeWorktree(worktreePath);
       if (!res.ok) throw new Error(res.error || 'Failed to remove worktree');
     }, `Worktree removed`);
   };
@@ -90,7 +89,8 @@ export function WorktreesModal() {
 
           <div className="space-y-2">
             {worktrees.map((wt, i) => {
-              const isMain = i === 0 || activeTab === wt.path;
+              const isMain = i === 0;
+              const isCurrent = activeTab === wt.path;
               const displayName = wt.branch || wt.path.split(/[/\\]/).pop() || wt.path;
 
               return (
@@ -112,6 +112,8 @@ export function WorktreesModal() {
                             {wt.hash.slice(0, 7)}
                           </span>
                         )}
+                        {isCurrent && <span className="text-[10px] text-accent">Current</span>}
+                        {wt.isLocked && <span className="text-[10px] text-warn">Locked</span>}
                         {wt.branch && (
                           <span className="text-[10px] text-purple-300 font-mono flex items-center gap-1">
                             <GitBranch size={10} /> {wt.branch}
@@ -136,7 +138,7 @@ export function WorktreesModal() {
                       <ExternalLink size={12} />
                       <span>Open</span>
                     </button>
-                    {!isMain && (
+                    {!isMain && !isCurrent && !wt.isLocked && (
                       <button
                         className="btn-icon !w-7 !h-7 hover:!text-del text-dim"
                         onClick={() => void handleRemove(wt.path, isMain)}

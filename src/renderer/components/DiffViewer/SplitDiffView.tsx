@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DiffHunk } from '../../../shared/types';
 import { alignHunkLinesForSplit, InlineDiffPart } from './diffUtils';
 import { HunkHeader } from './HunkHeader';
@@ -30,6 +30,8 @@ function RenderParts({ parts }: { parts: InlineDiffPart[] }) {
 export function SplitDiffView({ hunks }: SplitDiffViewProps) {
   // Map of hunkIndex -> Set of hunkLineIndex
   const [selectedLinesByHunk, setSelectedLinesByHunk] = useState<Record<number, Set<number>>>({});
+
+  useEffect(() => setSelectedLinesByHunk({}), [hunks]);
 
   const toggleLine = (hunkIdx: number, lineIdx: number) => {
     setSelectedLinesByHunk((prev) => {
@@ -68,20 +70,20 @@ export function SplitDiffView({ hunks }: SplitDiffViewProps) {
 
             <div className="select-text">
               {rows.map((row, rowIdx) => {
-                const isSelected = selected.has(row.hunkLineIndex);
+                const leftSelected = row.left !== undefined && selected.has(row.left.hunkLineIndex);
+                const rightSelected = row.right !== undefined && selected.has(row.right.hunkLineIndex);
                 const hasLeftChange = row.left?.kind === 'del';
                 const hasRightChange = row.right?.kind === 'add';
-                const isDiffRow = hasLeftChange || hasRightChange;
 
                 let leftBg = '';
-                if (isSelected) {
+                if (leftSelected) {
                   leftBg = 'bg-accent/20 border-l-2 border-accent';
                 } else if (hasLeftChange) {
                   leftBg = 'bg-del-bg text-del/90';
                 }
 
                 let rightBg = '';
-                if (isSelected) {
+                if (rightSelected) {
                   rightBg = 'bg-accent/20 border-l-2 border-accent';
                 } else if (hasRightChange) {
                   rightBg = 'bg-add-bg text-add/90';
@@ -101,12 +103,12 @@ export function SplitDiffView({ hunks }: SplitDiffViewProps) {
                           hasLeftChange ? 'hover:bg-accent/30' : 'opacity-0'
                         }`}
                         title={hasLeftChange ? 'Select line' : undefined}
-                        onClick={() => hasLeftChange && toggleLine(hunkIdx, row.hunkLineIndex)}
+                        onClick={() => hasLeftChange && toggleLine(hunkIdx, row.left!.hunkLineIndex)}
                       >
                         {hasLeftChange && (
                           <div
                             className={`w-2 h-2 rounded-xs border transition-all ${
-                              isSelected
+                              leftSelected
                                 ? 'bg-accent border-accent ring-1 ring-accent/50'
                                 : 'border-dim/40'
                             }`}
@@ -146,12 +148,12 @@ export function SplitDiffView({ hunks }: SplitDiffViewProps) {
                           hasRightChange ? 'hover:bg-accent/30' : 'opacity-0'
                         }`}
                         title={hasRightChange ? 'Select line' : undefined}
-                        onClick={() => hasRightChange && toggleLine(hunkIdx, row.hunkLineIndex)}
+                        onClick={() => hasRightChange && toggleLine(hunkIdx, row.right!.hunkLineIndex)}
                       >
                         {hasRightChange && (
                           <div
                             className={`w-2 h-2 rounded-xs border transition-all ${
-                              isSelected
+                              rightSelected
                                 ? 'bg-accent border-accent ring-1 ring-accent/50'
                                 : 'border-dim/40'
                             }`}

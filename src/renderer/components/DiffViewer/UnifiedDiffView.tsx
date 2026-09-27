@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DiffHunk } from '../../../shared/types';
 import { HunkHeader } from './HunkHeader';
 
@@ -10,6 +10,8 @@ interface UnifiedDiffViewProps {
 export function UnifiedDiffView({ hunks }: UnifiedDiffViewProps) {
   // Map of hunkIndex -> Set of line indices selected in that hunk
   const [selectedLinesByHunk, setSelectedLinesByHunk] = useState<Record<number, Set<number>>>({});
+
+  useEffect(() => setSelectedLinesByHunk({}), [hunks]);
 
   const toggleLine = (hunkIdx: number, lineIdx: number) => {
     setSelectedLinesByHunk((prev) => {

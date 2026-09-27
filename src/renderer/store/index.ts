@@ -395,8 +395,11 @@ export const useApp = create<AppStore>((set, get) => ({
     });
     try {
       const res = await api.compareCommits(hashes[0], hashes[1]);
+      if (get().compareCommits !== hashes) return;
+      if (!res) throw new Error('Unable to load comparison');
       set({ comparisonResult: res, detailLoading: false });
     } catch (err) {
+      if (get().compareCommits !== hashes) return;
       set({ detailLoading: false });
       get().notify('error', `Failed to compare commits: ${String(err)}`);
     }

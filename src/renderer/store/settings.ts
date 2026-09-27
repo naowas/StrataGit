@@ -448,9 +448,9 @@ const DEFAULT_SETTINGS = {
 
   aiCommit: {
     provider: 'pollinations' as const,
-    model: 'openai-fast',
+    model: 'openai',
     apiKey: '',
-    endpoint: 'https://text.pollinations.ai/',
+    endpoint: '',
     promptStyle: 'conventional' as const
   } as AiCommitConfig
 };

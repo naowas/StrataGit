@@ -1,3 +1,5 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import {
   GitStatus,
   GitFileStatus,
@@ -69,6 +71,24 @@ export async function getStatus(repoPath: string): Promise<GitStatus> {
   };
 }
 
+/** Obtain the same patch for rendering and editing, including untracked files. */
+export async function getWorkingDiffText(repoPath: string, filePath: string, staged = false): Promise<string> {
+  return withGit(repoPath, async git => {
+    const diff = await git.diff(['--no-ext-diff', '--no-textconv', ...(staged ? ['--cached'] : []), '--', filePath]);
+    if (diff || staged) return diff;
+    const untracked = await git.raw(['ls-files', '--others', '--exclude-standard', '-z', '--', filePath]);
+    if (!untracked.split('\0').includes(filePath)) return '';
+    try {
+      const result = await promisify(execFile)('git', ['diff', '--no-ext-diff', '--no-textconv', '--no-index', '--', '/dev/null', filePath], { cwd: repoPath, maxBuffer: 16 * 1024 * 1024 });
+      return result.stdout;
+    } catch (err) {
+      const failure = err as { code?: number; stdout?: string };
+      if (failure.code === 1 && typeof failure.stdout === 'string') return failure.stdout;
+      throw err;
+    }
+  });
+}
+
 const HUNK_RE = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@ ?(.*)$/;
 
 export function parseUnifiedDiff(diffText: string, filePath: string): FileDiff {
@@ -110,18 +130,7 @@ export function parseUnifiedDiff(diffText: string, filePath: string): FileDiff {
       continue;
     }
     if (!cur) continue;
-    if (
-      line.startsWith('diff --git') ||
-      line.startsWith('index ') ||
-      line.startsWith('--- ') ||
-      line.startsWith('+++ ') ||
-      line.startsWith('old mode') ||
-      line.startsWith('new mode') ||
-      line.startsWith('similarity index') ||
-      line.startsWith('rename ')
-    ) {
-      continue;
-    }
+    if (line.startsWith('diff --git')) { cur = null; continue; }
     if (line.startsWith('\\')) continue; // "\ No newline at end of file"
     if (line.startsWith('+')) {
       cur.lines.push({ kind: 'add', oldNo: null, newNo: newNo++, content: line.slice(1) });

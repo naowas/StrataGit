@@ -210,7 +210,7 @@ export function SettingsPage() {
     { id: 'themes' as const, label: 'Appearance & Themes', icon: <Palette size={16} />, desc: 'Color palettes, UI accents & toast position' },
     { id: 'typography' as const, label: 'Typography & Density', icon: <Type size={16} />, desc: 'Fonts, font scaling & graph row density' },
     { id: 'profiles' as const, label: 'Commit Profiles & GPG', icon: <User size={16} />, desc: 'Git credentials, signing keys & identities' },
-    { id: 'ai' as const, label: 'AI Commit Assistant', icon: <Sparkles size={16} />, desc: 'Free LLM models, custom prompts & APIs' },
+    { id: 'ai' as const, label: 'AI Assistant', icon: <Sparkles size={16} />, desc: 'Code reviews, commit messages & providers' },
     { id: 'git' as const, label: 'Git & Synchronization', icon: <RefreshCw size={16} />, desc: 'Auto-fetch, focus sync & remotes' },
     { id: 'shortcuts' as const, label: 'Keyboard Shortcuts', icon: <Command size={16} />, desc: 'Hotkeys, quick actions & navigation' },
     { id: 'about' as const, label: 'About & Information', icon: <Info size={16} />, desc: 'StrataGit version, build & usage tour' },
@@ -978,9 +978,9 @@ export function SettingsPage() {
             {activeTab === 'ai' && (
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-base font-bold text-fg">AI Commit Assistant</h2>
+                  <h2 className="text-base font-bold text-fg">AI Assistant</h2>
                   <p className="text-xs text-dim mt-0.5">
-                    Generate descriptive conventional commit messages from staged diffs with zero-cost AI models.
+                    Configure the provider used for commit messages and code reviews.
                   </p>
                 </div>
 
@@ -989,7 +989,7 @@ export function SettingsPage() {
                   <div>
                     <span className="text-xs font-semibold text-fg block">Model Provider</span>
                     <span className="text-[11px] text-dim">
-                      Choose between free cloud endpoints or your local offline models
+                      Choose a hosted provider or a local Ollama model
                     </span>
                   </div>
 
@@ -999,13 +999,13 @@ export function SettingsPage() {
                         id: 'local' as const,
                         name: 'Smart Rule-Based',
                         badge: 'Zero AI / Instant Offline',
-                        desc: 'Intelligent diff code inspection'
+                        desc: 'Offline commit messages; no AI review'
                       },
                       {
                         id: 'pollinations' as const,
                         name: 'Pollinations.ai',
-                        badge: '100% Free / No Key',
-                        desc: 'Zero-config free cloud models'
+                        badge: 'API Key Required',
+                        desc: 'Get your key at enter.pollinations.ai'
                       },
                       {
                         id: 'openrouter' as const,
@@ -1023,7 +1023,7 @@ export function SettingsPage() {
                         id: 'gemini' as const,
                         name: 'Google Gemini',
                         badge: 'Free Tier',
-                        desc: 'Gemini 2.0 Flash experimental'
+                        desc: 'Google hosted models'
                       },
                       {
                         id: 'ollama' as const,
@@ -1045,12 +1045,12 @@ export function SettingsPage() {
                           onClick={() => {
                             let defaultModel = aiCommit.model;
                             if (p.id === 'local') defaultModel = 'heuristic';
-                            else if (p.id === 'pollinations') defaultModel = 'openai-fast';
-                            else if (p.id === 'openrouter') defaultModel = 'google/gemini-2.0-flash-exp:free';
+                            else if (p.id === 'pollinations') defaultModel = 'openai';
+                            else if (p.id === 'openrouter') defaultModel = 'openrouter/free';
                             else if (p.id === 'groq') defaultModel = 'llama-3.3-70b-versatile';
-                            else if (p.id === 'gemini') defaultModel = 'gemini-2.0-flash-exp';
+                            else if (p.id === 'gemini') defaultModel = 'gemini-2.5-flash';
                             else if (p.id === 'ollama') defaultModel = 'qwen2.5-coder:7b';
-                            setAiCommit({ provider: p.id, model: defaultModel });
+                            setAiCommit({ provider: p.id, model: defaultModel, endpoint: p.id === 'ollama' ? 'http://127.0.0.1:11434/v1' : '' });
                           }}
                           className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                             isSelected
@@ -1086,7 +1086,7 @@ export function SettingsPage() {
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-fg block mb-1">API Key (Optional for free providers)</label>
+                      <label className="text-xs font-semibold text-fg block mb-1">API Key (Required for hosted providers)</label>
                       <div className="relative">
                         <input
                           type={showApiKey ? 'text' : 'password'}
@@ -1112,7 +1112,7 @@ export function SettingsPage() {
                       type="text"
                       value={aiCommit.endpoint || ''}
                       onChange={(e) => setAiCommit({ endpoint: e.target.value })}
-                      placeholder="e.g. https://text.pollinations.ai/ or http://localhost:11434/api/generate"
+                      placeholder="e.g. http://localhost:11434/v1 or https://your-provider/v1"
                       className="w-full text-xs font-mono bg-panel border border-edge rounded-lg px-3 py-1.5"
                     />
                   </div>

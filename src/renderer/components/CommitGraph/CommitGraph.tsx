@@ -827,16 +827,24 @@ export function CommitGraph() {
       label: 'Mark as Bad commit for Bisect',
       icon: <XCircle size={13} />,
       onClick: () => {
-        void api.startBisect(commit.hash);
-        openBisectModal();
+        void (async () => {
+          const res = await api.startBisect(commit.hash);
+          if (!res.ok) { notify('error', res.error || 'Failed to update bisect'); return; }
+          await useApp.getState().refresh();
+          openBisectModal();
+        })().catch(err => notify('error', String(err)));
       }
     },
     {
       label: 'Mark as Good commit for Bisect',
       icon: <Check size={13} />,
       onClick: () => {
-        void api.startBisect(undefined, commit.hash);
-        openBisectModal();
+        void (async () => {
+          const res = await api.startBisect(undefined, commit.hash);
+          if (!res.ok) { notify('error', res.error || 'Failed to update bisect'); return; }
+          await useApp.getState().refresh();
+          openBisectModal();
+        })().catch(err => notify('error', String(err)));
       }
     }
   ];

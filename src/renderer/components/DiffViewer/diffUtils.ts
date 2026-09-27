@@ -58,12 +58,14 @@ export function computeInlineDiff(
 export interface SplitRow {
   hunkLineIndex: number; // 0-based index within hunk lines
   left?: {
+    hunkLineIndex: number;
     lineNo: number | null;
     content: string;
     kind: 'del' | 'context';
     inlineParts?: InlineDiffPart[];
   };
   right?: {
+    hunkLineIndex: number;
     lineNo: number | null;
     content: string;
     kind: 'add' | 'context';
@@ -83,8 +85,8 @@ export function alignHunkLinesForSplit(hunk: DiffHunk): SplitRow[] {
     if (line.kind === 'context') {
       rows.push({
         hunkLineIndex: i,
-        left: { lineNo: line.oldNo, content: line.content, kind: 'context' },
-        right: { lineNo: line.newNo, content: line.content, kind: 'context' }
+        left: { hunkLineIndex: i, lineNo: line.oldNo, content: line.content, kind: 'context' },
+        right: { hunkLineIndex: i, lineNo: line.newNo, content: line.content, kind: 'context' }
       });
       i++;
     } else {
@@ -119,6 +121,7 @@ export function alignHunkLinesForSplit(hunk: DiffHunk): SplitRow[] {
           hunkLineIndex: delItem ? delItem.index : addItem ? addItem.index : i - 1,
           left: delItem
             ? {
+                hunkLineIndex: delItem.index,
                 lineNo: delItem.line.oldNo,
                 content: delItem.line.content,
                 kind: 'del',
@@ -127,6 +130,7 @@ export function alignHunkLinesForSplit(hunk: DiffHunk): SplitRow[] {
             : undefined,
           right: addItem
             ? {
+                hunkLineIndex: addItem.index,
                 lineNo: addItem.line.newNo,
                 content: addItem.line.content,
                 kind: 'add',

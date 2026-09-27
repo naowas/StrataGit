@@ -23,6 +23,8 @@ export function HunkHeader({
 
   if (!openDiff) return null;
 
+  if (openDiff.compareCommits || openDiff.stashIndex !== undefined) return <div className="px-3 py-1.5 text-xs text-dim font-mono bg-panel2">{hunk.header}</div>;
+
   const isCommitted = openDiff.commitHash !== null;
   const isStaged = openDiff.staged === true;
   const isUnstaged = !isCommitted && !isStaged;

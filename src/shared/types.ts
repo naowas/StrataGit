@@ -175,6 +175,9 @@ export interface MergeSimulationResult {
 
 export interface BisectState {
   active: boolean;
+  needsGood?: boolean;
+  needsBad?: boolean;
+  ambiguousCommits?: string[];
   currentCommit?: {
     hash: string;
     shortHash: string;
@@ -432,7 +435,7 @@ export interface StrataGitApi {
   getStashFileDiff(index: number, filePath: string): Promise<FileDiff | null>;
   applyStashFile(index: number, filePath: string): Promise<{ ok: boolean; error?: string }>;
   simulateMerge(targetBranch: string): Promise<MergeSimulationResult>;
-  explainChanges(params: { diffText?: string; commitHash?: string }): Promise<{ ok: boolean; explanation?: string; error?: string }>;
+  explainChanges(params: { diffText?: string; commitHash?: string; config?: Partial<AiCommitConfig> }): Promise<{ ok: boolean; explanation?: string; error?: string }>;
   startBisect(badCommit?: string, goodCommit?: string): Promise<{ ok: boolean; state?: BisectState; error?: string }>;
   stepBisect(verdict: 'good' | 'bad' | 'skip'): Promise<{ ok: boolean; state?: BisectState; error?: string }>;
   resetBisect(): Promise<{ ok: boolean; error?: string }>;

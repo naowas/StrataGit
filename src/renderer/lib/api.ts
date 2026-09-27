@@ -386,10 +386,7 @@ const createMockApi = (): Api & StrataGitApi => {
       message: `Merge with ${targetBranch} can be performed cleanly without conflicts.`
     }),
 
-    explainChanges: async () => ({
-      ok: true,
-      explanation: `### 🎯 Change Summary\nThis commit updates state management and adds UI controls.\n\n### 🔑 Key Changes\n- Integrated compare commits workflow.\n- Added visual bisect controls.\n- Enhanced stash file inspector.`
-    }),
+    explainChanges: async () => ({ ok: false, error: 'AI review requires the desktop app and a configured AI provider.' }),
 
     startBisect: async () => ({
       ok: true,
@@ -532,6 +529,9 @@ export const api: Api & StrataGitApi = new Proxy({} as Api & StrataGitApi, {
     }
     if (rawWindowApi && prop in rawWindowApi) {
       return (rawWindowApi as any)[prop];
+    }
+    if (rawWindowApi) {
+      return () => Promise.reject(new Error(`Desktop API ${prop} is unavailable. Restart the updated app.`));
     }
     if (prop in fallbackMockApi) {
       const val = (fallbackMockApi as any)[prop];

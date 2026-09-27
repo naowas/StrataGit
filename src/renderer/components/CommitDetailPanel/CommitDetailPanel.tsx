@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   Pencil,
   Plus,
@@ -808,6 +808,9 @@ export function CommitDetailPanel() {
   const isWip = selectedCommit === WIP_HASH;
   const [panelWidth, setPanelWidth] = useState(380);
 
+  const aiConfig = useSettings(s => s.aiCommit);
+  const explanationRequest = useRef(0);
+
   // AI Explain state
   const [explaining, setExplaining] = useState(false);
   const [aiExplanation, setAiExplanation] = useState<string | null>(null);
@@ -815,29 +818,34 @@ export function CommitDetailPanel() {
   const [explainError, setExplainError] = useState<string | null>(null);
 
   useEffect(() => {
+    explanationRequest.current++;
+    setExplaining(false);
     setAiExplanation(null);
     setExplainOpen(false);
     setExplainError(null);
-  }, [selectedCommit, compareCommits]);
+  }, [selectedCommit, compareCommits, aiConfig]);
 
   const handleExplainChanges = async () => {
     setExplainOpen(true);
-    if (aiExplanation) return;
+    if (aiExplanation || explaining) return;
+    const request = ++explanationRequest.current;
     setExplaining(true);
     setExplainError(null);
     try {
       const res = await api.explainChanges({
-        commitHash: selectedCommit && selectedCommit !== WIP_HASH ? selectedCommit : undefined
+        commitHash: selectedCommit && selectedCommit !== WIP_HASH ? selectedCommit : undefined,
+        config: aiConfig
       });
+      if (request !== explanationRequest.current) return;
       if (res.ok && res.explanation) {
         setAiExplanation(res.explanation);
       } else {
         setExplainError(res.error || 'Failed to explain changes');
       }
     } catch (err) {
-      setExplainError(String(err));
+      if (request === explanationRequest.current) setExplainError(String(err));
     } finally {
-      setExplaining(false);
+      if (request === explanationRequest.current) setExplaining(false);
     }
   };
 
@@ -1033,7 +1041,7 @@ export function CommitDetailPanel() {
                 <span>Analyzing commit diff and generating review...</span>
               </div>
             ) : explainError ? (
-              <div className="text-del py-1">{explainError}</div>
+              <div className="text-del py-1">{explainError}<button className="btn ml-2" onClick={handleExplainChanges}>Retry</button></div>
             ) : (
               <div className="prose prose-invert prose-xs max-w-none text-fg/90 whitespace-pre-wrap font-sans leading-relaxed text-[11px] selectable">
                 {aiExplanation}
