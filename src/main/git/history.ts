@@ -48,9 +48,11 @@ async function interactiveRebase(
   }
 }
 
-/** Checkout a commit as detached HEAD. */
+/** Checkout a commit as detached HEAD. Always uses --detach so that checking
+ *  out a commit whose hash matches a branch tip (e.g. HEAD of main/master) still
+ *  produces a detached HEAD rather than silently switching to that branch. */
 export async function checkoutCommit(repoPath: string, hash: string): Promise<void> {
-  await withGit(repoPath, (git) => git.checkout(hash));
+  await withGit(repoPath, (git) => git.raw(['checkout', '--detach', hash]));
 }
 
 /** Create a branch pointing at an arbitrary commit. */

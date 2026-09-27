@@ -617,8 +617,18 @@ export function CommitGraph() {
       onClick: () => void runAndRefresh(() => api.push(), 'Push complete')
     },
     { label: '', divider: true },
+    // If this commit is the tip of one or more local branches, show a per-branch
+    // checkout item (switches the working tree to that branch, not detached HEAD).
+    ...commit.refs
+      .filter((r) => !r.isRemote && r.kind === 'branch')
+      .map((r) => ({
+        label: `Checkout ${r.label}`,
+        icon: <GitBranch size={13} />,
+        onClick: () =>
+          void runAndRefresh(() => api.checkoutBranch(r.label), `Checked out ${r.label}`)
+      })),
     {
-      label: 'Checkout',
+      label: 'Checkout as detached HEAD',
       icon: <GitBranch size={13} />,
       onClick: () =>
         void runAndRefresh(() => api.checkoutCommit(commit.hash), `Checked out ${commit.shortHash} (detached HEAD)`)
