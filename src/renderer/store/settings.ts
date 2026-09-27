@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { CommitProfile, AiCommitConfig } from '../../shared/types';
 
 export type ThemeId =
   | 'stratagit-dark'
@@ -385,6 +386,16 @@ export interface SettingsState {
   autoFetch: boolean;
   autoFetchInterval: number; // in seconds
 
+  // Commit Profile
+  defaultAuthorName: string;
+  defaultAuthorEmail: string;
+  signingKey: string;
+  commitProfiles: CommitProfile[];
+  activeProfileId: string;
+
+  // AI Commit Assistant
+  aiCommit: AiCommitConfig;
+
   openSettings: () => void;
   closeSettings: () => void;
   setTheme: (theme: ThemeId) => void;
@@ -397,6 +408,12 @@ export interface SettingsState {
   setGraphRowHeight: (height: number) => void;
   setAutoFetch: (enabled: boolean) => void;
   setAutoFetchInterval: (seconds: number) => void;
+  setDefaultAuthorName: (name: string) => void;
+  setDefaultAuthorEmail: (email: string) => void;
+  setSigningKey: (key: string) => void;
+  setCommitProfiles: (profiles: CommitProfile[]) => void;
+  setActiveProfileId: (id: string) => void;
+  setAiCommit: (config: Partial<AiCommitConfig>) => void;
   resetDefaults: () => void;
 }
 
@@ -413,7 +430,24 @@ const DEFAULT_SETTINGS = {
   customCodeFont: '',
   graphRowHeight: 26,
   autoFetch: true,
-  autoFetchInterval: 60
+  autoFetchInterval: 60,
+
+  defaultAuthorName: '',
+  defaultAuthorEmail: '',
+  signingKey: '',
+  commitProfiles: [
+    { id: 'default', name: 'Personal / Default', authorName: '', authorEmail: '', signingKey: '' },
+    { id: 'work', name: 'Work', authorName: '', authorEmail: '', signingKey: '' }
+  ] as CommitProfile[],
+  activeProfileId: 'default',
+
+  aiCommit: {
+    provider: 'pollinations' as const,
+    model: 'openai-fast',
+    apiKey: '',
+    endpoint: 'https://text.pollinations.ai/',
+    promptStyle: 'conventional' as const
+  } as AiCommitConfig
 };
 
 function loadStoredSettings() {
@@ -575,6 +609,37 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setAutoFetchInterval: (autoFetchInterval: number) => {
     set({ autoFetchInterval });
     saveSettings({ autoFetchInterval });
+  },
+
+  setDefaultAuthorName: (defaultAuthorName: string) => {
+    set({ defaultAuthorName });
+    saveSettings({ defaultAuthorName });
+  },
+
+  setDefaultAuthorEmail: (defaultAuthorEmail: string) => {
+    set({ defaultAuthorEmail });
+    saveSettings({ defaultAuthorEmail });
+  },
+
+  setSigningKey: (signingKey: string) => {
+    set({ signingKey });
+    saveSettings({ signingKey });
+  },
+
+  setCommitProfiles: (commitProfiles: CommitProfile[]) => {
+    set({ commitProfiles });
+    saveSettings({ commitProfiles });
+  },
+
+  setActiveProfileId: (activeProfileId: string) => {
+    set({ activeProfileId });
+    saveSettings({ activeProfileId });
+  },
+
+  setAiCommit: (patch: Partial<AiCommitConfig>) => {
+    const aiCommit = { ...get().aiCommit, ...patch };
+    set({ aiCommit });
+    saveSettings({ aiCommit });
   },
 
   resetDefaults: () => {

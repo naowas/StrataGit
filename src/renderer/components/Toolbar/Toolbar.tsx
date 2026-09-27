@@ -12,6 +12,7 @@ import {
   Search,
   ChevronDown,
   FolderOpen,
+  FolderPlus,
   GitMerge,
   History,
   Settings,
@@ -183,6 +184,14 @@ export function Toolbar() {
                 onClick={() => {
                   close();
                   void openRepoDialog();
+                }}
+              />
+              <MenuItem
+                icon={<FolderPlus size={14} className="text-accent" />}
+                label="Create New Repository…"
+                onClick={() => {
+                  close();
+                  useApp.getState().openCreateRepoModal();
                 }}
               />
               <MenuDivider />

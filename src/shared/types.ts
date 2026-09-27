@@ -223,20 +223,50 @@ export interface RebaseStep {
   author: string;
 }
 
+export interface InitRepoOptions {
+  path: string;
+  initialBranch?: string;
+  createReadme?: boolean;
+  gitignoreTemplate?: string;
+  initialCommitMessage?: string;
+}
+
+export interface CommitProfile {
+  id: string;
+  name: string;
+  authorName: string;
+  authorEmail: string;
+  signingKey?: string;
+}
+
+export interface AiCommitConfig {
+  provider: 'local' | 'pollinations' | 'openrouter' | 'groq' | 'gemini' | 'ollama' | 'custom';
+  model: string;
+  apiKey: string;
+  endpoint: string;
+  promptStyle: 'conventional' | 'simple' | 'detailed' | 'gitmoji';
+}
+
 export type DiffViewMode = 'unified' | 'split';
 export type DiffActiveTab = 'diff' | 'blame' | 'history';
 
 // IPC API exposed via contextBridge
 export interface StrataGitApi {
   openRepo(path: string): Promise<{ ok: boolean; repo?: RepoSummary; error?: string }>;
+  initRepo(opts: InitRepoOptions): Promise<{ ok: boolean; repo?: RepoSummary; error?: string }>;
+  selectDirectory(title?: string): Promise<{ ok: boolean; path?: string; error?: string }>;
   recentRepos(): Promise<string[]>;
   removeRecentRepo(path: string): Promise<void>;
+  getGitConfig(scope?: 'local' | 'global'): Promise<{ name: string; email: string }>;
+  setGitConfig(config: { name?: string; email?: string; scope?: 'local' | 'global' }): Promise<{ ok: boolean; error?: string }>;
   getStatus(): Promise<GitStatus | null>;
   getLog(limit?: number): Promise<GraphResult>;
   getBranches(): Promise<{ local: BranchInfo[]; remote: BranchInfo[] }>;
   getStashes(): Promise<StashInfo[]>;
   getCommitDetail(hash: string): Promise<CommitDetail | null>;
   getFileDiff(hash: string, filePath: string, opts?: { staged?: boolean; worktree?: boolean }): Promise<FileDiff | null>;
+  getStagedDiff(): Promise<{ ok: boolean; diff: string; error?: string }>;
+  generateAiCommitMessage(params?: Partial<AiCommitConfig>): Promise<{ ok: boolean; message?: string; error?: string }>;
   stageFiles(paths: string[]): Promise<GitStatus>;
   unstageFiles(paths: string[]): Promise<GitStatus>;
   stageAll(): Promise<GitStatus>;
@@ -248,7 +278,7 @@ export interface StrataGitApi {
   stageLines(filePath: string, hunkIndex: number, lineIndices: number[]): Promise<{ ok: boolean; error?: string }>;
   unstageLines(filePath: string, hunkIndex: number, lineIndices: number[]): Promise<{ ok: boolean; error?: string }>;
   discardLines(filePath: string, hunkIndex: number, lineIndices: number[]): Promise<{ ok: boolean; error?: string }>;
-  commit(message: string): Promise<{ ok: boolean; error?: string }>;
+  commit(message: string, author?: { name: string; email: string }): Promise<{ ok: boolean; error?: string }>;
   pull(): Promise<{ ok: boolean; error?: string }>;
   push(): Promise<{ ok: boolean; error?: string }>;
   fetch(remote?: string): Promise<{ ok: boolean; error?: string }>;

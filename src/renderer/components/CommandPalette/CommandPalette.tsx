@@ -16,6 +16,8 @@ import {
   Globe,
   Boxes,
   Keyboard,
+  FolderPlus,
+  FolderOpen,
   X
 } from 'lucide-react';
 import { useApp } from '../../store';
@@ -73,6 +75,8 @@ export function CommandPalette() {
   const toggleTerminalDrawer = useApp((s) => s.toggleTerminalDrawer);
   const openCreateTagModal = useApp((s) => s.openCreateTagModal);
   const openAddRemoteModal = useApp((s) => s.openAddRemoteModal);
+  const openCreateRepoModal = useApp((s) => s.openCreateRepoModal);
+  const openRepoDialog = useApp((s) => s.openRepoDialog);
   const toggleShortcutsModal = useApp((s) => s.toggleShortcutsModal);
   const refresh = useApp((s) => s.refresh);
 
@@ -136,6 +140,22 @@ export function CommandPalette() {
         subtitle: 'Apply stash #0 and remove it from list',
         icon: <Archive size={14} className="text-amber-300" />,
         action: () => runAndRefresh(() => api.stashPop(0), 'Popped stash #0')
+      },
+      {
+        id: 'cmd-create-repo',
+        category: 'Commands',
+        title: 'Create / Initialize Repository…',
+        subtitle: 'Initialize a new Git repository in a folder',
+        icon: <FolderPlus size={14} className="text-accent" />,
+        action: () => openCreateRepoModal()
+      },
+      {
+        id: 'cmd-open-repo',
+        category: 'Commands',
+        title: 'Open Repository…',
+        subtitle: 'Select and open an existing Git repository folder',
+        icon: <FolderOpen size={14} className="text-accent" />,
+        action: () => void openRepoDialog()
       },
       {
         id: 'cmd-create-tag',

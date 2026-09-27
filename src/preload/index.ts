@@ -6,8 +6,12 @@ const call = <T>(channel: string, ...args: unknown[]): Promise<T> =>
 export type Api = {
   openRepo(path: string): Promise<{ ok: boolean; repo?: { path: string; name: string }; error?: string }>;
   openRepoDialog(): Promise<{ ok: boolean; repo?: { path: string; name: string }; error?: string }>;
+  initRepo(opts: import('../shared/types').InitRepoOptions): Promise<{ ok: boolean; repo?: { path: string; name: string }; error?: string }>;
+  selectDirectory(title?: string): Promise<{ ok: boolean; path?: string; error?: string }>;
   recentRepos(): Promise<string[]>;
   removeRecentRepo(path: string): Promise<void>;
+  getGitConfig(scope?: 'local' | 'global'): Promise<{ name: string; email: string }>;
+  setGitConfig(config: { name?: string; email?: string; scope?: 'local' | 'global' }): Promise<{ ok: boolean; error?: string }>;
   getStatus(): Promise<import('../shared/types').GitStatus>;
   getLog(limit?: number): Promise<import('../shared/types').GraphResult>;
   getBranches(): Promise<{ local: import('../shared/types').BranchInfo[]; remote: import('../shared/types').BranchInfo[] }>;
@@ -18,12 +22,14 @@ export type Api = {
     filePath: string,
     opts?: { staged?: boolean; worktree?: boolean }
   ): Promise<import('../shared/types').FileDiff | null>;
+  getStagedDiff(): Promise<{ ok: boolean; diff: string; error?: string }>;
+  generateAiCommitMessage(params?: Partial<import('../shared/types').AiCommitConfig>): Promise<{ ok: boolean; message?: string; error?: string }>;
   stageFiles(paths: string[]): Promise<unknown>;
   unstageFiles(paths: string[]): Promise<unknown>;
   stageAll(): Promise<unknown>;
   unstageAll(): Promise<unknown>;
   discardFile(path: string): Promise<unknown>;
-  commit(message: string): Promise<{ ok: boolean }>;
+  commit(message: string, author?: { name: string; email: string }): Promise<{ ok: boolean }>;
   pull(): Promise<{ ok: boolean }>;
   push(): Promise<{ ok: boolean }>;
   fetch(remote?: string): Promise<{ ok: boolean }>;
@@ -94,20 +100,26 @@ export type Api = {
 const api: Api = {
   openRepo: (path) => call('repo:open-path', path),
   openRepoDialog: () => call('repo:open-dialog'),
+  initRepo: (opts) => call('repo:init', opts),
+  selectDirectory: (title) => call('repo:select-directory', title),
   recentRepos: () => call('repo:recent'),
   removeRecentRepo: (path) => call('repo:remove-recent', path),
+  getGitConfig: (scope) => call('git:config-get', scope),
+  setGitConfig: (config) => call('git:config-set', config),
   getStatus: () => call('git:status'),
   getLog: (limit) => call('git:log', limit),
   getBranches: () => call('git:branches'),
   getStashes: () => call('git:stashes'),
   getCommitDetail: (hash) => call('git:commit-detail', hash),
   getFileDiff: (hash, filePath, opts) => call('git:file-diff', hash, filePath, opts),
+  getStagedDiff: () => call('git:staged-diff'),
+  generateAiCommitMessage: (params) => call('ai:generate-commit', params),
   stageFiles: (paths) => call('git:stage', paths),
   unstageFiles: (paths) => call('git:unstage', paths),
   stageAll: () => call('git:stage-all'),
   unstageAll: () => call('git:unstage-all'),
   discardFile: (path) => call('git:discard', path),
-  commit: (message) => call('git:commit', message),
+  commit: (message, author) => call('git:commit', message, author),
   pull: () => call('git:pull'),
   push: () => call('git:push'),
   fetch: (remote?: string) => call('git:fetch', remote) as Promise<{ ok: boolean }>,

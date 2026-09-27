@@ -57,6 +57,7 @@ interface AppState {
   rebaseModalBaseCommit: string | null;
   tagModalCommit: string | null;
   addRemoteModalOpen: boolean;
+  createRepoModalOpen: boolean;
   commandPaletteOpen: boolean;
   terminalDrawerOpen: boolean;
   terminalDrawerHeight: number;
@@ -93,6 +94,8 @@ interface AppActions {
   closeCreateTagModal(): void;
   openAddRemoteModal(): void;
   closeAddRemoteModal(): void;
+  openCreateRepoModal(): void;
+  closeCreateRepoModal(): void;
   openCommandPalette(): void;
   closeCommandPalette(): void;
   toggleCommandPalette(): void;
@@ -140,6 +143,7 @@ export const useApp = create<AppStore>((set, get) => ({
   rebaseModalBaseCommit: null,
   tagModalCommit: null,
   addRemoteModalOpen: false,
+  createRepoModalOpen: false,
   commandPaletteOpen: false,
   terminalDrawerOpen: false,
   terminalDrawerHeight: 220,
@@ -400,6 +404,14 @@ export const useApp = create<AppStore>((set, get) => ({
 
   closeAddRemoteModal() {
     set({ addRemoteModalOpen: false });
+  },
+
+  openCreateRepoModal() {
+    set({ createRepoModalOpen: true });
+  },
+
+  closeCreateRepoModal() {
+    set({ createRepoModalOpen: false });
   },
 
   openCommandPalette() {

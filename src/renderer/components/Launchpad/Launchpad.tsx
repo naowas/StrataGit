@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderGit2, FolderOpen, Settings } from 'lucide-react';
+import { FolderGit2, FolderOpen, FolderPlus, Settings } from 'lucide-react';
 import { useApp } from '../../store';
 import { useSettings } from '../../store/settings';
 import { api } from '../../lib/api';
@@ -9,6 +9,7 @@ export function Launchpad() {
   const recentRepos = useApp((s) => s.recentRepos);
   const openRepo = useApp((s) => s.openRepo);
   const openRepoDialog = useApp((s) => s.openRepoDialog);
+  const openCreateRepoModal = useApp((s) => s.openCreateRepoModal);
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-6 bg-base">
@@ -26,7 +27,13 @@ export function Launchpad() {
           className="flex items-center gap-2 rounded-md bg-accent hover:bg-accent-hover text-white px-4 py-2 text-sm font-medium transition-colors shadow-sm"
           onClick={() => void openRepoDialog()}
         >
-          <FolderOpen size={15} /> Open a Repository
+          <FolderOpen size={15} /> Open Repository
+        </button>
+        <button
+          className="btn border border-edge bg-panel2 px-4 py-2 text-sm font-medium text-fg hover:bg-panel3 flex items-center gap-2"
+          onClick={() => openCreateRepoModal()}
+        >
+          <FolderPlus size={15} className="text-accent" /> Create Repository
         </button>
         <button
           className="btn border border-edge bg-panel2 px-4 py-2 text-sm font-medium text-dim hover:text-fg hover:bg-panel3"

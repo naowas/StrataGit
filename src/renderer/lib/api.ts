@@ -1,5 +1,6 @@
 import type { Api } from '../../preload/index';
-import type { StrataGitApi } from '../../shared/types';
+import type { StrataGitApi, AiCommitConfig } from '../../shared/types';
+import { generateCommitMessage } from '../../shared/ai';
 
 // In browser preview environments where Electron preload is not injected,
 // provide realistic mock data so UI development, testing, and screenshots work seamlessly.
@@ -69,8 +70,14 @@ const createMockApi = (): Api & StrataGitApi => {
   const mock: Record<string, unknown> = {
     openRepo: async (p: string) => ({ ok: true, repo: { path: p, name: p.split('/').pop() || p } }),
     openRepoDialog: async () => ({ ok: true, repo: { path: activeRepo, name: 'stratagit' } }),
+    initRepo: async (opts: any) => ({ ok: true, repo: { path: opts.path, name: opts.path.split('/').pop() || opts.path } }),
+    selectDirectory: async () => ({ ok: true, path: '/home/user/project' }),
     recentRepos: async () => recent,
     removeRecentRepo: async () => ({ ok: true }),
+    getGitConfig: async () => ({ name: 'Jane Developer', email: 'jane@example.com' }),
+    setGitConfig: async () => ({ ok: true }),
+    getStagedDiff: async () => ({ ok: true, diff: 'diff --git a/file.ts b/file.ts\n+console.log("hello");' }),
+    generateAiCommitMessage: async () => ({ ok: true, message: 'feat: add new functionality' }),
     setActiveRepo: () => {},
 
     getStatus: async () => ({
@@ -196,7 +203,7 @@ const createMockApi = (): Api & StrataGitApi => {
     discardLines: async () => ({ ok: true }),
     revertHunk: async () => ({ ok: true }),
 
-    commit: async () => ({ ok: true }),
+    commit: async (_msg?: string, _author?: { name: string; email: string }) => ({ ok: true }),
     pull: async () => ({ ok: true }),
     push: async () => ({ ok: true }),
     fetch: async () => ({ ok: true }),
@@ -289,12 +296,101 @@ const createMockApi = (): Api & StrataGitApi => {
     restartApp: async () => true
   };
 
+  const clientGenerateAiCommitMessage = async (params?: Partial<AiCommitConfig>) => {
+    // 1. If IPC method is available on window.api, try it first
+    const raw = typeof window !== 'undefined' ? (window as unknown as { api?: Api & StrataGitApi }).api : undefined;
+    if (raw && typeof (raw as any).generateAiCommitMessage === 'function') {
+      try {
+        const res = await (raw as any).generateAiCommitMessage(params);
+        if (res && res.ok) return res;
+      } catch (err) {
+        console.warn('IPC ai:generate-commit failed, attempting client-side generation:', err);
+      }
+    }
+
+    // 2. Fetch staged diff directly
+    let diff = '';
+    try {
+      if (raw && typeof (raw as any).getStagedDiff === 'function') {
+        const res = await (raw as any).getStagedDiff();
+        if (res && res.ok && res.diff) diff = res.diff;
+      }
+    } catch {}
+
+    // 3. If no diff via getStagedDiff, reconstruct from staged files
+    if (!diff && raw && typeof (raw as any).getStatus === 'function') {
+      try {
+        const status = await (raw as any).getStatus();
+        if (status && status.staged && status.staged.length > 0) {
+          const chunks: string[] = [];
+          for (const f of status.staged.slice(0, 10)) {
+            try {
+              if (typeof (raw as any).getFileDiff === 'function') {
+                const fd = await (raw as any).getFileDiff('HEAD', f.path, { staged: true });
+                if (fd && fd.hunks && fd.hunks.length > 0) {
+                  chunks.push(
+                    `diff --git a/${f.path} b/${f.path}\n` +
+                      fd.hunks
+                        .map((h: any) =>
+                          h.lines
+                            .map((l: any) => (l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : ' ') + l.content)
+                            .join('\n')
+                        )
+                        .join('\n')
+                  );
+                  continue;
+                }
+              }
+            } catch {}
+            chunks.push(`diff --git a/${f.path} b/${f.path}\n+ [${f.status}] ${f.path}`);
+          }
+          diff = chunks.join('\n');
+        }
+      } catch {}
+    }
+
+    if (!diff) {
+      diff = 'diff --git a/project b/project\n+ update staged files';
+    }
+
+    // 4. Run generator (cloud free models or local rule-based fallback)
+    return generateCommitMessage({
+      ...params,
+      diff
+    });
+  };
+
+  mock.generateAiCommitMessage = clientGenerateAiCommitMessage;
+
   return mock as unknown as Api & StrataGitApi;
 };
 
-export const api = (typeof window !== 'undefined' && (window as unknown as { api?: Api & StrataGitApi }).api)
-  ? (window as unknown as { api: Api & StrataGitApi }).api
-  : createMockApi();
+const rawWindowApi = typeof window !== 'undefined' ? (window as unknown as { api?: Api & StrataGitApi }).api : undefined;
+const fallbackMockApi = createMockApi();
+
+// Resilient API object: delegates to native Electron preload window.api when available,
+// but automatically falls back to client implementation if any method is missing or not exposed.
+export const api: Api & StrataGitApi = new Proxy({} as Api & StrataGitApi, {
+  get(_target, prop: string) {
+    if (prop === 'generateAiCommitMessage') {
+      if (rawWindowApi && typeof (rawWindowApi as any).generateAiCommitMessage === 'function') {
+        return (rawWindowApi as any).generateAiCommitMessage.bind(rawWindowApi);
+      }
+      return fallbackMockApi.generateAiCommitMessage.bind(fallbackMockApi);
+    }
+    if (rawWindowApi && typeof (rawWindowApi as any)[prop] === 'function') {
+      return (rawWindowApi as any)[prop].bind(rawWindowApi);
+    }
+    if (rawWindowApi && prop in rawWindowApi) {
+      return (rawWindowApi as any)[prop];
+    }
+    if (prop in fallbackMockApi) {
+      const val = (fallbackMockApi as any)[prop];
+      return typeof val === 'function' ? val.bind(fallbackMockApi) : val;
+    }
+    return undefined;
+  }
+});
 
 /** Unwrap the {__error} envelope produced by main-process handlers. */
 export async function unwrap<T>(p: Promise<T>): Promise<T> {

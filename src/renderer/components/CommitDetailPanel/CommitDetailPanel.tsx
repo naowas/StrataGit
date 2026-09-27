@@ -17,10 +17,18 @@ import {
   Copy,
   Layers,
   Tag as TagIcon,
-  X
+  X,
+  Sparkles,
+  Zap,
+  Wand2,
+  User,
+  AlertCircle,
+  Sliders,
+  ChevronUp
 } from 'lucide-react';
 import { FileChange, FileStatusKind } from '../../../shared/types';
 import { useApp, WIP_HASH } from '../../store';
+import { useSettings } from '../../store/settings';
 import { Avatar } from '../ui/Avatar';
 import { Dropdown, MenuItem } from '../ui/Dropdown';
 import { api } from '../../lib/api';
@@ -62,6 +70,37 @@ function WorkdirPanel() {
   const runAndRefresh = useApp((s) => s.runAndRefresh);
   const [msg, setMsg] = useState('');
 
+  const {
+    defaultAuthorName,
+    defaultAuthorEmail,
+    commitProfiles,
+    activeProfileId,
+    setActiveProfileId,
+    aiCommit,
+    openSettings
+  } = useSettings();
+
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [generateMode, setGenerateMode] = useState<'smart' | 'ai'>('smart');
+  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const activeProfile = useMemo(() => {
+    return (
+      commitProfiles.find((p) => p.id === activeProfileId) || {
+        id: 'default',
+        name: 'Default Profile',
+        authorName: defaultAuthorName,
+        authorEmail: defaultAuthorEmail,
+        signingKey: ''
+      }
+    );
+  }, [commitProfiles, activeProfileId, defaultAuthorName, defaultAuthorEmail]);
+
+  const effectiveAuthorName = activeProfile.authorName || defaultAuthorName;
+  const effectiveAuthorEmail = activeProfile.authorEmail || defaultAuthorEmail;
+
   const stagedCounts = useMemo(() => {
     if (!status) return { modified: 0, added: 0, deleted: 0 };
     const modified = status.staged.filter((f) => f.status === 'modified' || f.status === 'renamed').length;
@@ -80,8 +119,41 @@ function WorkdirPanel() {
 
   const doCommit = async () => {
     if (!msg.trim()) return;
-    const ok = await runAndRefresh(() => api.commit(msg.trim()), 'Commit created');
+    const authorParam = effectiveAuthorName
+      ? { name: effectiveAuthorName, email: effectiveAuthorEmail }
+      : undefined;
+    const ok = await runAndRefresh(() => api.commit(msg.trim(), authorParam), 'Commit created');
     if (ok) setMsg('');
+  };
+
+  const handleGenerateCommitMessage = async (overrideMode?: 'smart' | 'ai') => {
+    const stagedCount = status?.staged.length ?? 0;
+    const unstagedCount = status?.unstaged.length ?? 0;
+    if (stagedCount === 0 && unstagedCount === 0) {
+      setAiError('No changes detected. Stage or modify files before generating a commit message.');
+      return;
+    }
+    const mode = overrideMode || generateMode;
+    setGeneratingAi(true);
+    setAiError(null);
+    try {
+      // If nothing staged yet, auto-stage all files for the user
+      if (stagedCount === 0 && unstagedCount > 0) {
+        await api.stageAll();
+        await runAndRefresh(() => Promise.resolve());
+      }
+      const config = mode === 'smart' ? { ...aiCommit, provider: 'local' as const } : aiCommit;
+      const res = await api.generateAiCommitMessage(config);
+      if (res.ok && res.message) {
+        setMsg(res.message);
+      } else {
+        setAiError(res.error || 'Failed to generate commit message');
+      }
+    } catch (err: any) {
+      setAiError(err.message || 'Generation failed');
+    } finally {
+      setGeneratingAi(false);
+    }
   };
 
   return (
@@ -231,25 +303,215 @@ function WorkdirPanel() {
       )}
 
       {/* Commit box */}
-      <div className="p-3 border-t border-edge mt-auto">
+      <div className="p-3 border-t border-edge mt-auto space-y-2 bg-panel2/30">
+        {/* Profile and AI Action Header */}
+        <div className="flex items-center justify-between gap-1 relative">
+          {/* Active Commit Profile Switcher */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+              className="flex items-center gap-1.5 px-2 py-1 rounded bg-panel2 hover:bg-panel3 border border-edge/80 text-[11px] text-fg transition-all"
+              title={`Commit Profile: ${activeProfile.name} (${effectiveAuthorName || 'Default Git Author'})`}
+            >
+              <User size={11} className="text-accent" />
+              <span className="font-medium max-w-[120px] truncate">{activeProfile.name}</span>
+              {profileDropdownOpen ? <ChevronUp size={11} className="text-dim" /> : <ChevronDown size={11} className="text-dim" />}
+            </button>
+
+            {/* Profile Dropdown */}
+            {profileDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setProfileDropdownOpen(false)}
+                />
+                <div className="absolute left-0 bottom-full mb-1 z-50 w-64 rounded-lg border border-edge bg-panel shadow-2xl p-1 text-xs space-y-1 animate-in fade-in">
+                  <div className="px-2 py-1 text-[10px] font-semibold text-dim uppercase tracking-wider border-b border-edge/60">
+                    Switch Commit Profile
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-0.5">
+                    {commitProfiles.map((p) => {
+                      const isCur = p.id === activeProfileId;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveProfileId(p.id);
+                            setProfileDropdownOpen(false);
+                          }}
+                          className={`flex items-start gap-2 w-full text-left px-2 py-1.5 rounded transition-all ${
+                            isCur ? 'bg-accent/15 text-accent font-semibold' : 'text-fg/90 hover:bg-panel2'
+                          }`}
+                        >
+                          <div className="w-3.5 h-3.5 mt-0.5 rounded-full border border-edge flex items-center justify-center shrink-0">
+                            {isCur && <span className="w-2 h-2 rounded-full bg-accent" />}
+                          </div>
+                          <div className="truncate flex-1">
+                            <div className="text-xs truncate">{p.name}</div>
+                            <div className="text-[10px] text-dim font-mono truncate">
+                              {p.authorName || defaultAuthorName || 'Default'}{' '}
+                              &lt;{p.authorEmail || defaultAuthorEmail || 'no-email'}&gt;
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="pt-1 border-t border-edge/60">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        openSettings();
+                      }}
+                      className="flex items-center gap-1.5 w-full text-left px-2 py-1 text-[11px] text-dim hover:text-fg hover:bg-panel2 rounded"
+                    >
+                      <Sliders size={11} />
+                      <span>Manage Profiles &amp; Signing...</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Commit Message Generator Action Group */}
+          <div className="flex items-center rounded border border-edge/80 bg-panel2 p-0.5 shadow-xs">
+            <button
+              type="button"
+              disabled={generatingAi || ((status?.staged.length ?? 0) === 0 && (status?.unstaged.length ?? 0) === 0)}
+              onClick={() => void handleGenerateCommitMessage()}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-medium transition-all ${
+                ((status?.staged.length ?? 0) > 0 || (status?.unstaged.length ?? 0) > 0) && !generatingAi
+                  ? 'hover:bg-accent/20 text-accent cursor-pointer active:scale-95'
+                  : 'text-dim/50 cursor-not-allowed'
+              }`}
+              title={
+                ((status?.staged.length ?? 0) === 0 && (status?.unstaged.length ?? 0) === 0)
+                  ? 'No changes detected to generate commit message'
+                  : generateMode === 'smart'
+                  ? 'Generate conventional commit message using smart diff inspection (Fast, local & offline, no AI)'
+                  : `Generate commit message using ${aiCommit.provider} AI model`
+              }
+            >
+              {generatingAi ? (
+                <>
+                  <Loader2 size={12} className="animate-spin text-accent" />
+                  <span>Generating…</span>
+                </>
+              ) : generateMode === 'smart' ? (
+                <>
+                  <Zap size={11} className="text-warn shrink-0" />
+                  <span>Generate Message</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={11} className="text-accent shrink-0" />
+                  <span>Generate (AI)</span>
+                </>
+              )}
+            </button>
+
+            {/* Mode Selector Dropdown */}
+            <div className="relative border-l border-edge/60 pl-0.5">
+              <button
+                type="button"
+                onClick={() => setModeDropdownOpen(!modeDropdownOpen)}
+                className="p-1 rounded text-dim hover:text-fg hover:bg-panel3"
+                title="Select generator mode: Smart Heuristic (No AI) or AI Model"
+              >
+                {modeDropdownOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+              </button>
+
+              {modeDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setModeDropdownOpen(false)} />
+                  <div className="absolute right-0 bottom-full mb-1 z-50 w-56 rounded-lg border border-edge bg-panel shadow-2xl p-1 text-xs space-y-1 animate-in fade-in">
+                    <div className="px-2 py-1 text-[10px] font-semibold text-dim uppercase tracking-wider border-b border-edge/60">
+                      Message Generator
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGenerateMode('smart');
+                        setModeDropdownOpen(false);
+                      }}
+                      className={`flex items-start gap-2 w-full text-left px-2 py-1.5 rounded transition-all ${
+                        generateMode === 'smart' ? 'bg-accent/15 text-accent font-semibold' : 'text-fg/90 hover:bg-panel2'
+                      }`}
+                    >
+                      <Zap size={13} className="text-warn mt-0.5 shrink-0" />
+                      <div>
+                        <div className="text-xs">Smart Rule-Based (No AI)</div>
+                        <div className="text-[10px] text-dim">Instant offline conventional commit diff analysis</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGenerateMode('ai');
+                        setModeDropdownOpen(false);
+                      }}
+                      className={`flex items-start gap-2 w-full text-left px-2 py-1.5 rounded transition-all ${
+                        generateMode === 'ai' ? 'bg-accent/15 text-accent font-semibold' : 'text-fg/90 hover:bg-panel2'
+                      }`}
+                    >
+                      <Sparkles size={13} className="text-accent mt-0.5 shrink-0" />
+                      <div>
+                        <div className="text-xs">AI Model ({aiCommit.provider})</div>
+                        <div className="text-[10px] text-dim">Cloud/Ollama generative AI assistant</div>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* AI Error Alert */}
+        {aiError && (
+          <div className="flex items-center justify-between p-2 rounded bg-del-bg/30 border border-del/30 text-[11px] text-del animate-in fade-in">
+            <div className="flex items-center gap-1.5 truncate">
+              <AlertCircle size={12} className="shrink-0" />
+              <span className="truncate">{aiError}</span>
+            </div>
+            <button
+              type="button"
+              className="p-0.5 hover:bg-black/20 rounded shrink-0 ml-1"
+              onClick={() => setAiError(null)}
+            >
+              <X size={10} />
+            </button>
+          </div>
+        )}
+
         <textarea
           value={msg}
           onChange={(e) => setMsg(e.target.value)}
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') void doCommit();
           }}
-          placeholder="Commit message"
+          placeholder="Commit message (e.g. feat: add new feature)&#10;Press Ctrl+Enter to commit"
           rows={3}
-          className="w-full text-sm resize-none"
+          className="w-full text-xs font-mono resize-none rounded border border-edge bg-base/80 p-2 text-fg placeholder:text-dim/60 focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
         />
+
         <button
-          className="mt-2 w-full flex items-center justify-center gap-2 rounded bg-accent hover:bg-accent-hover text-white py-1.5 text-sm font-medium disabled:opacity-40"
+          className="w-full flex items-center justify-center gap-2 rounded bg-accent hover:bg-accent-hover text-white py-1.5 text-xs font-semibold disabled:opacity-40 shadow-sm transition-all active:scale-[0.99]"
           disabled={!msg.trim() || (status?.staged.length ?? 0) === 0}
           onClick={() => void doCommit()}
           title="Commit staged changes (Ctrl+Enter)"
         >
-          <MessageSquarePlus size={14} />
-          Commit {status?.staged.length ? `${status.staged.length} file${status.staged.length === 1 ? '' : 's'}` : ''}
+          <MessageSquarePlus size={13} />
+          <span>Commit {status?.staged.length ? `${status.staged.length} staged file${status.staged.length === 1 ? '' : 's'}` : ''}</span>
+          {activeProfile.signingKey && (
+            <span className="ml-1 text-[10px] bg-black/20 px-1 py-0.2 rounded font-normal text-white/90">
+              🔑 Signed
+            </span>
+          )}
         </button>
       </div>
     </div>

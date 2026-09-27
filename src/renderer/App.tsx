@@ -17,6 +17,7 @@ import { ConflictResolverModal } from './components/ConflictResolver/ConflictRes
 import { InteractiveRebaseModal } from './components/Rebase/InteractiveRebaseModal';
 import { CreateTagModal } from './components/Sidebar/CreateTagModal';
 import { AddRemoteModal } from './components/Sidebar/AddRemoteModal';
+import { CreateRepoModal } from './components/Repository/CreateRepoModal';
 import { CommandPalette } from './components/CommandPalette/CommandPalette';
 import { TerminalDrawer } from './components/TerminalDrawer/TerminalDrawer';
 import { ShortcutsModal } from './components/Help/ShortcutsModal';
@@ -171,6 +172,7 @@ export function App() {
       <InteractiveRebaseModal />
       <CreateTagModal />
       <AddRemoteModal />
+      <CreateRepoModal />
       <CommandPalette />
       <ShortcutsModal />
       <SettingsModal />

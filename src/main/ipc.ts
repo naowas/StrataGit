@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, exec } from 'node:child_process';
+import simpleGit from 'simple-git';
+import { generateCommitMessage } from './ai';
 import {
   StrataGitApi,
   GitStatus,
@@ -140,6 +142,82 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
     return openRepoPath(res.filePaths[0]);
   });
 
+  function getGitignoreTemplate(template?: string): string {
+    switch (template?.toLowerCase()) {
+      case 'node':
+        return `node_modules/\ndist/\nout/\n.env\n.env.local\n*.log\n.DS_Store\ncoverage/\n`;
+      case 'python':
+        return `__pycache__/\n*.py[cod]\n*$py.class\nvenv/\n.venv/\nenv/\n.env\n.pytest_cache/\n.DS_Store\n`;
+      case 'go':
+        return `/bin/\n/pkg/\n*.exe\n.env\n.DS_Store\n`;
+      case 'rust':
+        return `/target/\n**/*.rs.bk\nCargo.lock\n.env\n.DS_Store\n`;
+      case 'general':
+        return `.DS_Store\nThumbs.db\n.env\n*.log\nnode_modules/\n`;
+      default:
+        return `.DS_Store\nnode_modules/\n.env\n`;
+    }
+  }
+
+  handle('repo:select-directory', async (title?: string) => {
+    const win = getWin();
+    if (!win) return { ok: false, error: 'no window' };
+    const res = await dialog.showOpenDialog(win, {
+      title: title || 'Select Folder for Repository',
+      properties: ['openDirectory', 'createDirectory']
+    });
+    if (res.canceled || res.filePaths.length === 0) return { ok: false, error: 'canceled' };
+    return { ok: true, path: res.filePaths[0] };
+  });
+
+  handle('repo:init', async (opts: {
+    path: string;
+    initialBranch?: string;
+    createReadme?: boolean;
+    gitignoreTemplate?: string;
+    initialCommitMessage?: string;
+  }) => {
+    const targetDir = path.resolve(opts.path);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    const branch = opts.initialBranch?.trim() || 'main';
+    const git = simpleGit(targetDir);
+    try {
+      await git.init(['-b', branch]);
+    } catch {
+      await git.init();
+    }
+
+    if (opts.createReadme) {
+      const readmePath = path.join(targetDir, 'README.md');
+      if (!fs.existsSync(readmePath)) {
+        const repoName = path.basename(targetDir);
+        fs.writeFileSync(readmePath, `# ${repoName}\n\nInitialized with StrataGit.\n`, 'utf8');
+      }
+    }
+
+    if (opts.gitignoreTemplate && opts.gitignoreTemplate !== 'None') {
+      const gitignorePath = path.join(targetDir, '.gitignore');
+      if (!fs.existsSync(gitignorePath)) {
+        const tpl = getGitignoreTemplate(opts.gitignoreTemplate);
+        fs.writeFileSync(gitignorePath, tpl, 'utf8');
+      }
+    }
+
+    if (opts.createReadme || (opts.gitignoreTemplate && opts.gitignoreTemplate !== 'None')) {
+      const commitMsg = opts.initialCommitMessage?.trim() || 'Initial commit';
+      try {
+        await git.add('.');
+        await git.commit(commitMsg);
+      } catch {
+        // Continue even if initial commit failed
+      }
+    }
+
+    return openRepoPath(targetDir);
+  });
+
   handle('repo:open-path', async (p: string) => openRepoPath(p));
 
   async function openRepoPath(p: string) {
@@ -159,6 +237,37 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
     writeRecent(readRecent().filter((r) => r !== p));
   });
 
+  handle('git:config-get', async (scope?: 'local' | 'global') => {
+    let name = '';
+    let email = '';
+    try {
+      const repo = getRepo();
+      if (scope === 'local' && repo && isValidRepo(repo)) {
+        const g = simpleGit(repo);
+        name = (await g.getConfig('user.name', 'local')).value || '';
+        email = (await g.getConfig('user.email', 'local')).value || '';
+      } else {
+        const g = simpleGit();
+        name = (await g.getConfig('user.name', 'global')).value || '';
+        email = (await g.getConfig('user.email', 'global')).value || '';
+      }
+    } catch {}
+    return { name, email };
+  });
+
+  handle('git:config-set', async (cfg: { name?: string; email?: string; scope?: 'local' | 'global' }) => {
+    const scope = cfg.scope || 'global';
+    const repo = getRepo();
+    const g = scope === 'local' && repo && isValidRepo(repo) ? simpleGit(repo) : simpleGit();
+    if (cfg.name !== undefined) {
+      await g.addConfig('user.name', cfg.name, false, scope);
+    }
+    if (cfg.email !== undefined) {
+      await g.addConfig('user.email', cfg.email, false, scope);
+    }
+    return { ok: true };
+  });
+
   handle('git:status', async (): Promise<GitStatus> => getStatus(requireRepo()));
   handle('git:log', async (limit?: number): Promise<GraphResult> => {
     const repo = requireRepo();
@@ -175,6 +284,21 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
     async (hash: string, filePath: string, opts?: { staged?: boolean; worktree?: boolean }): Promise<FileDiff | null> =>
       getFileDiff(requireRepo(), hash, filePath, opts)
   );
+  handle('git:staged-diff', async () => {
+    const diff = await withGit(requireRepo(), (g) => g.diff(['--cached']));
+    return { ok: true, diff };
+  });
+
+  handle('ai:generate-commit', async (params?: any) => {
+    let diff = params?.diff;
+    if (!diff) {
+      diff = await withGit(requireRepo(), (g) => g.diff(['--cached'])).catch(() => '');
+      if (!diff || !diff.trim()) {
+        diff = await withGit(requireRepo(), (g) => g.diff()).catch(() => '');
+      }
+    }
+    return generateCommitMessage({ ...params, diff });
+  });
 
   const mutate = async (fn: () => Promise<unknown>) => {
     await fn();
@@ -192,8 +316,13 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
   handle('git:discard', async (p: string) =>
     mutate(() => withGit(requireRepo(), (g) => g.checkout(['--', p])))
   );
-  handle('git:commit', async (message: string) => {
-    await withGit(requireRepo(), (g) => g.commit(message));
+  handle('git:commit', async (message: string, author?: { name: string; email: string }) => {
+    await withGit(requireRepo(), (g) => {
+      if (author && author.name && author.email) {
+        return g.commit(message, undefined, { '--author': `"${author.name} <${author.email}>"` });
+      }
+      return g.commit(message);
+    });
     return { ok: true };
   });
 

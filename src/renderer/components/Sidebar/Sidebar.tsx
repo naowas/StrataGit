@@ -80,6 +80,7 @@ function BranchRow({
   tracking,
   remote,
   onClick,
+  onDoubleClick,
   onContextMenu
 }: {
   name: string;
@@ -87,16 +88,24 @@ function BranchRow({
   tracking?: string;
   remote?: boolean;
   onClick: () => void;
+  onDoubleClick?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   return (
     <button
-      className={`group flex w-full items-center gap-2 px-3 py-1 text-sm text-left hover:bg-panel2 select-none ${
+      className={`group flex w-full items-center gap-2 px-3 py-1 text-sm text-left hover:bg-panel2 select-none cursor-pointer ${
         current ? 'text-accent font-medium' : 'text-fg/90'
       }`}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
-      title={tracking ? `${name} → ${tracking} (Right click for actions)` : `${name} (Right click for actions)`}
+      title={
+        current
+          ? `${name} (Active Branch - click for options, right-click for actions)`
+          : tracking
+          ? `${name} → ${tracking} (Double-click to checkout, right-click for actions)`
+          : `${name} (Double-click to checkout, right-click for actions)`
+      }
     >
       <GitBranch
         size={12}
@@ -361,6 +370,7 @@ function SidebarFull({
   const openAddRemoteModal = useApp((s) => s.openAddRemoteModal);
   const openRepo = useApp((s) => s.openRepo);
   const selectCommit = useApp((s) => s.selectCommit);
+  const log = useApp((s) => s.log);
 
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -393,11 +403,14 @@ function SidebarFull({
 
     const items: ContextMenuItem[] = [
       {
-        label: `Checkout "${b.name}"`,
+        label: isCurrent ? `Checkout "${b.name}" (Active)` : `Checkout "${b.name}"`,
         icon: <GitBranch size={13} />,
-        disabled: isCurrent,
         onClick: () => {
-          void runAndRefresh(() => api.checkoutBranch(b.fullName), `Checked out ${b.name}`);
+          if (isCurrent) {
+            notify('info', `Branch "${b.name}" is already your active branch`);
+          } else {
+            void runAndRefresh(() => api.checkoutBranch(b.fullName), `Checked out ${b.name}`);
+          }
         }
       },
       {
@@ -890,16 +903,23 @@ function SidebarFull({
               current={b.isCurrent}
               tracking={b.tracking}
               onClick={() => {
+                const targetCommit = log?.commits?.find((c) =>
+                  c.refs?.some((r) => r.label === b.name || r.label === b.fullName)
+                );
+                if (targetCommit) void selectCommit(targetCommit.hash);
+                setCheckoutTarget({
+                  name: b.name,
+                  fullName: b.fullName,
+                  tracking: b.tracking,
+                  isRemote: false,
+                  branchObj: b
+                });
+              }}
+              onDoubleClick={() => {
                 if (b.isCurrent) {
-                  notify('info', `Branch "${b.name}" is already checked out (active branch)`);
-                } else if (activeTab) {
-                  setCheckoutTarget({
-                    name: b.name,
-                    fullName: b.fullName,
-                    tracking: b.tracking,
-                    isRemote: false,
-                    branchObj: b
-                  });
+                  notify('info', `Branch "${b.name}" is already checked out`);
+                } else {
+                  void runAndRefresh(() => api.checkoutBranch(b.fullName), `Checked out ${b.name}`);
                 }
               }}
               onContextMenu={(e) => handleLocalBranchContextMenu(e, b)}
@@ -924,25 +944,35 @@ function SidebarFull({
             </button>
           }
         >
-          {remoteBranches.map((b, i) => (
-            <BranchRow
-              key={`remote:${b.fullName}:${i}`}
-              name={b.fullName}
-              remote
-              onClick={() => {
-                if (activeTab) {
-                  const shortName = b.name.replace(/^remotes\/[^/]+\//, '').replace(/^[^/]+\//, '');
+          {remoteBranches.map((b, i) => {
+            const shortName = b.name.replace(/^remotes\/[^/]+\//, '').replace(/^[^/]+\//, '');
+            return (
+              <BranchRow
+                key={`remote:${b.fullName}:${i}`}
+                name={b.fullName}
+                remote
+                onClick={() => {
+                  const targetCommit = log?.commits?.find((c) =>
+                    c.refs?.some((r) => r.label === b.name || r.label === b.fullName || r.label.endsWith(shortName))
+                  );
+                  if (targetCommit) void selectCommit(targetCommit.hash);
                   setCheckoutTarget({
                     name: shortName,
                     fullName: b.fullName,
                     isRemote: true,
                     branchObj: b
                   });
-                }
-              }}
-              onContextMenu={(e) => handleRemoteBranchContextMenu(e, b)}
-            />
-          ))}
+                }}
+                onDoubleClick={() => {
+                  void runAndRefresh(
+                    () => api.checkoutBranch(b.name),
+                    `Checked out ${shortName}`
+                  );
+                }}
+                onContextMenu={(e) => handleRemoteBranchContextMenu(e, b)}
+              />
+            );
+          })}
         </Section>
 
         {/* TAGS */}
