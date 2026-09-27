@@ -26,7 +26,7 @@ import {
   Sliders,
   ChevronUp
 } from 'lucide-react';
-import { FileChange, FileStatusKind } from '../../../shared/types';
+import { FileChange, FileStatusKind, ComparisonResult, StashDetail } from '../../../shared/types';
 import { useApp, WIP_HASH } from '../../store';
 import { useSettings } from '../../store/settings';
 import { Avatar } from '../ui/Avatar';
@@ -619,27 +619,240 @@ function FileList({ files, commitHash }: { files: FileChange[]; commitHash: stri
   );
 }
 
+function ComparisonView({
+  result,
+  compareCommits,
+  onSwap,
+  onClose
+}: {
+  result: ComparisonResult;
+  compareCommits: [string, string];
+  onSwap: () => void;
+  onClose: () => void;
+}) {
+  const openFileDiff = useApp((s) => s.openFileDiff);
+  const openDiff = useApp((s) => s.openDiff);
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="p-3 border-b border-edge bg-panel2/30">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono">
+              DIFF
+            </span>
+            <span className="font-mono text-xs font-semibold text-fg">
+              {result.baseHash.slice(0, 7)} .. {result.targetHash.slice(0, 7)}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button className="btn text-xs !py-0.5 !px-2 hover:bg-cyan-900/40 border-cyan-700/40 text-cyan-300" onClick={onSwap} title="Swap base and target">
+              Swap
+            </button>
+            <button className="btn-icon !w-6 !h-6 hover:text-fg text-dim" onClick={onClose} title="Close comparison (Esc)">
+              <X size={13} />
+            </button>
+          </div>
+        </div>
+        <p className="mt-1.5 text-xs text-dim">
+          Comparing revision <code className="text-cyan-300 font-mono">{result.baseHash.slice(0, 7)}</code> with <code className="text-cyan-300 font-mono">{result.targetHash.slice(0, 7)}</code>
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3 px-3 py-1.5 border-b border-edge text-xs">
+        <span className="text-dim">{result.files.length} changed file{result.files.length === 1 ? '' : 's'}</span>
+        <span className="text-add font-mono">+{result.insertions}</span>
+        <span className="text-del font-mono">-{result.deletions}</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {result.files.map((file) => {
+          const active = openDiff?.filePath === file.path && openDiff?.compareCommits?.[0] === compareCommits[0] && openDiff?.compareCommits?.[1] === compareCommits[1];
+          return (
+            <button
+              key={file.path}
+              className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm text-left hover:bg-panel2 transition-colors border-b border-edge/20 ${
+                active ? 'bg-cyan-500/15 text-cyan-200 border-l-2 border-cyan-400 font-medium' : 'text-fg/90'
+              }`}
+              onClick={() => void openFileDiff({ commitHash: null, filePath: file.path, compareCommits, status: file.status })}
+              title={file.path}
+            >
+              <StatusIcon status={file.status} />
+              <span className="truncate font-mono text-xs flex-1">{file.path}</span>
+              {(file.insertions ?? 0) > 0 && <span className="text-add text-xs font-mono">+{file.insertions}</span>}
+              {(file.deletions ?? 0) > 0 && <span className="text-del text-xs font-mono">-{file.deletions}</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function StashInspectorView({
+  stash,
+  onClose
+}: {
+  stash: StashDetail;
+  onClose: () => void;
+}) {
+  const openFileDiff = useApp((s) => s.openFileDiff);
+  const openDiff = useApp((s) => s.openDiff);
+  const runAndRefresh = useApp((s) => s.runAndRefresh);
+
+  const handleApplyFile = async (e: React.MouseEvent, filePath: string) => {
+    e.stopPropagation();
+    await runAndRefresh(async () => {
+      const res = await api.applyStashFile(stash.index, filePath);
+      if (!res.ok) throw new Error(res.error || 'Failed to apply stash file');
+    }, `Restored ${filePath} from stash@{${stash.index}}`);
+  };
+
+  const handleApplyStash = async () => {
+    await runAndRefresh(async () => {
+      await api.stashApply(stash.index);
+    }, `Applied stash@{${stash.index}}`);
+  };
+
+  const handleDropStash = async () => {
+    if (!window.confirm(`Drop stash@{${stash.index}}? This action cannot be undone.`)) return;
+    await runAndRefresh(async () => {
+      await api.stashDrop(stash.index);
+      onClose();
+    }, `Dropped stash@{${stash.index}}`);
+  };
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="p-3 border-b border-edge bg-panel2/30">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40 font-mono">
+              STASH @{stash.index}
+            </span>
+            <span className="text-xs text-dim">{formatDate(stash.date)}</span>
+          </div>
+          <button className="btn-icon !w-6 !h-6 hover:text-fg text-dim" onClick={onClose} title="Close inspector">
+            <X size={13} />
+          </button>
+        </div>
+        <h3 className="mt-2 text-sm font-medium text-fg selectable">{stash.message}</h3>
+
+        <div className="flex items-center gap-2 mt-2.5">
+          <button className="btn text-xs !py-1 !px-2.5 bg-accent/20 hover:bg-accent/30 text-accent border-accent/40 font-medium" onClick={handleApplyStash}>
+            Apply Stash
+          </button>
+          <button className="btn text-xs !py-1 !px-2.5 hover:text-del hover:border-del/40" onClick={handleDropStash}>
+            Drop Stash
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 px-3 py-1.5 border-b border-edge text-xs">
+        <span className="text-dim">{stash.files.length} file{stash.files.length === 1 ? '' : 's'}</span>
+        <span className="text-add font-mono">+{stash.insertions}</span>
+        <span className="text-del font-mono">-{stash.deletions}</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {stash.files.map((file) => {
+          const active = openDiff?.filePath === file.path && openDiff?.stashIndex === stash.index;
+          return (
+            <div
+              key={file.path}
+              className={`flex w-full items-center justify-between px-3 py-1.5 text-sm text-left hover:bg-panel2 transition-colors border-b border-edge/20 group cursor-pointer ${
+                active ? 'bg-purple-500/15 text-purple-200 border-l-2 border-purple-400 font-medium' : 'text-fg/90'
+              }`}
+              onClick={() => void openFileDiff({ commitHash: null, filePath: file.path, stashIndex: stash.index, status: file.status })}
+              title={file.path}
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <StatusIcon status={file.status} />
+                <span className="truncate font-mono text-xs flex-1">{file.path}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {(file.insertions ?? 0) > 0 && <span className="text-add text-xs font-mono">+{file.insertions}</span>}
+                {(file.deletions ?? 0) > 0 && <span className="text-del text-xs font-mono">-{file.deletions}</span>}
+                <button
+                  className="opacity-0 group-hover:opacity-100 transition-opacity btn text-[10px] !py-0.5 !px-1.5 hover:bg-accent/20 hover:text-accent border-edge"
+                  onClick={(e) => void handleApplyFile(e, file.path)}
+                  title="Apply only this file from stash into working copy"
+                >
+                  Apply File
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function CommitDetailPanel() {
   const detail = useApp((s) => s.commitDetail);
   const loading = useApp((s) => s.detailLoading);
   const selectedCommit = useApp((s) => s.selectedCommit);
   const selectCommit = useApp((s) => s.selectCommit);
+  const compareCommits = useApp((s) => s.compareCommits);
+  const comparisonResult = useApp((s) => s.comparisonResult);
+  const setCompareCommits = useApp((s) => s.setCompareCommits);
+  const selectedStashIndex = useApp((s) => s.selectedStashIndex);
+  const stashDetail = useApp((s) => s.stashDetail);
+  const inspectStash = useApp((s) => s.inspectStash);
   const notify = useApp((s) => s.notify);
   const runAndRefresh = useApp((s) => s.runAndRefresh);
   const openRebaseModal = useApp((s) => s.openRebaseModal);
   const cherryPickCommit = useApp((s) => s.cherryPickCommit);
   const openCreateTagModal = useApp((s) => s.openCreateTagModal);
   const isWip = selectedCommit === WIP_HASH;
-  const [panelWidth, setPanelWidth] = useState(360);
+  const [panelWidth, setPanelWidth] = useState(380);
+
+  // AI Explain state
+  const [explaining, setExplaining] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [explainOpen, setExplainOpen] = useState(false);
+  const [explainError, setExplainError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAiExplanation(null);
+    setExplainOpen(false);
+    setExplainError(null);
+  }, [selectedCommit, compareCommits]);
+
+  const handleExplainChanges = async () => {
+    setExplainOpen(true);
+    if (aiExplanation) return;
+    setExplaining(true);
+    setExplainError(null);
+    try {
+      const res = await api.explainChanges({
+        commitHash: selectedCommit && selectedCommit !== WIP_HASH ? selectedCommit : undefined
+      });
+      if (res.ok && res.explanation) {
+        setAiExplanation(res.explanation);
+      } else {
+        setExplainError(res.error || 'Failed to explain changes');
+      }
+    } catch (err) {
+      setExplainError(String(err));
+    } finally {
+      setExplaining(false);
+    }
+  };
 
   // Close panel on Escape
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') void selectCommit(null);
+      if (e.key === 'Escape') {
+        if (compareCommits) void setCompareCommits(null);
+        else if (selectedStashIndex !== null) void inspectStash(null);
+        else void selectCommit(null);
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectCommit]);
+  }, [selectCommit, compareCommits, selectedStashIndex, setCompareCommits, inspectStash]);
 
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -656,8 +869,8 @@ export function CommitDetailPanel() {
     window.addEventListener('mouseup', onUp);
   };
 
-  // If no commit is selected and not loading, keep panel completely hidden so CommitGraph has full width
-  if (!selectedCommit && !loading) {
+  const hasActive = !!selectedCommit || !!compareCommits || selectedStashIndex !== null;
+  if (!hasActive && !loading) {
     return null;
   }
 
@@ -676,10 +889,6 @@ export function CommitDetailPanel() {
     );
   }
 
-  if (!detail) {
-    return null;
-  }
-
   return (
     <div
       className="relative shrink-0 border-l border-edge bg-panel flex flex-col min-h-0"
@@ -692,32 +901,59 @@ export function CommitDetailPanel() {
         onMouseDown={startResize}
       />
 
-      {/* Header */}
-      <div className="p-3 border-b border-edge">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-sm text-accent">{isWip ? 'WIP' : detail.shortHash}</span>
-          {!isWip && (
-            <button
-              className="btn-icon !w-5 !h-5"
-              title="Copy hash"
-              onClick={() => {
-                void navigator.clipboard.writeText(detail.hash);
-                notify('success', 'Hash copied');
-              }}
-            >
-              <Copy size={11} />
-            </button>
-          )}
-          <span className="flex-1" />
-          <Dropdown
-            align="right"
-            trigger={
-              <button className="btn text-xs">
-                Commit Actions <ChevronDown size={11} />
-              </button>
-            }
-            width={220}
-          >
+      {/* 1. Two-Commit Comparison Mode */}
+      {compareCommits && comparisonResult ? (
+        <ComparisonView
+          result={comparisonResult}
+          compareCommits={compareCommits}
+          onSwap={() => void setCompareCommits([compareCommits[1], compareCommits[0]])}
+          onClose={() => void setCompareCommits(null)}
+        />
+      ) : selectedStashIndex !== null && stashDetail ? (
+        /* 2. Stash Inspector Mode */
+        <StashInspectorView
+          stash={stashDetail}
+          onClose={() => void inspectStash(null)}
+        />
+      ) : detail ? (
+        /* 3. Normal / WIP Commit Detail Mode */
+        <>
+          {/* Header */}
+          <div className="p-3 border-b border-edge">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm text-accent">{isWip ? 'WIP' : detail.shortHash}</span>
+              {!isWip && (
+                <button
+                  className="btn-icon !w-5 !h-5"
+                  title="Copy hash"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(detail.hash);
+                    notify('success', 'Hash copied');
+                  }}
+                >
+                  <Copy size={11} />
+                </button>
+              )}
+              <span className="flex-1" />
+              {!isWip && (
+                <button
+                  className="btn text-xs gap-1.5 hover:text-cyan-300 hover:border-cyan-500/50"
+                  onClick={handleExplainChanges}
+                  title="Explain changes with AI"
+                >
+                  <Sparkles size={12} className="text-cyan-400" />
+                  <span>Explain</span>
+                </button>
+              )}
+              <Dropdown
+                align="right"
+                trigger={
+                  <button className="btn text-xs">
+                    Commit Actions <ChevronDown size={11} />
+                  </button>
+                }
+                width={220}
+              >
             {(close) =>
               isWip ? (
                 <MenuItem label="Working directory changes" onClick={close} />
@@ -779,6 +1015,32 @@ export function CommitDetailPanel() {
         </div>
         <h3 className="mt-2 text-sm font-medium text-fg selectable">{detail.message}</h3>
         {detail.body && <pre className="mt-1 text-xs text-dim whitespace-pre-wrap font-sans selectable">{detail.body}</pre>}
+
+        {/* AI Explainer Accordion Card */}
+        {explainOpen && (
+          <div className="mt-3 p-3 rounded-lg bg-panel2 border border-cyan-500/30 text-xs shadow-md">
+            <div className="flex items-center justify-between font-semibold text-fg mb-2">
+              <span className="flex items-center gap-1.5 text-cyan-300">
+                <Sparkles size={13} className="text-cyan-400" /> AI Code Review & Explainer
+              </span>
+              <button onClick={() => setExplainOpen(false)} className="text-dim hover:text-fg">
+                <X size={13} />
+              </button>
+            </div>
+            {explaining ? (
+              <div className="flex items-center gap-2 py-3 text-dim">
+                <Loader2 size={14} className="animate-spin text-cyan-400" />
+                <span>Analyzing commit diff and generating review...</span>
+              </div>
+            ) : explainError ? (
+              <div className="text-del py-1">{explainError}</div>
+            ) : (
+              <div className="prose prose-invert prose-xs max-w-none text-fg/90 whitespace-pre-wrap font-sans leading-relaxed text-[11px] selectable">
+                {aiExplanation}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Author row */}
@@ -814,6 +1076,8 @@ export function CommitDetailPanel() {
       </div>
 
       {isWip ? <WorkdirPanel /> : <FileList files={detail.files} commitHash={detail.hash} />}
+        </>
+      ) : null}
     </div>
   );
 }

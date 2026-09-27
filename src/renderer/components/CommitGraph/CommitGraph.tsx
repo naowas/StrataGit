@@ -28,7 +28,10 @@ import {
   Cloud,
   Plus,
   Minus,
-  Layers
+  Layers,
+  X,
+  Filter,
+  Calendar
 } from 'lucide-react';
 
 const DOT_R = 5;
@@ -215,9 +218,15 @@ function CommitRow({
 }) {
   const selected = useApp((s) => s.selectedCommit);
   const selectCommit = useApp((s) => s.selectCommit);
+  const compareCommits = useApp((s) => s.compareCommits);
+  const setCompareCommits = useApp((s) => s.setCompareCommits);
   const openFileDiff = useApp((s) => s.openFileDiff);
   const status = useApp((s) => s.status);
-  const isSelected = selected === commit.hash;
+
+  const isBaseCompare = compareCommits ? compareCommits[0] === commit.hash : false;
+  const isTargetCompare = compareCommits ? compareCommits[1] === commit.hash : false;
+  const isCompared = isBaseCompare || isTargetCompare;
+  const isSelected = selected === commit.hash || isCompared;
 
   const wipStats = useMemo(() => {
     if (!isWip || !status) return null;
@@ -238,6 +247,28 @@ function CommitRow({
     return { modified, added, deleted, total };
   }, [isWip, status]);
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (isWip) {
+      void selectCommit(commit.hash);
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+      if (selected && selected !== commit.hash) {
+        void setCompareCommits([selected, commit.hash]);
+      } else if (compareCommits) {
+        if (compareCommits[0] === commit.hash) {
+          void selectCommit(compareCommits[1]);
+        } else {
+          void setCompareCommits([compareCommits[0], commit.hash]);
+        }
+      } else {
+        void selectCommit(commit.hash);
+      }
+    } else {
+      void selectCommit(commit.hash);
+    }
+  };
+
   const onDoubleClick = () => {
     if (isWip) {
       const st = useApp.getState().status;
@@ -256,14 +287,16 @@ function CommitRow({
   return (
     <div
       className={`flex items-center cursor-pointer select-none transition-colors ${
-        isSelected
-          ? 'bg-accent/20 font-medium'
-          : hovered
-            ? 'bg-panel2/70'
-            : 'hover:bg-panel2/40'
+        isCompared
+          ? 'bg-cyan-500/15 font-medium border-l-2 border-cyan-400'
+          : isSelected
+            ? 'bg-accent/20 font-medium'
+            : hovered
+              ? 'bg-panel2/70'
+              : 'hover:bg-panel2/40'
       }`}
       style={{ height: rowH }}
-      onClick={() => void selectCommit(commit.hash)}
+      onClick={handleClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={(e) => {
         if (!isWip && onContextMenu) {
@@ -362,14 +395,21 @@ function CommitRow({
             )}
           </div>
         ) : (
-          <span
-            className={`truncate text-xs font-normal ${
-              isSelected ? 'text-white font-medium' : 'text-fg/90'
-            }`}
-            title={commit.message}
-          >
-            {commit.message || '(no message)'}
-          </span>
+          <div className="flex items-center min-w-0 truncate">
+            {isCompared && (
+              <span className="rounded px-1.5 py-0.5 text-[9px] font-mono font-bold bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 shrink-0 mr-1.5 shadow-xs">
+                {isBaseCompare ? 'DIFF BASE A' : 'DIFF TARGET B'}
+              </span>
+            )}
+            <span
+              className={`truncate text-xs font-normal ${
+                isSelected ? 'text-white font-medium' : 'text-fg/90'
+              }`}
+              title={commit.message}
+            >
+              {commit.message || '(no message)'}
+            </span>
+          </div>
         )}
 
         {/* Extended Body snippet */}
@@ -400,6 +440,14 @@ export function CommitGraph() {
   const currentBranch = status?.currentBranch ?? '';
   const selectedCommit = useApp((s) => s.selectedCommit);
   const selectCommit = useApp((s) => s.selectCommit);
+  const compareCommits = useApp((s) => s.compareCommits);
+  const setCompareCommits = useApp((s) => s.setCompareCommits);
+  const filterAuthor = useApp((s) => s.filterAuthor);
+  const filterDateRange = useApp((s) => s.filterDateRange);
+  const setFilterAuthor = useApp((s) => s.setFilterAuthor);
+  const setFilterDateRange = useApp((s) => s.setFilterDateRange);
+  const openBisectModal = useApp((s) => s.openBisectModal);
+  const openChangelogModal = useApp((s) => s.openChangelogModal);
   const runAndRefresh = useApp((s) => s.runAndRefresh);
   const notify = useApp((s) => s.notify);
   const loadMoreCommits = useApp((s) => s.loadMoreCommits);
@@ -454,36 +502,58 @@ export function CommitGraph() {
   const allCommits = log?.commits;
   const commits = useMemo(() => {
     if (!allCommits) return NO_COMMITS;
-    if (!q) return allCommits;
+    let list = allCommits;
+
+    if (filterAuthor.trim()) {
+      const a = filterAuthor.trim().toLowerCase();
+      list = list.filter((c) => c.authorName.toLowerCase().includes(a) || c.authorEmail.toLowerCase().includes(a));
+    }
+
+    if (filterDateRange !== 'all') {
+      const now = Date.now();
+      const oneDay = 24 * 60 * 60 * 1000;
+      let maxAgeMs = Infinity;
+      if (filterDateRange === 'today') maxAgeMs = oneDay;
+      else if (filterDateRange === 'week') maxAgeMs = 7 * oneDay;
+      else if (filterDateRange === 'month') maxAgeMs = 30 * oneDay;
+      else if (filterDateRange === 'year') maxAgeMs = 365 * oneDay;
+
+      list = list.filter((c) => {
+        const t = new Date(c.date).getTime();
+        return now - t <= maxAgeMs;
+      });
+    }
+
+    if (!q) return list;
 
     // Advanced search syntax support
     if (q.startsWith('author:') || q.startsWith('from:')) {
       const author = q.replace(/^(author|from):/, '').trim();
-      return allCommits.filter(
+      return list.filter(
         (c) => c.authorName.toLowerCase().includes(author) || c.authorEmail.toLowerCase().includes(author)
       );
     }
     if (q.startsWith('hash:')) {
       const h = q.replace(/^hash:/, '').trim();
-      return allCommits.filter((c) => c.hash.toLowerCase().startsWith(h));
+      return list.filter((c) => c.hash.toLowerCase().startsWith(h));
     }
     if (q.startsWith('tag:')) {
       const t = q.replace(/^tag:/, '').trim();
-      return allCommits.filter((c) => c.refs.some((r) => r.kind === 'tag' && r.label.toLowerCase().includes(t)));
+      return list.filter((c) => c.refs.some((r) => r.kind === 'tag' && r.label.toLowerCase().includes(t)));
     }
     if (q.startsWith('branch:')) {
       const b = q.replace(/^branch:/, '').trim();
-      return allCommits.filter((c) => c.refs.some((r) => r.kind === 'branch' && r.label.toLowerCase().includes(b)));
+      return list.filter((c) => c.refs.some((r) => r.kind === 'branch' && r.label.toLowerCase().includes(b)));
     }
 
-    return allCommits.filter(
+    return list.filter(
       (c) =>
         c.message.toLowerCase().includes(q) ||
         c.hash.startsWith(q) ||
         c.authorName.toLowerCase().includes(q) ||
         c.refs.some((r) => r.label.toLowerCase().includes(q))
     );
-  }, [allCommits, q]);
+  }, [allCommits, q, filterAuthor, filterDateRange]);
 
   const graphRowHeight = useSettings((s) => s.graphRowHeight);
   const rowH = graphRowHeight || ROW_H;
@@ -734,9 +804,42 @@ export function CommitGraph() {
       label: 'Apply patch to current branch',
       icon: <ArrowUp size={13} />,
       onClick: () => void runAndRefresh(() => api.applyPatchCommit(commit.hash), `Applied patch of ${commit.shortHash}`)
+    },
+    ...(selectedCommit && selectedCommit !== commit.hash
+      ? [
+          {
+            label: `Compare with selected (${selectedCommit.slice(0, 7)} .. ${commit.shortHash})`,
+            icon: <Layers size={13} />,
+            onClick: () => void setCompareCommits([selectedCommit, commit.hash])
+          }
+        ]
+      : []),
+    {
+      label: 'Export commit as Patch…',
+      icon: <ArrowUpFromLine size={13} />,
+      prompt: {
+        placeholder: 'Patch file path (e.g. /tmp/commit.patch)',
+        submitLabel: 'Export patch',
+        onSubmit: (p) => void runAndRefresh(() => api.exportPatch(commit.hash, p), `Patch saved to ${p}`)
+      }
+    },
+    {
+      label: 'Mark as Bad commit for Bisect',
+      icon: <XCircle size={13} />,
+      onClick: () => {
+        void api.startBisect(commit.hash);
+        openBisectModal();
+      }
+    },
+    {
+      label: 'Mark as Good commit for Bisect',
+      icon: <Check size={13} />,
+      onClick: () => {
+        void api.startBisect(undefined, commit.hash);
+        openBisectModal();
+      }
     }
   ];
-
 
   return (
     <div
@@ -744,6 +847,59 @@ export function CommitGraph() {
       onScroll={handleScroll}
       className={openDiff && diffMaximized ? 'hidden' : 'flex-1 overflow-auto min-h-0 bg-base'}
     >
+      {/* 2-Commit Comparison Floating Banner */}
+      {compareCommits && (
+        <div className="sticky top-0 z-20 flex items-center justify-between px-3 py-1.5 bg-cyan-950/95 border-b border-cyan-500/40 text-xs backdrop-blur-md shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-cyan-300 flex items-center gap-1.5">
+              <Layers size={13} /> Comparing 2 Commits:
+            </span>
+            <span className="font-mono bg-cyan-900/60 px-1.5 py-0.5 rounded text-cyan-200 border border-cyan-700/50">
+              {compareCommits[0].slice(0, 7)}
+            </span>
+            <span className="text-dim">→</span>
+            <span className="font-mono bg-cyan-900/60 px-1.5 py-0.5 rounded text-cyan-200 border border-cyan-700/50">
+              {compareCommits[1].slice(0, 7)}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="btn text-xs !py-0.5 !px-2 hover:bg-cyan-900/50 border-cyan-700/40 text-cyan-300"
+              onClick={() => void setCompareCommits([compareCommits[1], compareCommits[0]])}
+              title="Swap Base and Target"
+            >
+              Swap
+            </button>
+            <button
+              className="btn-icon !w-5 !h-5 text-cyan-300 hover:text-fg"
+              onClick={() => void setCompareCommits(null)}
+              title="Clear comparison"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Multi-Dimensional Filter Chips */}
+      {(filterAuthor || filterDateRange !== 'all') && (
+        <div className="sticky top-0 z-15 flex items-center gap-2 px-3 py-1 bg-panel2/90 border-b border-edge text-[11px] text-dim backdrop-blur-xs">
+          <span className="font-medium text-fg flex items-center gap-1"><Filter size={11} /> Filters:</span>
+          {filterAuthor && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-panel3 border border-edge text-accent">
+              Author: {filterAuthor}
+              <button onClick={() => setFilterAuthor('')} className="hover:text-del"><X size={10} /></button>
+            </span>
+          )}
+          {filterDateRange !== 'all' && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-panel3 border border-edge text-warn">
+              Date: {filterDateRange}
+              <button onClick={() => setFilterDateRange('all')} className="hover:text-del"><X size={10} /></button>
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="sticky top-0 z-10 flex items-center bg-panel border-b border-edge text-[11px] font-semibold tracking-wider text-dim select-none h-7">
         <div className="pl-3" style={{ width: BRANCH_W }}>
           BRANCH / TAG

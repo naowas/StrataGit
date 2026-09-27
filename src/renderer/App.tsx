@@ -24,6 +24,10 @@ import { TerminalDrawer } from './components/TerminalDrawer/TerminalDrawer';
 import { ShortcutsModal } from './components/Help/ShortcutsModal';
 import { UsageGuideModal } from './components/Help/UsageGuideModal';
 import { GitFlowModal } from './components/GitFlow/GitFlowModal';
+import { MergeSimulationModal } from './components/ConflictResolver/MergeSimulationModal';
+import { BisectModal } from './components/Bisect/BisectModal';
+import { ChangelogModal } from './components/Changelog/ChangelogModal';
+import { WorktreesModal } from './components/Worktrees/WorktreesModal';
 import { ToastContainer } from './components/Common/ToastContainer';
 
 export function App() {
@@ -196,6 +200,10 @@ export function App() {
       <CreateRepoModal />
       <CommandPalette />
       <ShortcutsModal />
+      <MergeSimulationModal />
+      <BisectModal />
+      <ChangelogModal />
+      <WorktreesModal />
       {usageGuideOpen && <UsageGuideModal onClose={closeUsageGuide} />}
       {gitFlowModalOpen && <GitFlowModal onClose={closeGitFlowModal} />}
       <RepoOpeningAnimation />

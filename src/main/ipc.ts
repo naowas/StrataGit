@@ -18,7 +18,7 @@ import {
 import { isValidRepo, errorMessage, withGit } from './git/core';
 import { getLog, repoDisplayName } from './git/log';
 import { getStatus } from './git/status-diff';
-import { getCommitDetail, getFileDiff, getCommitDiffText } from './git/commit-detail';
+import { getCommitDetail, getFileDiff, getCommitDiffText, compareCommits, getComparisonFileDiff } from './git/commit-detail';
 import {
   getBranches,
   getStashes,
@@ -31,7 +31,10 @@ import {
   stashApply,
   stashDrop,
   revertHunk,
-  mergeBranch
+  mergeBranch,
+  getStashDetail,
+  getStashFileDiff,
+  applyStashFile
 } from './git/branch-stash';
 import {
   checkoutCommit,
@@ -55,7 +58,9 @@ import {
   unstageLines,
   discardLines,
   getBlameLines,
-  getFileHistory
+  getFileHistory,
+  exportPatch,
+  applyPatchFile
 } from './git/hunk-actions';
 import {
   getRepoOperationState,
@@ -65,7 +70,8 @@ import {
   continueOperation,
   cherryPick,
   getCommitsForRebase,
-  executeInteractiveRebase
+  executeInteractiveRebase,
+  simulateMerge
 } from './git/conflicts-rebase';
 import {
   getTags,
@@ -89,6 +95,9 @@ import {
   startGitFlowBranch,
   finishGitFlowBranch
 } from './git/gitflow';
+import { startBisect, stepBisect, resetBisect, getBisectState } from './git/bisect';
+import { generateChangelog } from './git/changelog';
+import { explainCodeChanges } from '../shared/ai';
 
 /** Recently opened repos persisted in the user config dir. */
 const recentFile = () => path.join(os.homedir(), '.config', 'stratagit', 'recent-repos.json');
@@ -715,6 +724,95 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
 
   handle('git:flow:finish', async (params: any) => {
     return finishGitFlowBranch(requireRepo(), params);
+  });
+
+  // Commit Comparison
+  handle('git:compare-commits', async (baseHash: string, targetHash: string) => {
+    return compareCommits(requireRepo(), baseHash, targetHash);
+  });
+
+  handle('git:compare-file-diff', async (baseHash: string, targetHash: string, filePath: string) => {
+    return getComparisonFileDiff(requireRepo(), baseHash, targetHash, filePath);
+  });
+
+  // Stash Inspector & Selective Apply
+  handle('git:stash-detail', async (index: number) => {
+    return getStashDetail(requireRepo(), index);
+  });
+
+  handle('git:stash-file-diff', async (index: number, filePath: string) => {
+    return getStashFileDiff(requireRepo(), index, filePath);
+  });
+
+  handle('git:stash-apply-file', async (index: number, filePath: string) => {
+    try {
+      await applyStashFile(requireRepo(), index, filePath);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err) };
+    }
+  });
+
+  // Conflict Pre-Flight Simulation
+  handle('git:simulate-merge', async (targetBranch: string) => {
+    return simulateMerge(requireRepo(), targetBranch);
+  });
+
+  // AI Code Review & Explainer
+  handle('ai:explain-changes', async (params: { diffText?: string; commitHash?: string }) => {
+    try {
+      let diff = params.diffText;
+      if (!diff && params.commitHash) {
+        diff = await getCommitDiffText(requireRepo(), params.commitHash);
+      }
+      if (!diff) {
+        return { ok: false, error: 'No diff content found to explain' };
+      }
+      return explainCodeChanges(diff);
+    } catch (err) {
+      return { ok: false, error: errorMessage(err) };
+    }
+  });
+
+  // Git Bisect Wizard
+  handle('git:bisect-start', async (badCommit?: string, goodCommit?: string) => {
+    return startBisect(requireRepo(), badCommit, goodCommit);
+  });
+
+  handle('git:bisect-step', async (verdict: 'good' | 'bad' | 'skip') => {
+    return stepBisect(requireRepo(), verdict);
+  });
+
+  handle('git:bisect-reset', async () => {
+    return resetBisect(requireRepo());
+  });
+
+  handle('git:bisect-state', async () => {
+    return getBisectState(requireRepo());
+  });
+
+  // Changelog & Release Notes Generator
+  handle('git:generate-changelog', async (fromRef: string, toRef?: string) => {
+    return generateChangelog(requireRepo(), fromRef, toRef);
+  });
+
+  // Patch Export & Apply
+  handle('git:export-patch', async (commitHash: string, outputPath: string) => {
+    try {
+      await exportPatch(requireRepo(), commitHash, outputPath);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err) };
+    }
+  });
+
+  handle('git:apply-patch', async (patchPath: string) => {
+    try {
+      await applyPatchFile(requireRepo(), patchPath);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: errorMessage(err) };
+    }
   });
 
   handle('window:minimize', async () => {

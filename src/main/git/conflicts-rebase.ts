@@ -8,7 +8,8 @@ import {
   ConflictFileParsed,
   ConflictSection,
   RepoOperationState,
-  RebaseStep
+  RebaseStep,
+  MergeSimulationResult
 } from '../../shared/types';
 import { withGit } from './core';
 
@@ -296,4 +297,48 @@ export async function executeInteractiveRebase(
     void fs.promises.unlink(todoFile).catch(() => {});
     void fs.promises.unlink(msgFile).catch(() => {});
   }
+}
+
+/** Pre-flight check simulating merge without touching working tree or index */
+export async function simulateMerge(repoPath: string, targetBranch: string): Promise<MergeSimulationResult> {
+  return await withGit(repoPath, async () => {
+    try {
+      await execFileP('git', ['merge-tree', '--write-tree', 'HEAD', targetBranch], { cwd: repoPath });
+      return {
+        clean: true,
+        conflicts: [],
+        message: `Merge with ${targetBranch} can be performed cleanly without conflicts.`
+      };
+    } catch (err: unknown) {
+      const errorOutput =
+        (err && typeof err === 'object' && 'stdout' in err ? String(err.stdout) : '') +
+        '\n' +
+        (err && typeof err === 'object' && 'stderr' in err ? String(err.stderr) : '');
+      const conflictFiles = new Set<string>();
+
+      const lines = errorOutput.split('\n');
+      for (const line of lines) {
+        const m1 = line.match(/CONFLICT \([^)]+\): Merge conflict in (.+)/i);
+        if (m1) {
+          conflictFiles.add(m1[1].trim());
+          continue;
+        }
+        const m2 = line.match(/CONFLICT \([^)]+\): (.+)/i);
+        if (m2) {
+          const fileMatch = m2[1].match(/(?:in |delete |modified )?([^\s,]+)/);
+          if (fileMatch && fileMatch[1]) conflictFiles.add(fileMatch[1].trim());
+        }
+      }
+
+      const files = Array.from(conflictFiles);
+      return {
+        clean: false,
+        conflicts: files,
+        message:
+          files.length > 0
+            ? `Conflicts detected in ${files.length} file(s) when merging ${targetBranch}.`
+            : `Merge with ${targetBranch} will encounter conflicts.`
+      };
+    }
+  });
 }

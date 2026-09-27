@@ -40,7 +40,7 @@ export type Api = {
   deleteBranch(name: string, opts?: { local?: boolean; remote?: boolean; remoteName?: string; force?: boolean }): Promise<{ ok: boolean }>;
   renameBranch(name: string, newName: string): Promise<{ ok: boolean }>;
   checkoutCommit(hash: string): Promise<{ ok: boolean }>;
-  createWorktree(hash: string, worktreePath: string): Promise<{ ok: boolean }>;
+  createWorktree(hash: string, worktreePath: string): Promise<{ ok: boolean; error?: string }>;
   resetBranchTo(hash: string, mode: 'soft' | 'mixed' | 'hard'): Promise<{ ok: boolean }>;
   editCommitMessage(hash: string, message: string): Promise<{ ok: boolean }>;
   revertCommit(hash: string): Promise<{ ok: boolean }>;
@@ -93,6 +93,20 @@ export type Api = {
   initGitFlow(config?: Partial<import('../shared/types').GitFlowConfig>): Promise<{ ok: boolean; error?: string }>;
   startGitFlowBranch(params: import('../shared/types').GitFlowStartParams): Promise<{ ok: boolean; branchName?: string; error?: string }>;
   finishGitFlowBranch(params: import('../shared/types').GitFlowFinishParams): Promise<{ ok: boolean; error?: string }>;
+  compareCommits(baseHash: string, targetHash: string): Promise<import('../shared/types').ComparisonResult | null>;
+  getComparisonFileDiff(baseHash: string, targetHash: string, filePath: string): Promise<import('../shared/types').FileDiff | null>;
+  getStashDetail(index: number): Promise<import('../shared/types').StashDetail | null>;
+  getStashFileDiff(index: number, filePath: string): Promise<import('../shared/types').FileDiff | null>;
+  applyStashFile(index: number, filePath: string): Promise<{ ok: boolean; error?: string }>;
+  simulateMerge(targetBranch: string): Promise<import('../shared/types').MergeSimulationResult>;
+  explainChanges(params: { diffText?: string; commitHash?: string }): Promise<{ ok: boolean; explanation?: string; error?: string }>;
+  startBisect(badCommit: string, goodCommit: string): Promise<{ ok: boolean; state?: import('../shared/types').BisectState; error?: string }>;
+  stepBisect(verdict: 'good' | 'bad' | 'skip'): Promise<{ ok: boolean; state?: import('../shared/types').BisectState; error?: string }>;
+  resetBisect(): Promise<{ ok: boolean; error?: string }>;
+  getBisectState(): Promise<import('../shared/types').BisectState>;
+  generateChangelog(fromRef?: string, toRef?: string): Promise<import('../shared/types').ChangelogResult>;
+  exportPatch(commitHash: string, outputPath: string): Promise<{ ok: boolean; error?: string }>;
+  applyPatch(patchPath: string): Promise<{ ok: boolean; error?: string }>;
   minimizeWindow(): Promise<boolean>;
   maximizeWindow(): Promise<boolean>;
   closeWindow(): Promise<boolean>;
@@ -187,6 +201,20 @@ const api: Api = {
   initGitFlow: (config) => call('git:flow:init', config),
   startGitFlowBranch: (params) => call('git:flow:start', params),
   finishGitFlowBranch: (params) => call('git:flow:finish', params),
+  compareCommits: (baseHash, targetHash) => call('git:compare-commits', baseHash, targetHash),
+  getComparisonFileDiff: (baseHash, targetHash, filePath) => call('git:compare-file-diff', baseHash, targetHash, filePath),
+  getStashDetail: (index) => call('git:stash-detail', index),
+  getStashFileDiff: (index, filePath) => call('git:stash-file-diff', index, filePath),
+  applyStashFile: (index, filePath) => call('git:stash-apply-file', index, filePath),
+  simulateMerge: (targetBranch) => call('git:simulate-merge', targetBranch),
+  explainChanges: (params) => call('ai:explain-changes', params),
+  startBisect: (badCommit, goodCommit) => call('git:bisect-start', badCommit, goodCommit),
+  stepBisect: (verdict) => call('git:bisect-step', verdict),
+  resetBisect: () => call('git:bisect-reset'),
+  getBisectState: () => call('git:bisect-state'),
+  generateChangelog: (fromRef, toRef) => call('git:generate-changelog', fromRef, toRef),
+  exportPatch: (commitHash, outputPath) => call('git:export-patch', commitHash, outputPath),
+  applyPatch: (patchPath) => call('git:apply-patch', patchPath),
   minimizeWindow: () => call('window:minimize'),
   maximizeWindow: () => call('window:maximize'),
   closeWindow: () => call('window:close'),

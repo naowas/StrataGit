@@ -308,7 +308,141 @@ const createMockApi = (): Api & StrataGitApi => {
     maximizeWindow: async () => true,
     closeWindow: async () => true,
     isWindowMaximized: async () => false,
-    restartApp: async () => true
+    restartApp: async () => true,
+
+    compareCommits: async (baseHash: string, targetHash: string) => ({
+      baseHash,
+      targetHash,
+      baseShort: baseHash.slice(0, 7),
+      targetShort: targetHash.slice(0, 7),
+      files: [
+        { path: 'src/renderer/App.tsx', status: 'modified', staged: false, additions: 24, deletions: 6 },
+        { path: 'src/shared/types.ts', status: 'modified', staged: false, additions: 18, deletions: 0 }
+      ],
+      totalAdditions: 42,
+      totalDeletions: 6
+    }),
+
+    getComparisonFileDiff: async (_b: string, _t: string, filePath: string) => ({
+      filePath,
+      oldPath: filePath,
+      status: 'modified',
+      hunks: [
+        {
+          oldStart: 1,
+          oldLines: 3,
+          newStart: 1,
+          newLines: 5,
+          header: '@@ -1,3 +1,5 @@',
+          lines: [
+            { kind: 'context', content: 'import React from "react";', oldLineNo: 1, newLineNo: 1 },
+            { kind: 'del', content: '-const oldState = false;', oldLineNo: 2 },
+            { kind: 'add', content: '+const newState = true;', newLineNo: 2 },
+            { kind: 'add', content: '+export const isEnabled = true;', newLineNo: 3 },
+            { kind: 'context', content: 'export default App;', oldLineNo: 3, newLineNo: 4 }
+          ]
+        }
+      ],
+      isBinary: false
+    }),
+
+    getStashDetail: async (index: number) => ({
+      index,
+      message: `WIP on feature branch: stash index ${index}`,
+      date: new Date().toISOString(),
+      files: [
+        { path: 'src/renderer/components/DiffViewer/DiffViewer.tsx', status: 'modified', staged: false, additions: 12, deletions: 3 }
+      ],
+      insertions: 12,
+      deletions: 3
+    }),
+
+    getStashFileDiff: async (_idx: number, filePath: string) => ({
+      filePath,
+      oldPath: filePath,
+      status: 'modified',
+      hunks: [
+        {
+          oldStart: 1,
+          oldLines: 3,
+          newStart: 1,
+          newLines: 4,
+          header: '@@ -1,3 +1,4 @@',
+          lines: [
+            { kind: 'context', content: '// Stashed work', oldLineNo: 1, newLineNo: 1 },
+            { kind: 'add', content: '+const stashFlag = true;', newLineNo: 2 },
+            { kind: 'context', content: 'export default Component;', oldLineNo: 2, newLineNo: 3 }
+          ]
+        }
+      ],
+      isBinary: false
+    }),
+
+    applyStashFile: async () => ({ ok: true }),
+
+    simulateMerge: async (targetBranch: string) => ({
+      clean: true,
+      conflicts: [],
+      message: `Merge with ${targetBranch} can be performed cleanly without conflicts.`
+    }),
+
+    explainChanges: async () => ({
+      ok: true,
+      explanation: `### 🎯 Change Summary\nThis commit updates state management and adds UI controls.\n\n### 🔑 Key Changes\n- Integrated compare commits workflow.\n- Added visual bisect controls.\n- Enhanced stash file inspector.`
+    }),
+
+    startBisect: async () => ({
+      ok: true,
+      state: {
+        active: true,
+        currentCommit: {
+          hash: 'c3d4e5f67890123456789abcdef01234567890',
+          shortHash: 'c3d4e5f',
+          message: 'feat: add Visual Merge Conflict Resolver',
+          authorName: 'Developer',
+          date: new Date().toISOString()
+        },
+        stepInfo: 'Bisecting: 3 revisions left to test after this (roughly 2 steps)'
+      }
+    }),
+
+    stepBisect: async () => ({
+      ok: true,
+      state: {
+        active: true,
+        currentCommit: {
+          hash: 'b2c3d4e5f67890123456789abcdef0123456789',
+          shortHash: 'b2c3d4e',
+          message: 'feat: implement Git Objects management',
+          authorName: 'Developer',
+          date: new Date().toISOString()
+        },
+        stepInfo: 'Bisecting: 1 revision left to test after this (roughly 1 step)'
+      }
+    }),
+
+    resetBisect: async () => ({ ok: true }),
+
+    getBisectState: async () => ({ active: false }),
+
+    generateChangelog: async (fromRef: string, toRef?: string) => ({
+      fromRef,
+      toRef: toRef || 'HEAD',
+      totalCommits: 4,
+      categories: [
+        {
+          title: '✨ Features',
+          items: [
+            { hash: 'a1b2c3d', shortHash: 'a1b2c3d', message: 'feat: add Command Palette', author: 'Developer' },
+            { hash: 'b2c3d4e', shortHash: 'b2c3d4e', message: 'feat: implement Git Objects management', author: 'Developer' }
+          ]
+        }
+      ],
+      markdown: `# Release Notes (${fromRef} → ${toRef || 'HEAD'})\n\n### ✨ Features\n- **[\`a1b2c3d\`]** feat: add Command Palette *(@Developer)*\n- **[\`b2c3d4e\`]** feat: implement Git Objects management *(@Developer)*\n`
+    }),
+
+    exportPatch: async () => ({ ok: true }),
+    applyPatch: async () => ({ ok: true })
   };
 
   const clientGenerateAiCommitMessage = async (params?: Partial<AiCommitConfig>) => {

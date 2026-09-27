@@ -1,5 +1,6 @@
-import { BranchInfo, StashInfo } from '../../shared/types';
+import { BranchInfo, StashInfo, StashDetail, FileDiff, FileChange } from '../../shared/types';
 import { withGit, errorMessage } from './core';
+import { parseUnifiedDiff } from './status-diff';
 
 export async function getBranches(repoPath: string): Promise<{ local: BranchInfo[]; remote: BranchInfo[] }> {
   try {
@@ -129,4 +130,84 @@ export async function revertHunk(repoPath: string, diffText: string, hunkIndex: 
 
 export async function mergeBranch(repoPath: string, branchName: string): Promise<void> {
   await withGit(repoPath, (git) => git.merge([branchName]));
+}
+
+export async function getStashDetail(repoPath: string, index: number): Promise<StashDetail | null> {
+  return await withGit(repoPath, async (git) => {
+    try {
+      const ref = `stash@{${index}}`;
+      const logOut = await git.raw(['log', '-1', '--format=%gs%x00%cr%x00%ci%x00%H', ref]);
+      const [message, relativeDate, date, hash] = logOut.trim().split('\0');
+      if (!hash) return null;
+
+      const numstatOut = await git.raw(['diff', '--numstat', `${ref}^1`, ref]).catch(() => '');
+      const nameStatusOut = await git.raw(['diff', '--name-status', `${ref}^1`, ref]).catch(() => '');
+
+      const statusMap = new Map<string, string>();
+      for (const line of nameStatusOut.split('\n')) {
+        const parts = line.trim().split('\t');
+        if (parts.length >= 2) {
+          statusMap.set(parts[parts.length - 1], parts[0]);
+        }
+      }
+
+      const files: FileChange[] = [];
+      let totalAdditions = 0;
+      let totalDeletions = 0;
+
+      for (const line of numstatOut.split('\n')) {
+        const parts = line.trim().split('\t');
+        if (parts.length < 3) continue;
+        const add = parts[0] === '-' ? 0 : parseInt(parts[0], 10) || 0;
+        const del = parts[1] === '-' ? 0 : parseInt(parts[1], 10) || 0;
+        const path = parts[2];
+        totalAdditions += add;
+        totalDeletions += del;
+
+        const statusCode = statusMap.get(path) || 'M';
+        let status: 'modified' | 'added' | 'deleted' | 'renamed' = 'modified';
+        if (statusCode.startsWith('A')) status = 'added';
+        else if (statusCode.startsWith('D')) status = 'deleted';
+        else if (statusCode.startsWith('R')) status = 'renamed';
+
+        files.push({
+          path,
+          status,
+          insertions: add,
+          deletions: del
+        });
+      }
+
+      return {
+        index,
+        hash,
+        message: message || `stash@{${index}}`,
+        date: date || relativeDate,
+        files,
+        insertions: totalAdditions,
+        deletions: totalDeletions
+      };
+    } catch {
+      return null;
+    }
+  });
+}
+
+export async function getStashFileDiff(repoPath: string, index: number, filePath: string): Promise<FileDiff | null> {
+  return await withGit(repoPath, async (git) => {
+    try {
+      const ref = `stash@{${index}}`;
+      const diffText = await git.raw(['diff', `${ref}^1`, ref, '--', filePath]);
+      return parseUnifiedDiff(diffText, filePath);
+    } catch {
+      return null;
+    }
+  });
+}
+
+export async function applyStashFile(repoPath: string, index: number, filePath: string): Promise<void> {
+  await withGit(repoPath, async (git) => {
+    const ref = `stash@{${index}}`;
+    await git.raw(['checkout', ref, '--', filePath]);
+  });
 }

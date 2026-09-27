@@ -20,7 +20,10 @@ import {
   FolderOpen,
   X,
   GitMerge,
-  Sparkles
+  Sparkles,
+  GitCompare,
+  Target,
+  FolderGit2
 } from 'lucide-react';
 import { useApp } from '../../store';
 import { useSettings } from '../../store/settings';
@@ -246,6 +249,44 @@ export function CommandPalette() {
         subtitle: 'Open the visual walkthrough and onboarding guide for StrataGit',
         icon: <Sparkles size={14} className="text-accent" />,
         action: () => useApp.getState().openUsageGuide()
+      },
+      {
+        id: 'cmd-bisect',
+        category: 'Commands',
+        title: 'Git Bisect Wizard…',
+        subtitle: 'Interactively track down bug regression commits using binary search',
+        icon: <Target size={14} className="text-rose-400" />,
+        action: () => useApp.getState().openBisectModal()
+      },
+      {
+        id: 'cmd-changelog',
+        category: 'Commands',
+        title: 'Generate Release Changelog…',
+        subtitle: 'Synthesize conventional commits into grouped release notes with Markdown/JSON export',
+        icon: <FileText size={14} className="text-cyan-400" />,
+        action: () => useApp.getState().openChangelogModal()
+      },
+      {
+        id: 'cmd-worktrees',
+        category: 'Commands',
+        title: 'Manage Git Worktrees…',
+        subtitle: 'View, add, switch, or remove parallel working trees for active branches',
+        icon: <FolderGit2 size={14} className="text-amber-400" />,
+        action: () => useApp.getState().openWorktreesModal()
+      },
+      {
+        id: 'cmd-compare-commits',
+        category: 'Commands',
+        title: 'Compare Two Commits…',
+        subtitle: 'Ctrl+Click two commits in the commit graph to view a 2-point diff (A..B)',
+        icon: <GitCompare size={14} className="text-cyan-400" />,
+        action: () => {
+          useApp.getState().notify(
+            'info',
+            'Ctrl+Click (or Cmd+Click) any two commits in the graph to compare them.',
+            'Commit Comparison'
+          );
+        }
       }
     ];
 

@@ -275,3 +275,114 @@ function cleanCommitText(text?: string | null): string {
   }
   return cleaned;
 }
+
+export async function explainCodeChanges(
+  diffText: string,
+  config?: {
+    provider?: string;
+    model?: string;
+    apiKey?: string;
+    endpoint?: string;
+  }
+): Promise<{ ok: boolean; explanation?: string; error?: string }> {
+  if (!diffText || !diffText.trim()) {
+    return { ok: false, error: 'No diff content provided to explain' };
+  }
+
+  const trimmedDiff = diffText.slice(0, 12000);
+  const systemPrompt = `You are an expert code reviewer and software architect. Analyze the provided git diff and provide:
+1. 🎯 Summary: A crisp 1-2 sentence overview of what this change achieves.
+2. 🔑 Key Changes: Bullet points detailing key code modifications, components touched, and logic updates.
+3. ⚠️ Potential Considerations: Any edge-cases, performance implications, or testing recommendations.
+Keep your response concise, well-structured, formatted in clear markdown.`;
+
+  const provider = config?.provider || 'pollinations';
+
+  try {
+    let url = '';
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    let body: unknown = null;
+
+    if (provider === 'pollinations') {
+      const prompt = `${systemPrompt}\n\nDiff:\n${trimmedDiff}`;
+      url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (res.ok) {
+        const text = await res.text();
+        return { ok: true, explanation: text.trim() };
+      }
+    } else if (provider === 'groq') {
+      url = 'https://api.groq.com/openai/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${config?.apiKey || ''}`;
+      body = {
+        model: config?.model || 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Diff:\n${trimmedDiff}` }
+        ]
+      };
+    } else if (provider === 'openrouter') {
+      url = 'https://openrouter.ai/api/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${config?.apiKey || ''}`;
+      body = {
+        model: config?.model || 'meta-llama/llama-3.3-70b-instruct:free',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Diff:\n${trimmedDiff}` }
+        ]
+      };
+    } else if (provider === 'gemini') {
+      url = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+      headers['Authorization'] = `Bearer ${config?.apiKey || ''}`;
+      body = {
+        model: config?.model || 'gemini-2.0-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Diff:\n${trimmedDiff}` }
+        ]
+      };
+    }
+
+    if (url && body) {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15000)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const content = data?.choices?.[0]?.message?.content;
+        if (content) return { ok: true, explanation: content.trim() };
+      }
+    }
+  } catch (err) {
+    console.warn('AI explain failed, using heuristic summary:', err);
+  }
+
+  const lines = diffText.split('\n');
+  const files: string[] = [];
+  let additions = 0;
+  let deletions = 0;
+  for (const line of lines) {
+    if (line.startsWith('diff --git')) {
+      const p = line.split(' ');
+      files.push((p[3] || p[2] || '').replace(/^[ab]\//, ''));
+    } else if (line.startsWith('+') && !line.startsWith('+++')) additions++;
+    else if (line.startsWith('-') && !line.startsWith('---')) deletions++;
+  }
+
+  const explanation = `### 🎯 Change Overview
+This revision modifies **${files.length || 1} file(s)** with **+${additions}** additions and **-${deletions}** deletions.
+
+### 🔑 Files Changed
+${files.slice(0, 8).map((f) => `- \`${f}\``).join('\n')}
+${files.length > 8 ? `- *...and ${files.length - 8} more files*` : ''}
+
+### 💡 Review Notes
+- Ensure all automated unit/integration tests pass for modified modules.
+- Check regression coverage across touched components.`;
+
+  return { ok: true, explanation };
+}
+

@@ -13,7 +13,12 @@ import {
   TagInfo,
   RemoteInfo,
   SubmoduleInfo,
-  WorktreeInfo
+  WorktreeInfo,
+  ComparisonResult,
+  StashDetail,
+  MergeSimulationResult,
+  BisectState,
+  ChangelogResult
 } from '../../shared/types';
 import { api, unwrap } from '../lib/api';
 
@@ -26,6 +31,8 @@ export interface OpenedDiff {
   worktree?: boolean;
   staged?: boolean;
   status?: FileStatusKind;
+  compareCommits?: [string, string];
+  stashIndex?: number;
 }
 
 export interface ToastItem {
@@ -51,6 +58,10 @@ interface AppState {
   stashes: StashInfo[];
   selectedCommit: string | null;
   commitDetail: CommitDetail | null;
+  compareCommits: [string, string] | null;
+  comparisonResult: ComparisonResult | null;
+  selectedStashIndex: number | null;
+  stashDetail: StashDetail | null;
   openDiff: OpenedDiff | null;
   fileDiff: FileDiff | null;
   detailLoading: boolean;
@@ -73,9 +84,16 @@ interface AppState {
   shortcutsModalOpen: boolean;
   usageGuideOpen: boolean;
   gitFlowModalOpen: boolean;
+  bisectModalOpen: boolean;
+  changelogModalOpen: boolean;
+  simulateMergeBranch: string | null;
+  worktreesModalOpen: boolean;
   toast: ToastItem | null;
   toasts: ToastItem[];
   filter: string;
+  filterAuthor: string;
+  filterDateRange: 'all' | 'today' | 'week' | 'month' | 'year';
+  filterFilePath: string;
   commitLimit: number;
   isLoadingMoreCommits: boolean;
   isOpeningRepo: boolean;
@@ -91,6 +109,8 @@ interface AppActions {
   refresh(): Promise<void>;
   loadMoreCommits(): Promise<void>;
   selectCommit(hash: string | null): Promise<void>;
+  setCompareCommits(hashes: [string, string] | null): Promise<void>;
+  inspectStash(index: number | null): Promise<void>;
   openFileDiff(d: OpenedDiff): Promise<void>;
   closeDiff(): void;
   setDiffHeight(h: number): void;
@@ -120,8 +140,19 @@ interface AppActions {
   closeUsageGuide(): void;
   openGitFlowModal(): void;
   closeGitFlowModal(): void;
+  openBisectModal(): void;
+  closeBisectModal(): void;
+  openChangelogModal(): void;
+  closeChangelogModal(): void;
+  openSimulateMerge(branch: string): void;
+  closeSimulateMerge(): void;
+  openWorktreesModal(): void;
+  closeWorktreesModal(): void;
   cherryPickCommit(hash: string): Promise<void>;
   setFilter(f: string): void;
+  setFilterAuthor(a: string): void;
+  setFilterDateRange(d: 'all' | 'today' | 'week' | 'month' | 'year'): void;
+  setFilterFilePath(p: string): void;
   toggleSidebar(): void;
   setSidebarWidth(w: number): void;
   notify(kind: 'info' | 'error' | 'success' | 'warn', text: string, title?: string, duration?: number): void;
@@ -148,6 +179,10 @@ export const useApp = create<AppStore>((set, get) => ({
   stashes: [],
   selectedCommit: null,
   commitDetail: null,
+  compareCommits: null,
+  comparisonResult: null,
+  selectedStashIndex: null,
+  stashDetail: null,
   openDiff: null,
   fileDiff: null,
   detailLoading: false,
@@ -170,9 +205,16 @@ export const useApp = create<AppStore>((set, get) => ({
   shortcutsModalOpen: false,
   usageGuideOpen: false,
   gitFlowModalOpen: false,
+  bisectModalOpen: false,
+  changelogModalOpen: false,
+  simulateMergeBranch: null,
+  worktreesModalOpen: false,
   toast: null,
   toasts: [],
   filter: '',
+  filterAuthor: '',
+  filterDateRange: 'all',
+  filterFilePath: '',
   commitLimit: 300,
   isLoadingMoreCommits: false,
   isOpeningRepo: false,
@@ -301,7 +343,7 @@ export const useApp = create<AppStore>((set, get) => ({
   },
 
   async selectCommit(hash) {
-    set({ selectedCommit: hash, commitDetail: null, detailLoading: true });
+    set({ selectedCommit: hash, commitDetail: null, compareCommits: null, comparisonResult: null, selectedStashIndex: null, stashDetail: null, detailLoading: true });
     if (!hash) {
       set({ detailLoading: false });
       return;
@@ -337,13 +379,66 @@ export const useApp = create<AppStore>((set, get) => ({
     }
   },
 
+  async setCompareCommits(hashes) {
+    if (!hashes) {
+      set({ compareCommits: null, comparisonResult: null });
+      return;
+    }
+    set({
+      compareCommits: hashes,
+      comparisonResult: null,
+      selectedCommit: null,
+      commitDetail: null,
+      selectedStashIndex: null,
+      stashDetail: null,
+      detailLoading: true
+    });
+    try {
+      const res = await api.compareCommits(hashes[0], hashes[1]);
+      set({ comparisonResult: res, detailLoading: false });
+    } catch (err) {
+      set({ detailLoading: false });
+      get().notify('error', `Failed to compare commits: ${String(err)}`);
+    }
+  },
+
+  async inspectStash(index) {
+    if (index === null || index === undefined) {
+      set({ selectedStashIndex: null, stashDetail: null });
+      return;
+    }
+    set({
+      selectedStashIndex: index,
+      stashDetail: null,
+      selectedCommit: null,
+      commitDetail: null,
+      compareCommits: null,
+      comparisonResult: null,
+      detailLoading: true
+    });
+    try {
+      const detail = await api.getStashDetail(index);
+      set({ stashDetail: detail, detailLoading: false });
+    } catch (err) {
+      set({ detailLoading: false });
+      get().notify('error', `Failed to inspect stash: ${String(err)}`);
+    }
+  },
+
   async openFileDiff(d) {
     set({ openDiff: d, fileDiff: null, diffLoading: true, diffMaximized: true });
     try {
-      const diff = await api.getFileDiff(d.commitHash ?? '', d.filePath, {
-        staged: d.staged,
-        worktree: d.worktree ?? d.commitHash === null
-      });
+      let diff: FileDiff | null = null;
+      if (d.compareCommits) {
+        diff = await api.getComparisonFileDiff(d.compareCommits[0], d.compareCommits[1], d.filePath);
+      } else if (d.stashIndex !== undefined) {
+        diff = await api.getStashFileDiff(d.stashIndex, d.filePath);
+      } else {
+        diff = await api.getFileDiff(d.commitHash ?? '', d.filePath, {
+          staged: d.staged,
+          worktree: d.worktree ?? d.commitHash === null
+        });
+      }
       set({
         fileDiff: diff ?? { path: d.filePath, hunks: [], insertions: 0, deletions: 0 },
         diffLoading: false
@@ -383,10 +478,17 @@ export const useApp = create<AppStore>((set, get) => ({
     const d = get().openDiff;
     if (!d) return;
     try {
-      const diff = await api.getFileDiff(d.commitHash ?? '', d.filePath, {
-        staged: d.staged,
-        worktree: d.worktree ?? d.commitHash === null
-      });
+      let diff: FileDiff | null = null;
+      if (d.compareCommits) {
+        diff = await api.getComparisonFileDiff(d.compareCommits[0], d.compareCommits[1], d.filePath);
+      } else if (d.stashIndex !== undefined) {
+        diff = await api.getStashFileDiff(d.stashIndex, d.filePath);
+      } else {
+        diff = await api.getFileDiff(d.commitHash ?? '', d.filePath, {
+          staged: d.staged,
+          worktree: d.worktree ?? d.commitHash === null
+        });
+      }
       set({
         fileDiff: diff ?? { path: d.filePath, hunks: [], insertions: 0, deletions: 0 }
       });
@@ -487,6 +589,50 @@ export const useApp = create<AppStore>((set, get) => ({
 
   closeGitFlowModal() {
     set({ gitFlowModalOpen: false });
+  },
+
+  openBisectModal() {
+    set({ bisectModalOpen: true });
+  },
+
+  closeBisectModal() {
+    set({ bisectModalOpen: false });
+  },
+
+  openChangelogModal() {
+    set({ changelogModalOpen: true });
+  },
+
+  closeChangelogModal() {
+    set({ changelogModalOpen: false });
+  },
+
+  openSimulateMerge(branch: string) {
+    set({ simulateMergeBranch: branch });
+  },
+
+  closeSimulateMerge() {
+    set({ simulateMergeBranch: null });
+  },
+
+  openWorktreesModal() {
+    set({ worktreesModalOpen: true });
+  },
+
+  closeWorktreesModal() {
+    set({ worktreesModalOpen: false });
+  },
+
+  setFilterAuthor(a: string) {
+    set({ filterAuthor: a });
+  },
+
+  setFilterDateRange(d: 'all' | 'today' | 'week' | 'month' | 'year') {
+    set({ filterDateRange: d });
+  },
+
+  setFilterFilePath(p: string) {
+    set({ filterFilePath: p });
   },
 
   async cherryPickCommit(hash) {

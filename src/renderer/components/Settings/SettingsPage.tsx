@@ -1125,7 +1125,7 @@ export function SettingsPage() {
                     {[
                       { id: 'conventional' as const, label: 'Conventional Commits', example: 'feat(auth): add OAuth2 token refresh' },
                       { id: 'detailed' as const, label: 'Detailed Summary', example: 'Refactor diff parser with comprehensive breakdown' },
-                      { id: 'minimalist' as const, label: 'Minimalist One-Liner', example: 'Update build toolchain and deps' },
+                      { id: 'simple' as const, label: 'Minimalist One-Liner', example: 'Update build toolchain and deps' },
                     ].map((s) => {
                       const isSelected = aiCommit.promptStyle === s.id;
                       return (

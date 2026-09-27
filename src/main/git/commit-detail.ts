@@ -1,6 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import { CommitDetail, FileChange, FileDiff } from '../../shared/types';
+import { CommitDetail, FileChange, FileDiff, ComparisonResult, FileStatusKind } from '../../shared/types';
 import { withGit, errorMessage } from './core';
 import { parseUnifiedDiff } from './status-diff';
 import { gravatarHash } from './history';
@@ -183,14 +183,104 @@ export async function getFileDiff(
   }
 }
 
-/** Full diff text for a commit — used by revert-hunk to regenerate patches. */
-export async function getCommitDiffText(repoPath: string, hash: string, filePath: string): Promise<string> {
+/** Full diff text for a commit — used by revert-hunk and AI explainer. */
+export async function getCommitDiffText(repoPath: string, hash: string, filePath?: string): Promise<string> {
   return withGit(repoPath, async (git) => {
     const parents = (await git.raw(['rev-list', '--parents', '-n', '1', hash])).trim().split(' ').slice(1);
+    const args = filePath ? ['--', filePath] : [];
     if (parents.length === 0) {
       const emptyTree = (await git.raw(['hash-object', '-t', 'tree', '/dev/null'])).trim();
-      return git.diff([`${emptyTree}..${hash}`, '--', filePath]);
+      return git.diff([`${emptyTree}..${hash}`, ...args]);
     }
-    return git.diff([`${parents[0]}..${hash}`, '--', filePath]);
+    return git.diff([`${parents[0]}..${hash}`, ...args]);
   });
+}
+
+/** Compare two arbitrary revisions (commits or tags) */
+export async function compareCommits(
+  repoPath: string,
+  baseHash: string,
+  targetHash: string
+): Promise<ComparisonResult | null> {
+  try {
+    return await withGit(repoPath, async (git) => {
+      const [baseMeta, targetMeta] = await Promise.all([
+        git.raw(['show', '-s', '--pretty=format:%h%n%s%n%an%n%cI', baseHash]),
+        git.raw(['show', '-s', '--pretty=format:%h%n%s%n%an%n%cI', targetHash])
+      ]);
+
+      const baseLines = baseMeta.trim().split('\n');
+      const targetLines = targetMeta.trim().split('\n');
+
+      const numstat = await git.raw(['diff', '--numstat', baseHash, targetHash, '--']);
+      let nameStatus = '';
+      try {
+        nameStatus = await git.raw(['diff', '--name-status', baseHash, targetHash, '--']);
+      } catch {}
+
+      const statusMap = new Map<string, FileStatusKind>();
+      for (const line of nameStatus.split('\n')) {
+        if (!line.trim()) continue;
+        const [code, ...parts] = line.split('\t');
+        const fPath = parts[parts.length - 1];
+        const kind: FileStatusKind =
+          code.startsWith('A') ? 'added' :
+          code.startsWith('D') ? 'deleted' :
+          code.startsWith('R') ? 'renamed' : 'modified';
+        statusMap.set(fPath, kind);
+      }
+
+      const files: FileChange[] = [];
+      let insertions = 0;
+      let deletions = 0;
+
+      for (const line of numstat.split('\n')) {
+        if (!line.trim()) continue;
+        const [ins, del, ...parts] = line.split('\t');
+        const fPath = parts.join('\t');
+        if (!fPath) continue;
+        const insNum = ins === '-' ? undefined : parseInt(ins, 10);
+        const delNum = del === '-' ? undefined : parseInt(del, 10);
+        files.push({
+          path: fPath,
+          status: statusMap.get(fPath) || 'modified',
+          insertions: insNum,
+          deletions: delNum
+        });
+        if (insNum) insertions += insNum;
+        if (delNum) deletions += delNum;
+      }
+
+      return {
+        baseHash,
+        targetHash,
+        baseSubject: baseLines[1] || baseLines[0] || baseHash.slice(0, 7),
+        targetSubject: targetLines[1] || targetLines[0] || targetHash.slice(0, 7),
+        files,
+        insertions,
+        deletions
+      };
+    });
+  } catch (err) {
+    console.error('compareCommits failed:', errorMessage(err));
+    return null;
+  }
+}
+
+/** Get unified diff between two arbitrary revisions for a specific file */
+export async function getComparisonFileDiff(
+  repoPath: string,
+  baseHash: string,
+  targetHash: string,
+  filePath: string
+): Promise<FileDiff | null> {
+  try {
+    return await withGit(repoPath, async (git) => {
+      const diffText = await git.diff([baseHash, targetHash, '--', filePath]);
+      return parseUnifiedDiff(diffText, filePath);
+    });
+  } catch (err) {
+    console.error('getComparisonFileDiff failed:', errorMessage(err));
+    return null;
+  }
 }

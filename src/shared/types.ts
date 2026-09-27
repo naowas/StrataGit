@@ -148,6 +148,66 @@ export interface FileDiff {
   isBinary?: boolean;
 }
 
+export interface ComparisonResult {
+  baseHash: string;
+  targetHash: string;
+  baseSubject: string;
+  targetSubject: string;
+  files: FileChange[];
+  insertions: number;
+  deletions: number;
+}
+
+export interface StashDetail {
+  index: number;
+  message: string;
+  date: string;
+  files: FileChange[];
+  insertions: number;
+  deletions: number;
+}
+
+export interface MergeSimulationResult {
+  clean: boolean;
+  conflicts: string[];
+  message: string;
+}
+
+export interface BisectState {
+  active: boolean;
+  currentCommit?: {
+    hash: string;
+    shortHash: string;
+    message: string;
+    authorName: string;
+    date: string;
+  };
+  stepInfo?: string;
+  culpritCommit?: {
+    hash: string;
+    shortHash: string;
+    message: string;
+    body: string;
+    authorName: string;
+    authorEmail: string;
+    date: string;
+  };
+  log?: string[];
+}
+
+export interface ChangelogCategory {
+  title: string;
+  items: { hash: string; shortHash: string; message: string; author: string }[];
+}
+
+export interface ChangelogResult {
+  fromRef: string;
+  toRef: string;
+  categories: ChangelogCategory[];
+  totalCommits: number;
+  markdown: string;
+}
+
 export interface GraphResult {
   commits: Commit[];
   hasUncommittedChanges: boolean;
@@ -366,6 +426,20 @@ export interface StrataGitApi {
   initGitFlow(config?: Partial<GitFlowConfig>): Promise<{ ok: boolean; error?: string }>;
   startGitFlowBranch(params: GitFlowStartParams): Promise<{ ok: boolean; branchName?: string; error?: string }>;
   finishGitFlowBranch(params: GitFlowFinishParams): Promise<{ ok: boolean; error?: string }>;
+  compareCommits(baseHash: string, targetHash: string): Promise<ComparisonResult | null>;
+  getComparisonFileDiff(baseHash: string, targetHash: string, filePath: string): Promise<FileDiff | null>;
+  getStashDetail(index: number): Promise<StashDetail | null>;
+  getStashFileDiff(index: number, filePath: string): Promise<FileDiff | null>;
+  applyStashFile(index: number, filePath: string): Promise<{ ok: boolean; error?: string }>;
+  simulateMerge(targetBranch: string): Promise<MergeSimulationResult>;
+  explainChanges(params: { diffText?: string; commitHash?: string }): Promise<{ ok: boolean; explanation?: string; error?: string }>;
+  startBisect(badCommit?: string, goodCommit?: string): Promise<{ ok: boolean; state?: BisectState; error?: string }>;
+  stepBisect(verdict: 'good' | 'bad' | 'skip'): Promise<{ ok: boolean; state?: BisectState; error?: string }>;
+  resetBisect(): Promise<{ ok: boolean; error?: string }>;
+  getBisectState(): Promise<BisectState>;
+  generateChangelog(fromRef: string, toRef?: string): Promise<ChangelogResult | null>;
+  exportPatch(commitHash: string, outputPath: string): Promise<{ ok: boolean; error?: string }>;
+  applyPatch(patchPath: string): Promise<{ ok: boolean; error?: string }>;
   restartApp?(): Promise<boolean>;
 }
 

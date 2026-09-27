@@ -373,6 +373,8 @@ export const CODE_FONT_PRESETS = [
   { id: 'custom', label: 'Custom…', value: 'custom' }
 ];
 
+export type ToastPosition = 'top-center' | 'top-right' | 'bottom-center' | 'bottom-right';
+
 export interface SettingsState {
   isSettingsOpen: boolean;
   theme: ThemeId;
@@ -385,7 +387,7 @@ export interface SettingsState {
   graphRowHeight: number;
   autoFetch: boolean;
   autoFetchInterval: number; // in seconds
-  toastPosition: 'top-center' | 'top-right' | 'bottom-center' | 'bottom-right';
+  toastPosition: ToastPosition;
 
   // Commit Profile
   defaultAuthorName: string;

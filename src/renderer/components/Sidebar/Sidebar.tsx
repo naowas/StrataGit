@@ -24,6 +24,7 @@ import {
   ExternalLink,
   RotateCcw,
   Search,
+  Sparkles,
   X
 } from 'lucide-react';
 import { useApp } from '../../store';
@@ -125,16 +126,22 @@ function StashRow({
   stash: StashInfo;
   onContextMenu?: (e: React.MouseEvent) => void;
 }) {
-  const { runAndRefresh } = useApp();
+  const runAndRefresh = useApp((s) => s.runAndRefresh);
+  const inspectStash = useApp((s) => s.inspectStash);
+  const selectedStashIndex = useApp((s) => s.selectedStashIndex);
   const { index, message } = stash;
+  const isSelected = selectedStashIndex === index;
 
   return (
     <div
-      className="group flex items-center gap-2 px-3 py-1 text-sm text-fg/90 hover:bg-panel2 select-none cursor-pointer"
-      title={`${message} (Right click for options)`}
+      className={`group flex items-center gap-2 px-3 py-1 text-sm select-none cursor-pointer transition-colors ${
+        isSelected ? 'bg-purple-500/20 text-purple-300 font-medium' : 'text-fg/90 hover:bg-panel2'
+      }`}
+      title={`${message} (Click to inspect files, right click for options)`}
+      onClick={() => void inspectStash(index)}
       onContextMenu={onContextMenu}
     >
-      <Archive size={12} className="text-faint shrink-0" />
+      <Archive size={12} className={`shrink-0 ${isSelected ? 'text-purple-400' : 'text-faint'}`} />
       <span className="truncate flex-1 text-xs">
         #{index} {message}
       </span>
@@ -368,6 +375,8 @@ function SidebarFull({
   const setSidebarWidth = useApp((s) => s.setSidebarWidth);
   const openCreateTagModal = useApp((s) => s.openCreateTagModal);
   const openAddRemoteModal = useApp((s) => s.openAddRemoteModal);
+  const openWorktreesModal = useApp((s) => s.openWorktreesModal);
+  const openSimulateMerge = useApp((s) => s.openSimulateMerge);
   const openRepo = useApp((s) => s.openRepo);
   const selectCommit = useApp((s) => s.selectCommit);
   const log = useApp((s) => s.log);
@@ -442,6 +451,14 @@ function SidebarFull({
         disabled: isCurrent,
         onClick: () => {
           void runAndRefresh(() => api.mergeBranch(b.name), `Merged ${b.name} into ${currentBranchName}`);
+        }
+      },
+      {
+        label: `Simulate Merge (Pre-Flight Conflict Check)`,
+        icon: <Sparkles size={13} className="text-cyan-400" />,
+        disabled: isCurrent,
+        onClick: () => {
+          openSimulateMerge(b.name);
         }
       },
       {
@@ -1071,6 +1088,18 @@ function SidebarFull({
           title="WORKTREES"
           count={filteredWorktrees.length}
           defaultOpen={filteredWorktrees.length > 0}
+          action={
+            <button
+              className="btn-icon !w-5 !h-5 opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Manage worktrees dashboard"
+              onClick={(e) => {
+                e.stopPropagation();
+                openWorktreesModal();
+              }}
+            >
+              <Plus size={11} />
+            </button>
+          }
         >
           {filteredWorktrees.map((wt, i) => (
             <WorktreeRow

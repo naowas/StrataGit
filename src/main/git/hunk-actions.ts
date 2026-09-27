@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import { BlameLine, FileHistoryEntry } from '../../shared/types';
 import { withGit } from './core';
 
@@ -297,5 +298,20 @@ export async function getFileHistory(repoPath: string, filePath: string): Promis
     } catch {
       return [];
     }
+  });
+}
+
+/** Export commit diff as standard git patch file */
+export async function exportPatch(repoPath: string, commitHash: string, outputPath: string): Promise<void> {
+  await withGit(repoPath, async (git) => {
+    const patch = await git.raw(['format-patch', '-1', commitHash, '--stdout']);
+    await fs.promises.writeFile(outputPath, patch, 'utf8');
+  });
+}
+
+/** Apply standard git patch file to working directory */
+export async function applyPatchFile(repoPath: string, patchPath: string): Promise<void> {
+  await withGit(repoPath, async (git) => {
+    await git.raw(['apply', patchPath]);
   });
 }
