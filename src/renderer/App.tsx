@@ -12,6 +12,7 @@ import { StatusBar } from './components/StatusBar/StatusBar';
 import { Launchpad } from './components/Launchpad/Launchpad';
 import { SettingsModal } from './components/Settings/SettingsModal';
 import { AppLoadingScreen } from './components/Loading/AppLoadingScreen';
+import { RepoOpeningAnimation } from './components/Loading/RepoOpeningAnimation';
 import { ConflictBanner } from './components/ConflictResolver/ConflictBanner';
 import { ConflictResolverModal } from './components/ConflictResolver/ConflictResolverModal';
 import { InteractiveRebaseModal } from './components/Rebase/InteractiveRebaseModal';
@@ -23,18 +24,7 @@ import { TerminalDrawer } from './components/TerminalDrawer/TerminalDrawer';
 import { ShortcutsModal } from './components/Help/ShortcutsModal';
 import { UsageGuideModal } from './components/Help/UsageGuideModal';
 import { GitFlowModal } from './components/GitFlow/GitFlowModal';
-
-function Toast() {
-  const toast = useApp((s) => s.toast);
-  if (!toast) return null;
-  const color =
-    toast.kind === 'error' ? 'bg-del text-white' : toast.kind === 'success' ? 'bg-add text-white' : 'bg-panel3 text-fg';
-  return (
-    <div className={`fixed bottom-10 left-1/2 -translate-x-1/2 z-50 rounded-md px-4 py-2 text-sm shadow-xl ${color} max-w-[70vw]`}>
-      {toast.text}
-    </div>
-  );
-}
+import { ToastContainer } from './components/Common/ToastContainer';
 
 export function App() {
   const activeTab = useApp((s) => s.activeTab);
@@ -172,7 +162,7 @@ export function App() {
     <div className="h-full flex flex-col bg-base overflow-hidden border border-edge/50">
       <TabBar />
       {activeTab ? (
-        <>
+        <div key={activeTab} className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-300">
           <Toolbar />
           <ConflictBanner />
           <div className="flex-1 flex min-h-0">
@@ -184,12 +174,12 @@ export function App() {
             <CommitDetailPanel />
           </div>
           <TerminalDrawer />
-        </>
+        </div>
       ) : (
         <Launchpad />
       )}
       <StatusBar />
-      <Toast />
+      <ToastContainer />
       <ConflictResolverModal />
       <InteractiveRebaseModal />
       <CreateTagModal />
@@ -200,6 +190,7 @@ export function App() {
       <SettingsModal />
       {usageGuideOpen && <UsageGuideModal onClose={closeUsageGuide} />}
       {gitFlowModalOpen && <GitFlowModal onClose={closeGitFlowModal} />}
+      <RepoOpeningAnimation />
       <AppLoadingScreen isReady={isReady} />
     </div>
   );

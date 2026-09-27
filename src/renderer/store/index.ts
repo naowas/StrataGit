@@ -28,6 +28,15 @@ export interface OpenedDiff {
   status?: FileStatusKind;
 }
 
+export interface ToastItem {
+  id: string;
+  kind: 'info' | 'error' | 'success' | 'warn';
+  title?: string;
+  text: string;
+  duration?: number;
+  timestamp: number;
+}
+
 interface AppState {
   tabs: { path: string; name: string }[];
   activeTab: string | null;
@@ -64,10 +73,13 @@ interface AppState {
   shortcutsModalOpen: boolean;
   usageGuideOpen: boolean;
   gitFlowModalOpen: boolean;
-  toast: { kind: 'info' | 'error' | 'success'; text: string } | null;
+  toast: ToastItem | null;
+  toasts: ToastItem[];
   filter: string;
   commitLimit: number;
   isLoadingMoreCommits: boolean;
+  isOpeningRepo: boolean;
+  openingRepoName: string | null;
 }
 
 interface AppActions {
@@ -112,7 +124,9 @@ interface AppActions {
   setFilter(f: string): void;
   toggleSidebar(): void;
   setSidebarWidth(w: number): void;
-  notify(kind: 'info' | 'error' | 'success', text: string): void;
+  notify(kind: 'info' | 'error' | 'success' | 'warn', text: string, title?: string, duration?: number): void;
+  dismissToast(id: string): void;
+  clearToasts(): void;
   runAndRefresh(fn: () => Promise<unknown>, successMsg?: string): Promise<boolean>;
 }
 
@@ -157,9 +171,12 @@ export const useApp = create<AppStore>((set, get) => ({
   usageGuideOpen: false,
   gitFlowModalOpen: false,
   toast: null,
+  toasts: [],
   filter: '',
   commitLimit: 300,
   isLoadingMoreCommits: false,
+  isOpeningRepo: false,
+  openingRepoName: null,
 
   async init() {
     const recent = (await unwrap(api.recentRepos()).catch(() => [])) as string[];
@@ -168,6 +185,9 @@ export const useApp = create<AppStore>((set, get) => ({
   },
 
   async openRepo(p) {
+    const targetName = p.split('/').pop() || p;
+    set({ isOpeningRepo: true, openingRepoName: targetName });
+    const startTime = Date.now();
     try {
       const res = (await unwrap(api.openRepo(p))) as {
         ok: boolean;
@@ -176,16 +196,23 @@ export const useApp = create<AppStore>((set, get) => ({
       };
       if (!res.ok || !res.repo) {
         get().notify('error', res.error || 'Failed to open repository');
+        set({ isOpeningRepo: false, openingRepoName: null });
         return;
       }
       api.setActiveRepo(res.repo.path);
       const repo = res.repo;
       const tabs = [...get().tabs.filter((t) => t.path !== repo.path), { path: repo.path, name: repo.name }];
-      set({ tabs, activeTab: repo.path });
+      set({ tabs, activeTab: repo.path, openingRepoName: repo.name });
       await get().refresh();
       get().notify('success', `Opened ${repo.name}`);
     } catch (err) {
       get().notify('error', String(err).replace('Error: ', ''));
+    } finally {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 600 - elapsed);
+      setTimeout(() => {
+        set({ isOpeningRepo: false, openingRepoName: null });
+      }, remaining);
     }
   },
 
@@ -490,12 +517,36 @@ export const useApp = create<AppStore>((set, get) => ({
     set({ sidebarWidth: Math.max(52, Math.min(480, w)) });
   },
 
-  notify(kind, text) {
-    set({ toast: { kind, text } });
-    const cur = text;
-    setTimeout(() => {
-      if (get().toast?.text === cur) set({ toast: null });
-    }, 3500);
+  notify(kind, text, title, duration = 4000) {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const newToast: ToastItem = {
+      id,
+      kind,
+      title: title || (kind === 'success' ? 'Success' : kind === 'error' ? 'Error' : kind === 'warn' ? 'Notice' : 'Information'),
+      text,
+      duration,
+      timestamp: Date.now()
+    };
+    const updated = [...get().toasts.slice(-4), newToast];
+    set({ toasts: updated, toast: newToast });
+
+    if (duration > 0) {
+      setTimeout(() => {
+        get().dismissToast(id);
+      }, duration);
+    }
+  },
+
+  dismissToast(id) {
+    const updated = get().toasts.filter((t) => t.id !== id);
+    set({
+      toasts: updated,
+      toast: updated.length > 0 ? updated[updated.length - 1] : null
+    });
+  },
+
+  clearToasts() {
+    set({ toasts: [], toast: null });
   },
 
   async runAndRefresh(fn, successMsg) {
