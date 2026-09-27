@@ -2,7 +2,11 @@ import { create } from 'zustand';
 
 export type ThemeId =
   | 'stratagit-dark'
-  | 'graphgit-dark'
+  | 'catppuccin-mocha'
+  | 'tokyo-night'
+  | 'midnight-obsidian'
+  | 'rose-pine'
+  | 'emerald-matrix'
   | 'github-dark'
   | 'dracula'
   | 'nord'
@@ -59,25 +63,113 @@ export const THEMES: Record<ThemeId, ThemeDefinition> = {
       warn: '#fbbf24'
     }
   },
-  'graphgit-dark': {
-    id: 'graphgit-dark',
-    name: 'StrataGit Dark (Legacy)',
-    description: 'Legacy alias for StrataGit Dark',
+  'catppuccin-mocha': {
+    id: 'catppuccin-mocha',
+    name: 'Catppuccin Mocha',
+    description: 'Soothing dark pastel palette with warm lavender and mauve accents',
     colors: {
-      base: '#14171d',
-      panel: '#1a1d24',
-      panel2: '#222630',
-      panel3: '#2a303d',
-      edge: '#2d3340',
-      fg: '#e2e8f0',
+      base: '#1e1e2e',
+      panel: '#181825',
+      panel2: '#24273a',
+      panel3: '#313244',
+      edge: '#45475a',
+      fg: '#cdd6f4',
+      dim: '#a6adc8',
+      faint: '#6c7086',
+      accent: '#cba6f7',
+      accentHover: '#b4befe',
+      add: '#a6e3a1',
+      addBg: '#1b3a27',
+      del: '#f38ba8',
+      delBg: '#4d1d28',
+      warn: '#f9e2af'
+    }
+  },
+  'tokyo-night': {
+    id: 'tokyo-night',
+    name: 'Tokyo Night Storm',
+    description: 'Deep navy night palette celebrating the neon lights of downtown Tokyo',
+    colors: {
+      base: '#1a1b26',
+      panel: '#1f2335',
+      panel2: '#24283b',
+      panel3: '#2f3549',
+      edge: '#3b4261',
+      fg: '#c0caf5',
+      dim: '#9aa5ce',
+      faint: '#565f89',
+      accent: '#7aa2f7',
+      accentHover: '#bb9af7',
+      add: '#9ece6a',
+      addBg: '#1c3822',
+      del: '#f7768e',
+      delBg: '#4a1824',
+      warn: '#e0af68'
+    }
+  },
+  'midnight-obsidian': {
+    id: 'midnight-obsidian',
+    name: 'Midnight Obsidian',
+    description: 'Deep OLED true-black dark mode with luminous indigo & emerald accents',
+    colors: {
+      base: '#08090c',
+      panel: '#0e1117',
+      panel2: '#161b24',
+      panel3: '#1f2633',
+      edge: '#2d3545',
+      fg: '#f1f5f9',
       dim: '#94a3b8',
-      faint: '#64748b',
-      accent: '#38bdf8',
-      accentHover: '#0ea5e9',
-      add: '#34d399',
-      addBg: '#064e3b4d',
+      faint: '#475569',
+      accent: '#6366f1',
+      accentHover: '#818cf8',
+      add: '#10b981',
+      addBg: '#064e3b',
+      del: '#f43f5e',
+      delBg: '#641322',
+      warn: '#f59e0b'
+    }
+  },
+  'rose-pine': {
+    id: 'rose-pine',
+    name: 'Rosé Pine',
+    description: 'Soho dark minimalist palette with dreamy pine, gold and rose hues',
+    colors: {
+      base: '#191724',
+      panel: '#1f1d2e',
+      panel2: '#26233a',
+      panel3: '#312f44',
+      edge: '#403d52',
+      fg: '#e0def4',
+      dim: '#908caa',
+      faint: '#6e6a86',
+      accent: '#ebbcba',
+      accentHover: '#f6c177',
+      add: '#9ccfd8',
+      addBg: '#1b3438',
+      del: '#eb6f92',
+      delBg: '#471827',
+      warn: '#f6c177'
+    }
+  },
+  'emerald-matrix': {
+    id: 'emerald-matrix',
+    name: 'Emerald Matrix',
+    description: 'Deep forest carbon with vibrant phosphor green terminal aesthetics',
+    colors: {
+      base: '#0c1310',
+      panel: '#121c17',
+      panel2: '#192821',
+      panel3: '#22382e',
+      edge: '#2d4b3d',
+      fg: '#d1fae5',
+      dim: '#6ee7b7',
+      faint: '#396b54',
+      accent: '#10b981',
+      accentHover: '#34d399',
+      add: '#22c55e',
+      addBg: '#0f381e',
       del: '#f87171',
-      delBg: '#7f1d1d4d',
+      delBg: '#4a1919',
       warn: '#fbbf24'
     }
   },
@@ -261,23 +353,23 @@ export const THEMES: Record<ThemeId, ThemeDefinition> = {
 };
 
 export const UI_FONT_PRESETS = [
-  { label: 'System Default', value: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' },
-  { label: 'Inter', value: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif' },
-  { label: 'Outfit', value: '"Outfit", -apple-system, BlinkMacSystemFont, sans-serif' },
-  { label: 'Roboto', value: '"Roboto", -apple-system, BlinkMacSystemFont, sans-serif' },
-  { label: 'Segoe UI', value: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif' },
-  { label: 'Ubuntu', value: '"Ubuntu", -apple-system, BlinkMacSystemFont, sans-serif' },
-  { label: 'Custom…', value: 'custom' }
+  { id: 'system', label: 'System Default', value: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' },
+  { id: 'Inter', label: 'Inter', value: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif' },
+  { id: 'Outfit', label: 'Outfit', value: '"Outfit", -apple-system, BlinkMacSystemFont, sans-serif' },
+  { id: 'Roboto', label: 'Roboto', value: '"Roboto", -apple-system, BlinkMacSystemFont, sans-serif' },
+  { id: 'Segoe UI', label: 'Segoe UI', value: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif' },
+  { id: 'Ubuntu', label: 'Ubuntu', value: '"Ubuntu", -apple-system, BlinkMacSystemFont, sans-serif' },
+  { id: 'custom', label: 'Custom…', value: 'custom' }
 ];
 
 export const CODE_FONT_PRESETS = [
-  { label: 'JetBrains Mono', value: '"JetBrains Mono", Menlo, Consolas, monospace' },
-  { label: 'Fira Code', value: '"Fira Code", monospace' },
-  { label: 'Menlo', value: 'Menlo, Monaco, Consolas, monospace' },
-  { label: 'Consolas', value: 'Consolas, "Liberation Mono", Courier, monospace' },
-  { label: 'Source Code Pro', value: '"Source Code Pro", monospace' },
-  { label: 'Inconsolata', value: '"Inconsolata", monospace' },
-  { label: 'Custom…', value: 'custom' }
+  { id: 'JetBrains Mono', label: 'JetBrains Mono', value: '"JetBrains Mono", Menlo, Consolas, monospace' },
+  { id: 'Fira Code', label: 'Fira Code', value: '"Fira Code", monospace' },
+  { id: 'Menlo', label: 'Menlo', value: 'Menlo, Monaco, Consolas, monospace' },
+  { id: 'Consolas', label: 'Consolas', value: 'Consolas, "Liberation Mono", Courier, monospace' },
+  { id: 'Source Code Pro', label: 'Source Code Pro', value: '"Source Code Pro", monospace' },
+  { id: 'Inconsolata', label: 'Inconsolata', value: '"Inconsolata", monospace' },
+  { id: 'custom', label: 'Custom…', value: 'custom' }
 ];
 
 export interface SettingsState {
@@ -378,29 +470,41 @@ export function applySettingsToDOM(settings: {
 
   root.setAttribute('data-theme', theme.id);
 
-  // Apply font sizes
-  root.style.setProperty('--font-size-ui', `${settings.uiFontSize}px`);
-  root.style.setProperty('--font-size-code', `${settings.codeFontSize}px`);
+  // Apply font sizes (both custom variables and root scale)
+  const uiPx = Number(settings.uiFontSize) || 13;
+  const codePx = Number(settings.codeFontSize) || 12;
+
+  root.style.setProperty('--font-size-ui', `${uiPx}px`);
+  root.style.setProperty('--font-size-base', `${uiPx}px`);
+  root.style.setProperty('--font-size-sm', `${Math.max(10, uiPx - 1)}px`);
+  root.style.setProperty('--font-size-xs', `${Math.max(9, uiPx - 2)}px`);
+  root.style.setProperty('--font-size-code', `${codePx}px`);
+  root.style.fontSize = `${uiPx}px`;
 
   // UI Font resolution
   let sansFont = settings.uiFontFamily;
   if (sansFont === 'custom' && settings.customUiFont.trim()) {
-    sansFont = `"${settings.customUiFont.trim()}", -apple-system, BlinkMacSystemFont, sans-serif`;
+    sansFont = `"${settings.customUiFont.trim()}", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
   } else {
-    const preset = UI_FONT_PRESETS.find((p) => p.label === sansFont || p.value === sansFont);
-    sansFont = preset ? preset.value : `"${sansFont}", sans-serif`;
+    const preset = UI_FONT_PRESETS.find((p) => p.id === sansFont || p.label === sansFont || p.value === sansFont);
+    sansFont = preset ? preset.value : (sansFont ? `"${sansFont}", sans-serif` : UI_FONT_PRESETS[1].value);
   }
   root.style.setProperty('--font-sans', sansFont);
+  root.style.fontFamily = sansFont;
 
   // Code Font resolution
   let monoFont = settings.codeFontFamily;
   if (monoFont === 'custom' && settings.customCodeFont.trim()) {
     monoFont = `"${settings.customCodeFont.trim()}", monospace`;
   } else {
-    const preset = CODE_FONT_PRESETS.find((p) => p.label === monoFont || p.value === monoFont);
-    monoFont = preset ? preset.value : `"${monoFont}", monospace`;
+    const preset = CODE_FONT_PRESETS.find((p) => p.id === monoFont || p.label === monoFont || p.value === monoFont);
+    monoFont = preset ? preset.value : (monoFont ? `"${monoFont}", monospace` : CODE_FONT_PRESETS[0].value);
   }
   root.style.setProperty('--font-mono', monoFont);
+
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.style.fontFamily = sansFont;
+  }
 }
 
 // Initial application on file load

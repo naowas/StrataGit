@@ -52,7 +52,7 @@ export function SplitDiffView({ hunks }: SplitDiffViewProps) {
   };
 
   return (
-    <div className="font-mono text-xs leading-5">
+    <div className="font-mono leading-5" style={{ fontSize: 'var(--font-size-code)' }}>
       {hunks.map((hunk, hunkIdx) => {
         const rows = alignHunkLinesForSplit(hunk);
         const selected = selectedLinesByHunk[hunkIdx] || new Set<number>();

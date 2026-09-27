@@ -29,6 +29,7 @@ import {
 import { useApp } from '../../store';
 import { api } from '../../lib/api';
 import { ContextMenu, ContextMenuItem } from '../ui/ContextMenu';
+import { CheckoutBranchModal, CheckoutTarget } from './CheckoutBranchModal';
 import {
   BranchInfo,
   StashInfo,
@@ -366,6 +367,8 @@ function SidebarFull({
     y: number;
     items: ContextMenuItem[];
   } | null>(null);
+
+  const [checkoutTarget, setCheckoutTarget] = useState<CheckoutTarget | null>(null);
 
   const currentBranchName = status?.currentBranch || 'HEAD';
 
@@ -887,8 +890,16 @@ function SidebarFull({
               current={b.isCurrent}
               tracking={b.tracking}
               onClick={() => {
-                if (!b.isCurrent && activeTab) {
-                  void runAndRefresh(() => api.checkoutBranch(b.fullName), `Checked out ${b.name}`);
+                if (b.isCurrent) {
+                  notify('info', `Branch "${b.name}" is already checked out (active branch)`);
+                } else if (activeTab) {
+                  setCheckoutTarget({
+                    name: b.name,
+                    fullName: b.fullName,
+                    tracking: b.tracking,
+                    isRemote: false,
+                    branchObj: b
+                  });
                 }
               }}
               onContextMenu={(e) => handleLocalBranchContextMenu(e, b)}
@@ -918,7 +929,17 @@ function SidebarFull({
               key={`remote:${b.fullName}:${i}`}
               name={b.fullName}
               remote
-              onClick={() => notify('info', `Remote branch: ${b.fullName} (Right click for actions)`)}
+              onClick={() => {
+                if (activeTab) {
+                  const shortName = b.name.replace(/^remotes\/[^/]+\//, '').replace(/^[^/]+\//, '');
+                  setCheckoutTarget({
+                    name: shortName,
+                    fullName: b.fullName,
+                    isRemote: true,
+                    branchObj: b
+                  });
+                }
+              }}
               onContextMenu={(e) => handleRemoteBranchContextMenu(e, b)}
             />
           ))}
@@ -1075,6 +1096,48 @@ function SidebarFull({
           y={contextMenu.y}
           items={contextMenu.items}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {/* Checkout Branch Confirmation Modal */}
+      {checkoutTarget && (
+        <CheckoutBranchModal
+          target={checkoutTarget}
+          currentBranch={currentBranchName}
+          onClose={() => setCheckoutTarget(null)}
+          onConfirmCheckout={() => {
+            const target = checkoutTarget;
+            setCheckoutTarget(null);
+            if (!target) return;
+            if (target.isRemote) {
+              void runAndRefresh(
+                () => api.checkoutBranch(target.branchObj ? target.branchObj.name : target.fullName),
+                `Checked out ${target.name}`
+              );
+            } else {
+              void runAndRefresh(
+                () => api.checkoutBranch(target.fullName),
+                `Checked out ${target.name}`
+              );
+            }
+          }}
+          onMoreActions={() => {
+            const target = checkoutTarget;
+            setCheckoutTarget(null);
+            if (!target) return;
+            const syntheticEvent = {
+              preventDefault: () => {},
+              stopPropagation: () => {},
+              clientX: Math.min(width, 240),
+              clientY: 200
+            } as unknown as React.MouseEvent;
+
+            if (target.isRemote && target.branchObj) {
+              handleRemoteBranchContextMenu(syntheticEvent, target.branchObj);
+            } else if (target.branchObj) {
+              handleLocalBranchContextMenu(syntheticEvent, target.branchObj);
+            }
+          }}
         />
       )}
     </div>

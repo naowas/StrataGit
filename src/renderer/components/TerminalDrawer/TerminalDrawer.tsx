@@ -303,13 +303,19 @@ export function TerminalDrawer() {
             </div>
 
             {log.stdout && (
-              <pre className="text-fg/90 whitespace-pre-wrap font-mono pl-3 border-l-2 border-accent/30 text-[11px] overflow-x-auto leading-relaxed">
+              <pre
+                className="text-fg/90 whitespace-pre-wrap font-mono pl-3 border-l-2 border-accent/30 overflow-x-auto leading-relaxed"
+                style={{ fontSize: 'var(--font-size-code)' }}
+              >
                 {log.stdout}
               </pre>
             )}
 
             {log.stderr && (
-              <pre className="text-red-300 whitespace-pre-wrap font-mono pl-3 border-l-2 border-red-500/50 text-[11px] overflow-x-auto leading-relaxed">
+              <pre
+                className="text-red-300 whitespace-pre-wrap font-mono pl-3 border-l-2 border-red-500/50 overflow-x-auto leading-relaxed"
+                style={{ fontSize: 'var(--font-size-code)' }}
+              >
                 {log.stderr}
               </pre>
             )}
@@ -328,7 +334,8 @@ export function TerminalDrawer() {
           onKeyDown={handleKeyDown}
           disabled={isRunning}
           placeholder="Enter command (e.g. git status, git log -n 5, npm test)…"
-          className="flex-1 bg-transparent text-xs text-fg font-mono outline-hidden border-none p-0 focus:ring-0 placeholder:text-dim"
+          className="flex-1 bg-transparent text-fg font-mono outline-hidden border-none p-0 focus:ring-0 placeholder:text-dim"
+          style={{ fontSize: 'var(--font-size-code)' }}
         />
         {isRunning ? (
           <Loader2 size={14} className="animate-spin text-accent shrink-0" />

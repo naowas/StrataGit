@@ -249,12 +249,17 @@ export function SettingsModal() {
                       <span className="text-[11px] text-dim">Applied to navigation, labels, tabs, and buttons</span>
                     </div>
                     <select
-                      value={uiFontFamily}
+                      value={(() => {
+                        const p = UI_FONT_PRESETS.find(
+                          (x) => x.id === uiFontFamily || x.label === uiFontFamily || x.value === uiFontFamily
+                        );
+                        return p ? p.id : (uiFontFamily === 'custom' ? 'custom' : 'Inter');
+                      })()}
                       onChange={(e) => setUiFontFamily(e.target.value)}
                       className="text-xs px-2.5 py-1 min-w-44"
                     >
                       {UI_FONT_PRESETS.map((p) => (
-                        <option key={p.value} value={p.value}>
+                        <option key={p.id} value={p.id}>
                           {p.label}
                         </option>
                       ))}
@@ -280,12 +285,17 @@ export function SettingsModal() {
                       <span className="text-[11px] text-dim">Applied to diff views, commit hashes, branches and logs</span>
                     </div>
                     <select
-                      value={codeFontFamily}
+                      value={(() => {
+                        const p = CODE_FONT_PRESETS.find(
+                          (x) => x.id === codeFontFamily || x.label === codeFontFamily || x.value === codeFontFamily
+                        );
+                        return p ? p.id : (codeFontFamily === 'custom' ? 'custom' : 'JetBrains Mono');
+                      })()}
                       onChange={(e) => setCodeFontFamily(e.target.value)}
                       className="text-xs px-2.5 py-1 min-w-44"
                     >
                       {CODE_FONT_PRESETS.map((p) => (
-                        <option key={p.value} value={p.value}>
+                        <option key={p.id} value={p.id}>
                           {p.label}
                         </option>
                       ))}

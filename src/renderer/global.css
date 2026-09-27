@@ -66,6 +66,9 @@
   --color-accent-hover: var(--color-accentHover, #0ea5e9);
   --color-add-bg:       var(--color-addBg, #064e3b4d);
   --color-del-bg:       var(--color-delBg, #7f1d1d4d);
+  --font-size-base:     var(--font-size-ui, 13px);
+  --font-size-sm:       calc(var(--font-size-ui, 13px) - 1px);
+  --font-size-xs:       calc(var(--font-size-ui, 13px) - 2px);
 }
 
 /* ─────────────────────────────────────────────
@@ -86,11 +89,24 @@ body,
   user-select: none;
 }
 
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 /* Code and diff blocks use configurable code font */
 .font-mono,
 pre,
 code {
   font-family: var(--font-mono) !important;
+}
+
+pre,
+code,
+.font-mono.leading-5,
+.font-mono:not(span):not(kbd):not(button) {
   font-size: var(--font-size-code);
 }
 
