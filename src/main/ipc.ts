@@ -83,6 +83,12 @@ import {
   getWorktrees,
   removeWorktree
 } from './git/objects-navigation';
+import {
+  getGitFlowConfig,
+  initGitFlow,
+  startGitFlowBranch,
+  finishGitFlowBranch
+} from './git/gitflow';
 
 /** Recently opened repos persisted in the user config dir. */
 const recentFile = () => path.join(os.homedir(), '.config', 'stratagit', 'recent-repos.json');
@@ -692,6 +698,23 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
     const abs = path.isAbsolute(filePath) ? filePath : path.join(repo, filePath);
     shell.showItemInFolder(abs);
     return { ok: true };
+  });
+
+  // Git Flow handlers
+  handle('git:flow:get-config', async () => {
+    return getGitFlowConfig(requireRepo());
+  });
+
+  handle('git:flow:init', async (config?: any) => {
+    return initGitFlow(requireRepo(), config);
+  });
+
+  handle('git:flow:start', async (params: any) => {
+    return startGitFlowBranch(requireRepo(), params);
+  });
+
+  handle('git:flow:finish', async (params: any) => {
+    return finishGitFlowBranch(requireRepo(), params);
   });
 
   handle('window:minimize', async () => {

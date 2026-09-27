@@ -250,6 +250,32 @@ export interface AiCommitConfig {
 export type DiffViewMode = 'unified' | 'split';
 export type DiffActiveTab = 'diff' | 'blame' | 'history';
 
+export interface GitFlowConfig {
+  initialized: boolean;
+  masterBranch: string;
+  developBranch: string;
+  featurePrefix: string;
+  releasePrefix: string;
+  hotfixPrefix: string;
+  bugfixPrefix: string;
+  supportPrefix: string;
+  versionTagPrefix: string;
+}
+
+export type GitFlowBranchType = 'feature' | 'release' | 'hotfix' | 'bugfix' | 'support';
+
+export interface GitFlowStartParams {
+  type: GitFlowBranchType;
+  name: string;
+  baseBranch?: string;
+}
+
+export interface GitFlowFinishParams {
+  branchName: string;
+  tagMessage?: string;
+  keepBranch?: boolean;
+}
+
 // IPC API exposed via contextBridge
 export interface StrataGitApi {
   openRepo(path: string): Promise<{ ok: boolean; repo?: RepoSummary; error?: string }>;
@@ -336,6 +362,10 @@ export interface StrataGitApi {
   closeWindow(): Promise<boolean>;
   isWindowMaximized(): Promise<boolean>;
   onMaximizeChange?(cb: (isMax: boolean) => void): () => void;
+  getGitFlowConfig(): Promise<GitFlowConfig>;
+  initGitFlow(config?: Partial<GitFlowConfig>): Promise<{ ok: boolean; error?: string }>;
+  startGitFlowBranch(params: GitFlowStartParams): Promise<{ ok: boolean; branchName?: string; error?: string }>;
+  finishGitFlowBranch(params: GitFlowFinishParams): Promise<{ ok: boolean; error?: string }>;
   restartApp?(): Promise<boolean>;
 }
 

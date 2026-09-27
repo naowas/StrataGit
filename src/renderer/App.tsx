@@ -21,6 +21,8 @@ import { CreateRepoModal } from './components/Repository/CreateRepoModal';
 import { CommandPalette } from './components/CommandPalette/CommandPalette';
 import { TerminalDrawer } from './components/TerminalDrawer/TerminalDrawer';
 import { ShortcutsModal } from './components/Help/ShortcutsModal';
+import { UsageGuideModal } from './components/Help/UsageGuideModal';
+import { GitFlowModal } from './components/GitFlow/GitFlowModal';
 
 function Toast() {
   const toast = useApp((s) => s.toast);
@@ -37,6 +39,11 @@ function Toast() {
 export function App() {
   const activeTab = useApp((s) => s.activeTab);
   const init = useApp((s) => s.init);
+  const usageGuideOpen = useApp((s) => s.usageGuideOpen);
+  const gitFlowModalOpen = useApp((s) => s.gitFlowModalOpen);
+  const openUsageGuide = useApp((s) => s.openUsageGuide);
+  const closeUsageGuide = useApp((s) => s.closeUsageGuide);
+  const closeGitFlowModal = useApp((s) => s.closeGitFlowModal);
   const [isReady, setIsReady] = useState(false);
 
   const autoFetch = useSettings((s) => s.autoFetch);
@@ -45,14 +52,29 @@ export function App() {
   useEffect(() => {
     const startTime = Date.now();
     void init().finally(() => {
-      // Ensure the loading animation displays smoothly for at least 700ms
+      // Ensure the opening animation displays smoothly for at least 2400ms
       const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, 700 - elapsed);
+      const remaining = Math.max(0, 2400 - elapsed);
       setTimeout(() => {
         setIsReady(true);
       }, remaining);
     });
   }, [init]);
+
+  // First-boot onboarding tour check
+  useEffect(() => {
+    if (isReady) {
+      try {
+        const completed = localStorage.getItem('stratagit:guide_completed') === 'true';
+        if (!completed) {
+          const timer = setTimeout(() => {
+            openUsageGuide();
+          }, 450);
+          return () => clearTimeout(timer);
+        }
+      } catch {}
+    }
+  }, [isReady, openUsageGuide]);
 
   // Periodic and on-focus background git fetch to keep repository and ahead/behind status updated
   useEffect(() => {
@@ -176,6 +198,8 @@ export function App() {
       <CommandPalette />
       <ShortcutsModal />
       <SettingsModal />
+      {usageGuideOpen && <UsageGuideModal onClose={closeUsageGuide} />}
+      {gitFlowModalOpen && <GitFlowModal onClose={closeGitFlowModal} />}
       <AppLoadingScreen isReady={isReady} />
     </div>
   );

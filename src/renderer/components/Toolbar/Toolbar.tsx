@@ -18,7 +18,8 @@ import {
   Settings,
   X,
   Terminal,
-  RefreshCw
+  RefreshCw,
+  HelpCircle
 } from 'lucide-react';
 import { useApp, WIP_HASH } from '../../store';
 import { useSettings } from '../../store/settings';
@@ -311,6 +312,13 @@ export function Toolbar() {
         />
         <BranchMenu />
         <ActionButton
+          icon={<GitMerge size={15} className="text-emerald-400" />}
+          label="Git Flow"
+          disabled={!hasRepo}
+          onClick={() => useApp.getState().openGitFlowModal()}
+          title="Git Flow (Start & Finish Features, Releases, Hotfixes)"
+        />
+        <ActionButton
           icon={<Archive size={15} />}
           label="Stash"
           disabled={!hasRepo}
@@ -397,6 +405,22 @@ export function Toolbar() {
                 onClick={() => {
                   close();
                   useSettings.getState().openSettings();
+                }}
+              />
+              <MenuItem
+                icon={<GitMerge size={14} className="text-emerald-400" />}
+                label="Git Flow Operations…"
+                onClick={() => {
+                  close();
+                  useApp.getState().openGitFlowModal();
+                }}
+              />
+              <MenuItem
+                icon={<HelpCircle size={14} className="text-accent" />}
+                label="Quick Tour & Usage Guide…"
+                onClick={() => {
+                  close();
+                  useApp.getState().openUsageGuide();
                 }}
               />
             </>

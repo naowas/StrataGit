@@ -18,7 +18,9 @@ import {
   Keyboard,
   FolderPlus,
   FolderOpen,
-  X
+  X,
+  GitMerge,
+  Sparkles
 } from 'lucide-react';
 import { useApp } from '../../store';
 import { useSettings } from '../../store/settings';
@@ -228,6 +230,22 @@ export function CommandPalette() {
         subtitle: 'Configure fonts, layout, and preferences (Ctrl+,)',
         icon: <Settings size={14} className="text-dim" />,
         action: () => useSettings.getState().openSettings()
+      },
+      {
+        id: 'cmd-git-flow',
+        category: 'Commands',
+        title: 'Git Flow Operations…',
+        subtitle: 'Start or finish feature, release, and hotfix branches',
+        icon: <GitMerge size={14} className="text-emerald-400" />,
+        action: () => useApp.getState().openGitFlowModal()
+      },
+      {
+        id: 'cmd-usage-guide',
+        category: 'Commands',
+        title: 'Quick Tour & Usage Guide…',
+        subtitle: 'Open the visual walkthrough and onboarding guide for StrataGit',
+        icon: <Sparkles size={14} className="text-accent" />,
+        action: () => useApp.getState().openUsageGuide()
       }
     ];
 

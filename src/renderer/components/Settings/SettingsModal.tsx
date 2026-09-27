@@ -1364,6 +1364,20 @@ export function SettingsModal() {
                       <div className="text-xs text-dim">Built with Electron, React, TypeScript &amp; Vite</div>
                     </div>
                   </div>
+                  <div className="pt-2 border-t border-edge/60 flex items-center justify-between">
+                    <span className="text-xs text-dim">Need a quick refresher on StrataGit features?</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeSettings();
+                        useApp.getState().openUsageGuide();
+                      }}
+                      className="btn bg-accent text-white hover:bg-accent-hover text-xs font-medium px-3 py-1 shadow-xs flex items-center gap-1.5 transition-all"
+                    >
+                      <Sparkles size={13} />
+                      <span>Open Usage Guide Tour</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div>

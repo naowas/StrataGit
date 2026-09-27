@@ -62,6 +62,8 @@ interface AppState {
   terminalDrawerOpen: boolean;
   terminalDrawerHeight: number;
   shortcutsModalOpen: boolean;
+  usageGuideOpen: boolean;
+  gitFlowModalOpen: boolean;
   toast: { kind: 'info' | 'error' | 'success'; text: string } | null;
   filter: string;
   commitLimit: number;
@@ -102,6 +104,10 @@ interface AppActions {
   toggleTerminalDrawer(): void;
   setTerminalDrawerHeight(h: number): void;
   toggleShortcutsModal(): void;
+  openUsageGuide(): void;
+  closeUsageGuide(): void;
+  openGitFlowModal(): void;
+  closeGitFlowModal(): void;
   cherryPickCommit(hash: string): Promise<void>;
   setFilter(f: string): void;
   toggleSidebar(): void;
@@ -148,6 +154,8 @@ export const useApp = create<AppStore>((set, get) => ({
   terminalDrawerOpen: false,
   terminalDrawerHeight: 220,
   shortcutsModalOpen: false,
+  usageGuideOpen: false,
+  gitFlowModalOpen: false,
   toast: null,
   filter: '',
   commitLimit: 300,
@@ -436,6 +444,22 @@ export const useApp = create<AppStore>((set, get) => ({
 
   toggleShortcutsModal() {
     set({ shortcutsModalOpen: !get().shortcutsModalOpen });
+  },
+
+  openUsageGuide() {
+    set({ usageGuideOpen: true });
+  },
+
+  closeUsageGuide() {
+    set({ usageGuideOpen: false });
+  },
+
+  openGitFlowModal() {
+    set({ gitFlowModalOpen: true });
+  },
+
+  closeGitFlowModal() {
+    set({ gitFlowModalOpen: false });
   },
 
   async cherryPickCommit(hash) {

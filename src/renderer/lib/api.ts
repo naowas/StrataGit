@@ -289,6 +289,21 @@ const createMockApi = (): Api & StrataGitApi => {
     },
     openInEditor: async () => ({ ok: true }),
 
+    getGitFlowConfig: async () => ({
+      initialized: true,
+      masterBranch: 'main',
+      developBranch: 'develop',
+      featurePrefix: 'feature/',
+      releasePrefix: 'release/',
+      hotfixPrefix: 'hotfix/',
+      bugfixPrefix: 'bugfix/',
+      supportPrefix: 'support/',
+      versionTagPrefix: 'v'
+    }),
+    initGitFlow: async () => ({ ok: true }),
+    startGitFlowBranch: async (params: any) => ({ ok: true, branchName: `${params.type}/${params.name}` }),
+    finishGitFlowBranch: async () => ({ ok: true }),
+
     minimizeWindow: async () => true,
     maximizeWindow: async () => true,
     closeWindow: async () => true,

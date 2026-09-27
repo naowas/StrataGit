@@ -89,6 +89,10 @@ export type Api = {
   runCommand(command: string): Promise<{ ok: boolean; stdout?: string; stderr?: string; exitCode?: number; error?: string }>;
   openInEditor(filePath: string): Promise<{ ok: boolean; error?: string }>;
   setActiveRepo(path: string): void;
+  getGitFlowConfig(): Promise<import('../shared/types').GitFlowConfig>;
+  initGitFlow(config?: Partial<import('../shared/types').GitFlowConfig>): Promise<{ ok: boolean; error?: string }>;
+  startGitFlowBranch(params: import('../shared/types').GitFlowStartParams): Promise<{ ok: boolean; branchName?: string; error?: string }>;
+  finishGitFlowBranch(params: import('../shared/types').GitFlowFinishParams): Promise<{ ok: boolean; error?: string }>;
   minimizeWindow(): Promise<boolean>;
   maximizeWindow(): Promise<boolean>;
   closeWindow(): Promise<boolean>;
@@ -179,6 +183,10 @@ const api: Api = {
   runCommand: (command: string) => call('app:run-command', command) as Promise<{ ok: boolean; stdout?: string; stderr?: string; exitCode?: number; error?: string }>,
   openInEditor: (filePath) => call('app:open-in-editor', filePath),
   setActiveRepo: (path: string) => ipcRenderer.send('repo:set-active', path),
+  getGitFlowConfig: () => call('git:flow:get-config'),
+  initGitFlow: (config) => call('git:flow:init', config),
+  startGitFlowBranch: (params) => call('git:flow:start', params),
+  finishGitFlowBranch: (params) => call('git:flow:finish', params),
   minimizeWindow: () => call('window:minimize'),
   maximizeWindow: () => call('window:maximize'),
   closeWindow: () => call('window:close'),

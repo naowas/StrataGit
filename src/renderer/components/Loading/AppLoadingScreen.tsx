@@ -8,28 +8,40 @@ export function AppLoadingScreen({ isReady }: { isReady: boolean }) {
 
   useEffect(() => {
     const timer1 = setTimeout(() => {
-      setStatusText('Loading repositories and branches…');
-      setProgress(55);
-    }, 300);
+      setStatusText('Loading repositories and branch hierarchy…');
+      setProgress(35);
+    }, 500);
 
     const timer2 = setTimeout(() => {
-      setStatusText('Rendering workspace…');
-      setProgress(90);
-    }, 600);
+      setStatusText('Indexing commit strata & visual graph…');
+      setProgress(65);
+    }, 1100);
+
+    const timer3 = setTimeout(() => {
+      setStatusText('Configuring diff engine & Git Flow workflow…');
+      setProgress(85);
+    }, 1700);
+
+    const timer4 = setTimeout(() => {
+      setStatusText('Synchronizing workspace and tools…');
+      setProgress(95);
+    }, 2200);
 
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(timer4);
     };
   }, []);
 
   useEffect(() => {
     if (isReady) {
       setProgress(100);
-      setStatusText('Ready');
+      setStatusText('Welcome to StrataGit');
       const timer = setTimeout(() => {
         setVisible(false);
-      }, 400);
+      }, 550);
       return () => clearTimeout(timer);
     }
   }, [isReady]);
@@ -38,7 +50,7 @@ export function AppLoadingScreen({ isReady }: { isReady: boolean }) {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-base transition-opacity duration-500 ease-out select-none ${
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-base transition-opacity duration-600 ease-out select-none ${
         isReady ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
