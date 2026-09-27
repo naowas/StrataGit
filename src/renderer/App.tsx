@@ -179,7 +179,6 @@ export function App() {
         <Launchpad />
       )}
       <StatusBar />
-      <ToastContainer />
       <ConflictResolverModal />
       <InteractiveRebaseModal />
       <CreateTagModal />
@@ -192,6 +191,7 @@ export function App() {
       {gitFlowModalOpen && <GitFlowModal onClose={closeGitFlowModal} />}
       <RepoOpeningAnimation />
       <AppLoadingScreen isReady={isReady} />
+      <ToastContainer />
     </div>
   );
 }

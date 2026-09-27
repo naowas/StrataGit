@@ -72,9 +72,12 @@ export function SettingsModal() {
     setActiveProfileId,
     aiCommit,
     setAiCommit,
-    resetDefaults
+    resetDefaults,
+    toastPosition,
+    setToastPosition
   } = useSettings();
 
+  const notify = useApp((s) => s.notify);
   const activeRepoPath = useApp((s) => s.activeTab);
   const activeRepoTab = useApp((s) => s.tabs.find((t) => t.path === s.activeTab));
   const [activeTab, setActiveTab] = useState<'themes' | 'typography' | 'profiles' | 'ai' | 'git' | 'about'>('themes');
@@ -396,6 +399,71 @@ export function SettingsModal() {
                       </div>
                     );
                   })}
+                </div>
+
+                {/* Toast Notification Position */}
+                <div className="pt-4 border-t border-edge space-y-2.5">
+                  <div>
+                    <h3 className="text-xs font-semibold text-fg uppercase tracking-wider mb-1">
+                      Toast Notification Position
+                    </h3>
+                    <p className="text-xs text-dim">
+                      Choose where status messages and feedback pills float on screen
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {[
+                      {
+                        id: 'top-center',
+                        label: 'Top Center (Recommended)',
+                        desc: 'Dynamic Island / Raycast style below toolbar'
+                      },
+                      {
+                        id: 'top-right',
+                        label: 'Top Right',
+                        desc: 'Classic desktop notification corner (macOS / GitHub)'
+                      },
+                      {
+                        id: 'bottom-center',
+                        label: 'Bottom Center',
+                        desc: 'Floating pill centered above status bar (Linear style)'
+                      },
+                      {
+                        id: 'bottom-right',
+                        label: 'Bottom Right',
+                        desc: 'Docked in bottom-right corner above status bar'
+                      }
+                    ].map((pos) => {
+                      const isSel = (toastPosition || 'top-center') === pos.id;
+                      return (
+                        <div
+                          key={pos.id}
+                          onClick={() => {
+                            setToastPosition(pos.id as any);
+                            notify('success', `Toast position set to ${pos.label.split(' ')[0]} ${pos.label.split(' ')[1] || ''}`);
+                          }}
+                          className={`group relative flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                            isSel
+                              ? 'border-accent bg-panel2 ring-1 ring-accent/30 shadow-xs'
+                              : 'border-edge bg-panel2/60 hover:bg-panel2 hover:border-edge/90'
+                          }`}
+                        >
+                          <div
+                            className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center shrink-0 transition-colors ${
+                              isSel ? 'border-accent bg-accent text-white' : 'border-edge bg-panel3'
+                            }`}
+                          >
+                            {isSel && <Check size={10} strokeWidth={3} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold text-fg mb-0.5">{pos.label}</div>
+                            <div className="text-[11px] text-dim leading-snug">{pos.desc}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

@@ -385,6 +385,7 @@ export interface SettingsState {
   graphRowHeight: number;
   autoFetch: boolean;
   autoFetchInterval: number; // in seconds
+  toastPosition: 'top-center' | 'top-right' | 'bottom-center' | 'bottom-right';
 
   // Commit Profile
   defaultAuthorName: string;
@@ -408,6 +409,7 @@ export interface SettingsState {
   setGraphRowHeight: (height: number) => void;
   setAutoFetch: (enabled: boolean) => void;
   setAutoFetchInterval: (seconds: number) => void;
+  setToastPosition: (pos: 'top-center' | 'top-right' | 'bottom-center' | 'bottom-right') => void;
   setDefaultAuthorName: (name: string) => void;
   setDefaultAuthorEmail: (email: string) => void;
   setSigningKey: (key: string) => void;
@@ -431,6 +433,7 @@ const DEFAULT_SETTINGS = {
   graphRowHeight: 26,
   autoFetch: true,
   autoFetchInterval: 60,
+  toastPosition: 'top-center' as 'top-center' | 'top-right' | 'bottom-center' | 'bottom-right',
 
   defaultAuthorName: '',
   defaultAuthorEmail: '',
@@ -609,6 +612,11 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setAutoFetchInterval: (autoFetchInterval: number) => {
     set({ autoFetchInterval });
     saveSettings({ autoFetchInterval });
+  },
+
+  setToastPosition: (toastPosition: 'top-center' | 'top-right' | 'bottom-center' | 'bottom-right') => {
+    set({ toastPosition });
+    saveSettings({ toastPosition });
   },
 
   setDefaultAuthorName: (defaultAuthorName: string) => {

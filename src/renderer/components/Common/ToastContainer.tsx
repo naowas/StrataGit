@@ -1,21 +1,22 @@
 import React, { useState } from 'react';
 import {
-  CheckCircle2,
-  AlertOctagon,
+  Check,
+  AlertCircle,
   AlertTriangle,
   Info,
   X,
   Copy,
-  Check
+  CheckCheck
 } from 'lucide-react';
 import { useApp, ToastItem } from '../../store';
+import { useSettings } from '../../store/settings';
 
-function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => void }) {
+function ToastPill({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => void }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(toast.text);
+    void navigator.clipboard.writeText(toast.text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -25,110 +26,98 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
   const isWarn = toast.kind === 'warn';
 
   const icon = isSuccess ? (
-    <CheckCircle2 size={17} className="text-emerald-400" />
+    <Check size={12} strokeWidth={2.8} className="text-emerald-400" />
   ) : isError ? (
-    <AlertOctagon size={17} className="text-rose-400" />
+    <AlertCircle size={13} strokeWidth={2.4} className="text-rose-400" />
   ) : isWarn ? (
-    <AlertTriangle size={17} className="text-amber-400" />
+    <AlertTriangle size={12} strokeWidth={2.4} className="text-amber-400" />
   ) : (
-    <Info size={17} className="text-cyan-400" />
+    <Info size={13} strokeWidth={2.4} className="text-sky-400" />
   );
 
-  const badgeBg = isSuccess
-    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400'
+  const iconBadge = isSuccess
+    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.25)]'
     : isError
-    ? 'bg-rose-500/15 border-rose-500/30 text-rose-400'
+    ? 'bg-rose-500/15 border-rose-500/30 text-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.25)]'
     : isWarn
-    ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
-    : 'bg-cyan-500/15 border-cyan-500/30 text-cyan-400';
+    ? 'bg-amber-500/15 border-amber-500/30 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+    : 'bg-sky-500/15 border-sky-500/30 text-sky-400 shadow-[0_0_10px_rgba(14,165,233,0.25)]';
 
-  const borderStyle = isSuccess
-    ? 'border-emerald-500/40 shadow-emerald-950/20'
+  const glowShadow = isSuccess
+    ? 'shadow-[0_12px_36px_-6px_rgba(0,0,0,0.65),0_0_24px_-4px_rgba(16,185,129,0.2),0_0_0_1px_rgba(255,255,255,0.08)]'
     : isError
-    ? 'border-rose-500/40 shadow-rose-950/20'
+    ? 'shadow-[0_12px_36px_-6px_rgba(0,0,0,0.65),0_0_24px_-4px_rgba(244,63,94,0.25),0_0_0_1px_rgba(255,255,255,0.08)]'
     : isWarn
-    ? 'border-amber-500/40 shadow-amber-950/20'
-    : 'border-cyan-500/40 shadow-cyan-950/20';
+    ? 'shadow-[0_12px_36px_-6px_rgba(0,0,0,0.65),0_0_24px_-4px_rgba(245,158,11,0.2),0_0_0_1px_rgba(255,255,255,0.08)]'
+    : 'shadow-[0_12px_36px_-6px_rgba(0,0,0,0.65),0_0_24px_-4px_rgba(56,189,248,0.2),0_0_0_1px_rgba(255,255,255,0.08)]';
 
-  const leftBarColor = isSuccess
-    ? 'bg-emerald-400'
+  const progressBg = isSuccess
+    ? 'bg-emerald-400/80'
     : isError
-    ? 'bg-rose-400'
+    ? 'bg-rose-400/80'
     : isWarn
-    ? 'bg-amber-400'
-    : 'bg-cyan-400';
+    ? 'bg-amber-400/80'
+    : 'bg-sky-400/80';
 
-  const progressBarColor = isSuccess
-    ? 'bg-emerald-400'
-    : isError
-    ? 'bg-rose-400'
-    : isWarn
-    ? 'bg-amber-400'
-    : 'bg-cyan-400';
-
-  const durationMs = toast.duration || 4000;
+  const durationMs = toast.duration || 3800;
 
   return (
     <div
-      className={`group relative pointer-events-auto flex flex-col rounded-xl bg-panel/95 backdrop-blur-md border ${borderStyle} shadow-2xl overflow-hidden transition-all duration-200 animate-in slide-in-from-bottom-5 fade-in select-none max-w-sm w-full`}
-      style={{
-        boxShadow: isSuccess
-          ? '0 12px 30px -4px rgba(16, 185, 129, 0.15), 0 4px 12px -2px rgba(0, 0, 0, 0.4)'
-          : isError
-          ? '0 12px 30px -4px rgba(244, 63, 94, 0.18), 0 4px 12px -2px rgba(0, 0, 0, 0.4)'
-          : '0 12px 30px -4px rgba(56, 189, 248, 0.15), 0 4px 12px -2px rgba(0, 0, 0, 0.4)'
-      }}
+      className={`group pointer-events-auto relative flex flex-col items-stretch overflow-hidden rounded-2xl bg-[#0f131c]/92 backdrop-blur-xl border border-white/10 ${glowShadow} transition-all duration-300 animate-in fade-in-0 slide-in-from-top-3 zoom-in-95 ease-out max-w-lg min-w-[280px] w-auto`}
     >
-      {/* Glowing Left Indicator Bar */}
-      <div className={`absolute top-0 bottom-0 left-0 w-1 ${leftBarColor}`} />
-
-      {/* Main Content Area */}
-      <div className="flex items-start gap-3 p-3.5 pl-4">
-        {/* Type Icon Badge */}
-        <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 mt-0.5 ${badgeBg}`}>
+      <div className="flex items-center gap-3 px-3.5 py-2.5">
+        {/* Soft Glowing Icon */}
+        <div
+          className={`w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${iconBadge}`}
+        >
           {icon}
         </div>
 
-        {/* Text Area */}
-        <div className="flex-1 min-w-0 space-y-1">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-fg/80 font-mono">
-              {toast.title || (isSuccess ? 'Success' : isError ? 'Error' : isWarn ? 'Notice' : 'Information')}
+        {/* Content Details */}
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          {toast.title && (
+            <span className="text-xs font-semibold text-white/95 shrink-0">
+              {toast.title}
             </span>
-
-            <div className="flex items-center gap-1 shrink-0">
-              {isError && (
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className="p-1 rounded text-dim hover:text-fg hover:bg-panel3 transition-colors"
-                  title="Copy error message"
-                >
-                  {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={onDismiss}
-                className="p-1 rounded text-dim hover:text-fg hover:bg-panel3 transition-colors"
-                title="Dismiss"
-              >
-                <X size={13} />
-              </button>
-            </div>
-          </div>
-
-          <p className="text-sm font-medium text-fg leading-snug break-words selectable select-text">
+          )}
+          <span className="text-[13px] font-normal text-slate-200/90 leading-snug break-words selectable select-text">
             {toast.text}
-          </p>
+          </span>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-1 shrink-0 ml-1">
+          {isError && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              title="Copy error message"
+            >
+              {copied ? (
+                <CheckCheck size={12} className="text-emerald-400" />
+              ) : (
+                <Copy size={12} />
+              )}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            title="Dismiss notification"
+          >
+            <X size={13} />
+          </button>
         </div>
       </div>
 
-      {/* Animated Countdown Progress Bar */}
+      {/* Whisper-thin Hairline Countdown Indicator */}
       {durationMs > 0 && (
-        <div className="h-0.5 w-full bg-panel3/60 overflow-hidden">
+        <div className="h-[2px] w-full bg-white/[0.04] overflow-hidden">
           <div
-            className={`h-full ${progressBarColor}`}
+            className={`h-full ${progressBg}`}
             style={{
               animation: `toast-progress ${durationMs}ms linear forwards`
             }}
@@ -142,13 +131,23 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
 export function ToastContainer() {
   const toasts = useApp((s) => s.toasts);
   const dismissToast = useApp((s) => s.dismissToast);
+  const toastPosition = useSettings((s) => s.toastPosition) || 'top-center';
 
   if (!toasts || toasts.length === 0) return null;
 
+  const positionClasses = {
+    'top-center': 'top-[84px] left-1/2 -translate-x-1/2 items-center max-w-xl',
+    'top-right': 'top-[84px] right-6 items-end max-w-md',
+    'bottom-center': 'bottom-10 left-1/2 -translate-x-1/2 items-center max-w-xl',
+    'bottom-right': 'bottom-10 right-6 items-end max-w-md'
+  }[toastPosition] || 'top-[84px] left-1/2 -translate-x-1/2 items-center max-w-xl';
+
   return (
-    <div className="fixed bottom-7 right-7 z-[100] flex flex-col items-end gap-2.5 max-w-sm w-full pointer-events-none">
+    <div
+      className={`fixed ${positionClasses} z-[9999] flex flex-col gap-2 pointer-events-none w-full px-4`}
+    >
       {toasts.map((toast) => (
-        <ToastCard
+        <ToastPill
           key={toast.id}
           toast={toast}
           onDismiss={() => dismissToast(toast.id)}

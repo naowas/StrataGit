@@ -522,7 +522,7 @@ export const useApp = create<AppStore>((set, get) => ({
     const newToast: ToastItem = {
       id,
       kind,
-      title: title || (kind === 'success' ? 'Success' : kind === 'error' ? 'Error' : kind === 'warn' ? 'Notice' : 'Information'),
+      title: title || undefined,
       text,
       duration,
       timestamp: Date.now()
