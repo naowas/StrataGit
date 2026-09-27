@@ -10,7 +10,7 @@ import { CommitDetailPanel } from './components/CommitDetailPanel/CommitDetailPa
 import { DiffViewer } from './components/DiffViewer/DiffViewer';
 import { StatusBar } from './components/StatusBar/StatusBar';
 import { Launchpad } from './components/Launchpad/Launchpad';
-import { SettingsModal } from './components/Settings/SettingsModal';
+import { SettingsPage } from './components/Settings/SettingsPage';
 import { AppLoadingScreen } from './components/Loading/AppLoadingScreen';
 import { RepoOpeningAnimation } from './components/Loading/RepoOpeningAnimation';
 import { ConflictBanner } from './components/ConflictResolver/ConflictBanner';
@@ -36,6 +36,7 @@ export function App() {
   const closeGitFlowModal = useApp((s) => s.closeGitFlowModal);
   const [isReady, setIsReady] = useState(false);
 
+  const isSettingsOpen = useSettings((s) => s.isSettingsOpen);
   const autoFetch = useSettings((s) => s.autoFetch);
   const autoFetchInterval = useSettings((s) => s.autoFetchInterval);
 
@@ -140,12 +141,19 @@ export function App() {
         searchInput?.select();
       } else if (isMod && e.key === ',') {
         e.preventDefault();
-        useSettings.getState().openSettings();
+        const settings = useSettings.getState();
+        if (settings.isSettingsOpen) {
+          settings.closeSettings();
+        } else {
+          settings.openSettings();
+        }
       } else if (e.key === '?' && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
         e.preventDefault();
         useApp.getState().toggleShortcutsModal();
       } else if (e.key === 'Escape') {
-        if (useApp.getState().shortcutsModalOpen) {
+        if (useSettings.getState().isSettingsOpen) {
+          useSettings.getState().closeSettings();
+        } else if (useApp.getState().shortcutsModalOpen) {
           useApp.setState({ shortcutsModalOpen: false });
         } else if (useApp.getState().commandPaletteOpen) {
           useApp.getState().closeCommandPalette();
@@ -161,7 +169,9 @@ export function App() {
   return (
     <div className="h-full flex flex-col bg-base overflow-hidden border border-edge/50">
       <TabBar />
-      {activeTab ? (
+      {isSettingsOpen ? (
+        <SettingsPage />
+      ) : activeTab ? (
         <div key={activeTab} className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-300">
           <Toolbar />
           <ConflictBanner />
@@ -186,7 +196,6 @@ export function App() {
       <CreateRepoModal />
       <CommandPalette />
       <ShortcutsModal />
-      <SettingsModal />
       {usageGuideOpen && <UsageGuideModal onClose={closeUsageGuide} />}
       {gitFlowModalOpen && <GitFlowModal onClose={closeGitFlowModal} />}
       <RepoOpeningAnimation />

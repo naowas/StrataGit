@@ -17,6 +17,8 @@ import { StrataLogo } from '../Common/StrataLogo';
 export function TabBar() {
   const { tabs, activeTab, setActiveTab, closeTab } = useApp();
   const openSettings = useSettings((s) => s.openSettings);
+  const closeSettings = useSettings((s) => s.closeSettings);
+  const isSettingsOpen = useSettings((s) => s.isSettingsOpen);
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
@@ -60,20 +62,23 @@ export function TabBar() {
         {/* Launchpad Tab */}
         <button
           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            activeTab === null || activeTab === ''
+            !isSettingsOpen && (activeTab === null || activeTab === '')
               ? 'bg-panel2 text-accent shadow-sm border border-accent/40 font-semibold'
               : 'text-dim hover:text-fg hover:bg-panel2/60'
           }`}
-          onClick={() => useApp.getState().setActiveTab('')}
+          onClick={() => {
+            closeSettings();
+            useApp.getState().setActiveTab('');
+          }}
           title="Launchpad"
         >
-          <Home size={12} className={activeTab === null || activeTab === '' ? 'text-accent' : 'text-dim'} />
+          <Home size={12} className={!isSettingsOpen && (activeTab === null || activeTab === '') ? 'text-accent' : 'text-dim'} />
           <span>Launchpad</span>
         </button>
 
         {/* Repository Tabs */}
         {tabs.map((t) => {
-          const isActive = activeTab === t.path;
+          const isActive = !isSettingsOpen && activeTab === t.path;
           return (
             <div
               key={t.path}
@@ -82,7 +87,10 @@ export function TabBar() {
                   ? 'bg-panel2 text-fg shadow-sm border border-edge font-semibold'
                   : 'text-dim hover:text-fg hover:bg-panel2/60'
               }`}
-              onClick={() => setActiveTab(t.path)}
+              onClick={() => {
+                closeSettings();
+                setActiveTab(t.path);
+              }}
               title={t.path}
             >
               <FolderGit2
@@ -111,10 +119,35 @@ export function TabBar() {
           );
         })}
 
+        {/* Settings Tab (shows when active/open) */}
+        {isSettingsOpen && (
+          <div
+            className="group relative flex items-center gap-2 pl-3 pr-2 py-1.5 text-xs font-semibold rounded-md cursor-pointer transition-all max-w-[210px] bg-panel2 text-accent shadow-sm border border-accent/40"
+            title="Settings Page"
+          >
+            <Settings size={12} className="text-accent shrink-0 animate-spin-slow" />
+            <span className="truncate">Settings</span>
+            <button
+              className="rounded p-0.5 ml-1 opacity-70 hover:opacity-100 hover:bg-white/10 text-fg transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                closeSettings();
+              }}
+              title="Close settings (Esc)"
+            >
+              <X size={11} />
+            </button>
+            <div className="absolute bottom-0 left-2 right-2 h-[2px] bg-accent rounded-full" />
+          </div>
+        )}
+
         {/* New Tab / Launchpad Button */}
         <button
           className="flex items-center justify-center w-7 h-7 rounded-md text-dim hover:text-fg hover:bg-panel2 transition-colors ml-0.5"
-          onClick={() => setActiveTab('')}
+          onClick={() => {
+            closeSettings();
+            setActiveTab('');
+          }}
           title="New Tab (Launchpad)"
         >
           <Plus size={14} />
@@ -135,9 +168,11 @@ export function TabBar() {
       >
         {/* Settings button */}
         <button
-          className="w-9 h-10 flex items-center justify-center text-dim hover:text-fg hover:bg-panel3 transition-colors mr-1"
-          onClick={openSettings}
-          title="Settings (Ctrl+,)"
+          className={`w-9 h-10 flex items-center justify-center transition-colors mr-1 ${
+            isSettingsOpen ? 'text-accent bg-panel3' : 'text-dim hover:text-fg hover:bg-panel3'
+          }`}
+          onClick={() => (isSettingsOpen ? closeSettings() : openSettings())}
+          title="Preferences (Ctrl+,)"
         >
           <Settings size={14} />
         </button>
