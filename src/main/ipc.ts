@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { app, ipcMain, dialog, shell, BrowserWindow } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -17,7 +18,7 @@ import {
 } from '../shared/types';
 import { isValidRepo, errorMessage, withGit } from './git/core';
 import { getLog, repoDisplayName } from './git/log';
-import { getStatus } from './git/status-diff';
+import { getStatus, unstageFiles, discardFile } from './git/status-diff';
 import { getCommitDetail, getFileDiff, getCommitDiffText, compareCommits, getComparisonFileDiff } from './git/commit-detail';
 import {
   getBranches,
@@ -128,11 +129,12 @@ function writeRecent(list: string[]) {
 }
 
 export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => string | null) {
+  const requestRepo = new AsyncLocalStorage<string | null>();
   type Handler = (...args: any[]) => Promise<unknown>;
   const handle = (channel: string, fn: Handler) => {
     ipcMain.handle(channel, async (_e, ...args) => {
       try {
-        return await fn(...args);
+        return await requestRepo.run(getRepo(), () => fn(...args));
       } catch (err) {
         return { __error: errorMessage(err) };
       }
@@ -140,7 +142,7 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
   };
 
   const requireRepo = (): string => {
-    const repo = getRepo();
+    const repo = requestRepo.getStore();
     if (!repo || !isValidRepo(repo)) throw new Error('No repository open');
     return repo;
   };
@@ -256,7 +258,7 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
     let name = '';
     let email = '';
     try {
-      const repo = getRepo();
+      const repo = requestRepo.getStore();
       if (scope === 'local' && repo && isValidRepo(repo)) {
         const g = simpleGit(repo);
         name = (await g.getConfig('user.name', 'local')).value || '';
@@ -272,7 +274,7 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
 
   handle('git:config-set', async (cfg: { name?: string; email?: string; scope?: 'local' | 'global' }) => {
     const scope = cfg.scope || 'global';
-    const repo = getRepo();
+    const repo = requestRepo.getStore();
     const g = scope === 'local' && repo && isValidRepo(repo) ? simpleGit(repo) : simpleGit();
     if (cfg.name !== undefined) {
       await g.addConfig('user.name', cfg.name, false, scope);
@@ -324,12 +326,12 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
     mutate(() => withGit(requireRepo(), (g) => g.add(paths)))
   );
   handle('git:unstage', async (paths: string[]) =>
-    mutate(() => withGit(requireRepo(), (g) => g.reset(['HEAD', '--', ...paths])))
+    mutate(() => unstageFiles(requireRepo(), paths))
   );
   handle('git:stage-all', async () => mutate(() => withGit(requireRepo(), (g) => g.add('-A'))));
-  handle('git:unstage-all', async () => mutate(() => withGit(requireRepo(), (g) => g.reset(['HEAD']))));
+  handle('git:unstage-all', async () => mutate(() => unstageFiles(requireRepo())));
   handle('git:discard', async (p: string) =>
-    mutate(() => withGit(requireRepo(), (g) => g.checkout(['--', p])))
+    mutate(() => discardFile(requireRepo(), p))
   );
   handle('git:commit', async (message: string, author?: { name: string; email: string }) => {
     await withGit(requireRepo(), (g) => {

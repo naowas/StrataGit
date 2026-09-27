@@ -215,3 +215,157 @@ test('desktop registers unique IPC handlers and routes both patch APIs correctly
     Module._load = originalLoad;
   }
 });
+
+test('editing HEAD message preserves the tree, index, and unstaged content', async t => {
+  const f = fixture(t); const { editCommitMessage } = require('../src/main/git/history.ts');
+  fs.writeFileSync(f.file, 'staged\n'); git(f.repo, 'add', '.'); fs.writeFileSync(f.file, 'unstaged\n');
+  const tree = git(f.repo, 'rev-parse', 'HEAD^{tree}'); const index = git(f.repo, 'write-tree');
+  await editCommitMessage(f.repo, f.initial, 'message only');
+  assert.equal(git(f.repo, 'log', '-1', '--format=%s'), 'message only');
+  assert.equal(git(f.repo, 'rev-parse', 'HEAD^{tree}'), tree); assert.equal(git(f.repo, 'write-tree'), index);
+  assert.equal(f.read(), 'unstaged\n');
+});
+test('stash file restore refuses local edits, then restores only the worktree', async t => {
+  const f = fixture(t); const { applyStashFile } = require('../src/main/git/branch-stash.ts');
+  fs.writeFileSync(f.file, 'stash version\n'); git(f.repo, 'stash', 'push');
+  fs.writeFileSync(f.file, 'staged\n'); git(f.repo, 'add', '.'); fs.writeFileSync(f.file, 'unstaged\n');
+  await assert.rejects(applyStashFile(f.repo, 0, 'file.txt'), /local changes/);
+  assert.equal(f.read(), 'unstaged\n'); assert.equal(git(f.repo, 'show', ':file.txt'), 'staged');
+  git(f.repo, 'restore', '--source=HEAD', '--staged', '--worktree', 'file.txt');
+  await applyStashFile(f.repo, 0, 'file.txt');
+  assert.equal(f.read(), 'stash version\n'); assert.equal(git(f.repo, 'diff', '--cached'), '');
+});
+test('each reworded commit retains its own requested message', async t => {
+  const f = fixture(t); const { executeInteractiveRebase } = require('../src/main/git/conflicts-rebase.ts');
+  fs.writeFileSync(path.join(f.repo, 'one'), 'one'); const one = f.commit();
+  fs.writeFileSync(path.join(f.repo, 'two'), 'two'); const two = f.commit();
+  const result = await executeInteractiveRebase(f.repo, f.initial, [
+    { hash: one, action: 'reword', message: 'new one' }, { hash: two, action: 'reword', message: 'new two' }
+  ]);
+  assert.equal(result.ok, true, result.error);
+  assert.equal(git(f.repo, 'log', '-2', '--format=%s'), 'new two\nnew one');
+});
+test('root details are independent of current worktree and later commits', async t => {
+  const f = fixture(t); const { getCommitDetail } = require('../src/main/git/commit-detail.ts');
+  fs.writeFileSync(f.file, 'later\n'); f.commit(); fs.writeFileSync(f.file, 'dirty\n');
+  const detail = await getCommitDetail(f.repo, f.initial);
+  assert.equal(detail.files.length, 1); assert.equal(detail.files[0].status, 'added');
+  assert.equal(detail.insertions, 35); assert.equal(detail.deletions, 0);
+});
+test('single commit and stash views preserve renamed paths and file diffs', async t => {
+  const f = fixture(t); const renamed = '日本\tnew.txt';
+  const { getCommitDetail } = require('../src/main/git/commit-detail.ts');
+  const { getStashDetail, getStashFileDiff } = require('../src/main/git/branch-stash.ts');
+  git(f.repo, 'mv', 'file.txt', renamed); fs.writeFileSync(path.join(f.repo, renamed), f.content.replace('line 3\n', 'changed\n'));
+  git(f.repo, 'stash', 'push');
+  const stash = await getStashDetail(f.repo, 0); assert.equal(stash.files[0].path, renamed); assert.equal(stash.files[0].status, 'renamed');
+  assert.equal((await getStashFileDiff(f.repo, 0, renamed)).hunks.length, 1);
+  git(f.repo, 'stash', 'pop'); const hash = f.commit();
+  const detail = await getCommitDetail(f.repo, hash); assert.equal(detail.files[0].path, renamed); assert.equal(detail.files[0].status, 'renamed');
+  assert.equal((await getFileDiff(f.repo, hash, renamed)).hunks.length, 1);
+});
+test('renderer ignores stale diff, stash, refresh responses and clears repository-specific state', async t => {
+  const Module = require('node:module'); const originalLoad = Module._load;
+  const pending = {};
+  let phase = 'old';
+  const api = {
+    getFileDiff: (_hash, file) => new Promise(resolve => { pending[file] = resolve; }),
+    getStashDetail: index => new Promise(resolve => { pending[`stash${index}`] = resolve; }),
+    getStatus: () => new Promise(resolve => { pending[`status-${phase}`] = resolve; }),
+    getLog: async () => ({ commits: [], hasMore: false }), getBranches: async () => ({ local: [], remote: [] }),
+    getStashes: async () => [], getRepoOperationState: async () => null, getTags: async () => [],
+    getRemotes: async () => [], getSubmodules: async () => [], getWorktrees: async () => [], setActiveRepo: () => {}
+  };
+  Module._load = function(name, ...args) { return name === '../lib/api' ? { api, unwrap: p => p } : originalLoad.call(this, name, ...args); };
+  let useApp;
+  try { ({ useApp } = require('../src/renderer/store/index.ts')); } finally { Module._load = originalLoad; }
+  const state = () => useApp.getState();
+  useApp.setState({ activeTab: '/old', tabs: [{ path: '/old' }, { path: '/new' }] });
+  const a = state().openFileDiff({ commitHash: null, filePath: 'A' });
+  const b = state().openFileDiff({ commitHash: null, filePath: 'B' });
+  pending.B({ path: 'B', hunks: [] }); await b; pending.A({ path: 'A', hunks: [] }); await a;
+  assert.equal(state().fileDiff.path, 'B');
+  const c = state().openFileDiff({ commitHash: null, filePath: 'C' }); state().closeDiff(); pending.C({ path: 'C' }); await c;
+  assert.equal(state().fileDiff, null);
+  const stash0 = state().inspectStash(0); const stash1 = state().inspectStash(1);
+  pending.stash1({ index: 1 }); await stash1; pending.stash0({ index: 0 }); await stash0; assert.equal(state().stashDetail.index, 1);
+  const oldRefresh = state().refresh();
+  phase = 'new'; state().setActiveTab('/new'); pending['status-new']({ currentBranch: 'new' });
+  await new Promise(resolve => setImmediate(resolve)); pending['status-old']({ currentBranch: 'old' }); await oldRefresh;
+  assert.equal(state().status.currentBranch, 'new'); assert.equal(state().stashDetail, null); assert.equal(state().selectedStashIndex, null);
+  state().closeTab('/old'); assert.equal(state().status.currentBranch, 'new');
+});
+test('move commit down swaps with its older neighbor', async t => {
+  const f = fixture(t); const { moveCommitDown } = require('../src/main/git/history.ts');
+  fs.writeFileSync(path.join(f.repo, 'one'), 'one'); const one = f.commit(); git(f.repo, 'commit', '--amend', '-m', 'one');
+  fs.writeFileSync(path.join(f.repo, 'two'), 'two'); const two = f.commit(); git(f.repo, 'commit', '--amend', '-m', 'two');
+  await moveCommitDown(f.repo, git(f.repo, 'rev-parse', 'HEAD'));
+  assert.equal(git(f.repo, 'log', '-2', '--format=%s'), 'one\ntwo');
+  await assert.rejects(moveCommitDown(f.repo, f.initial), /root commit/);
+});
+test('reword messages survive a paused rebase and are cleaned up on completion', async t => {
+  const f = fixture(t); const { executeInteractiveRebase, continueOperation, getRepoOperationState } = require('../src/main/git/conflicts-rebase.ts');
+  fs.writeFileSync(path.join(f.repo, 'one'), 'one'); const one = f.commit();
+  fs.writeFileSync(path.join(f.repo, 'two'), 'two'); const two = f.commit();
+  const result = await executeInteractiveRebase(f.repo, f.initial, [
+    { hash: one, action: 'edit', message: 'fixture' }, { hash: two, action: 'reword', message: 'second message\n\nBody retained' }
+  ]);
+  assert.equal(result.ok, true, result.error); assert.equal((await getRepoOperationState(f.repo)).inRebase, true);
+  assert.equal(fs.existsSync(path.join(f.repo, '.git/stratagit-rebase-editor/message.cjs')), true);
+  await continueOperation(f.repo);
+  assert.equal(git(f.repo, 'log', '-1', '--format=%B'), 'second message\n\nBody retained');
+  assert.equal(fs.existsSync(path.join(f.repo, '.git/stratagit-rebase-editor')), false);
+});
+test('reword after resolving a conflict uses the correct custom message', async t => {
+  const f = fixture(t, 'base\n'); const { executeInteractiveRebase, continueOperation, resolveConflictFile } = require('../src/main/git/conflicts-rebase.ts');
+  fs.writeFileSync(f.file, 'one\n'); const one = f.commit(); fs.writeFileSync(f.file, 'two\n'); const two = f.commit();
+  const result = await executeInteractiveRebase(f.repo, f.initial, [
+    { hash: two, action: 'reword', message: 'resolved second' }, { hash: one, action: 'drop', message: 'fixture' }
+  ]);
+  assert.equal(result.hasConflicts, true);
+  await resolveConflictFile(f.repo, 'file.txt', 'two\n'); await continueOperation(f.repo);
+  assert.equal(git(f.repo, 'log', '-1', '--format=%s'), 'resolved second'); assert.equal(f.read(), 'two\n');
+});
+test('conflicted Unicode paths are returned as actual file names', async t => {
+  const f = fixture(t); const name = '日本\tfile.txt'; const { getRepoOperationState } = require('../src/main/git/conflicts-rebase.ts');
+  fs.writeFileSync(path.join(f.repo, name), 'base\n'); f.commit(); git(f.repo, 'checkout', '-b', 'side');
+  fs.writeFileSync(path.join(f.repo, name), 'side\n'); f.commit(); git(f.repo, 'checkout', 'main');
+  fs.writeFileSync(path.join(f.repo, name), 'main\n'); f.commit(); try { git(f.repo, 'merge', 'side'); } catch {}
+  assert.deepEqual((await getRepoOperationState(f.repo)).conflictedFiles, [name]); git(f.repo, 'merge', '--abort');
+});
+test('revert committed hunk changes only its worktree lines', async t => {
+  const f = fixture(t); const { getCommitDiffText } = require('../src/main/git/commit-detail.ts');
+  const { revertHunk } = require('../src/main/git/branch-stash.ts');
+  fs.writeFileSync(f.file, f.content.replace('line 2\n', 'changed 2\n').replace('line 30\n', 'changed 30\n')); const hash = f.commit();
+  await revertHunk(f.repo, await getCommitDiffText(f.repo, hash, 'file.txt'), 0);
+  assert.equal(f.read(), f.content.replace('line 30\n', 'changed 30\n')); assert.equal(git(f.repo, 'diff', '--cached'), '');
+});
+test('unstaging before the first commit preserves all working files', async t => {
+  const f = fixture(t); const { unstageFiles } = require('../src/main/git/status-diff.ts');
+  git(f.repo, 'checkout', '--orphan', 'unborn'); fs.writeFileSync(f.file, 'new content\n'); git(f.repo, 'add', '.');
+  await unstageFiles(f.repo); assert.equal(git(f.repo, 'ls-files'), ''); assert.equal(f.read(), 'new content\n');
+});
+test('discarding an untracked file leaves neighboring files intact', async t => {
+  const f = fixture(t); const { discardFile } = require('../src/main/git/status-diff.ts');
+  fs.writeFileSync(path.join(f.repo, 'untracked'), 'remove'); fs.writeFileSync(path.join(f.repo, 'keep'), 'keep');
+  await discardFile(f.repo, 'untracked');
+  assert.equal(fs.existsSync(path.join(f.repo, 'untracked')), false); assert.equal(fs.readFileSync(path.join(f.repo, 'keep'), 'utf8'), 'keep');
+});
+test('filenames containing an arrow are not treated as renames', async t => {
+  const f = fixture(t); const { getStatus } = require('../src/main/git/status-diff.ts');
+  const name = 'from -> to.txt'; fs.writeFileSync(path.join(f.repo, name), 'new');
+  assert.equal((await getStatus(f.repo)).unstaged[0].path, name);
+});
+test('zero-context Git configuration cannot break partial staging', async t => {
+  const f = fixture(t); git(f.repo, 'config', 'diff.context', '0');
+  fs.writeFileSync(f.file, f.content.replace('line 2\n', 'extra\nline 2\n'));
+  await stageLines(f.repo, 'file.txt', 0, await changedIndices(f.repo));
+  assert.equal(git(f.repo, 'diff'), '');
+});
+test('discard treats wildcard characters in a filename literally', async t => {
+  const f = fixture(t); const { discardFile } = require('../src/main/git/status-diff.ts');
+  fs.writeFileSync(path.join(f.repo, '*.txt'), 'remove'); fs.writeFileSync(path.join(f.repo, 'keep.txt'), 'keep');
+  await discardFile(f.repo, '*.txt');
+  assert.equal(fs.existsSync(path.join(f.repo, '*.txt')), false); assert.equal(fs.readFileSync(path.join(f.repo, 'keep.txt'), 'utf8'), 'keep');
+  assert.equal(f.read(), f.content);
+});

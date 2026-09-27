@@ -93,7 +93,7 @@ export type Api = {
   openTerminal(): Promise<{ ok: boolean; error?: string }>;
   runCommand(command: string): Promise<{ ok: boolean; stdout?: string; stderr?: string; exitCode?: number; error?: string }>;
   openInEditor(filePath: string): Promise<{ ok: boolean; error?: string }>;
-  setActiveRepo(path: string): void;
+  setActiveRepo(path: string | null): void;
   getGitFlowConfig(): Promise<import('../shared/types').GitFlowConfig>;
   initGitFlow(config?: Partial<import('../shared/types').GitFlowConfig>): Promise<{ ok: boolean; error?: string }>;
   startGitFlowBranch(params: import('../shared/types').GitFlowStartParams): Promise<{ ok: boolean; branchName?: string; error?: string }>;
@@ -201,7 +201,7 @@ const api: Api = {
   openTerminal: () => call('app:open-terminal'),
   runCommand: (command: string) => call('app:run-command', command) as Promise<{ ok: boolean; stdout?: string; stderr?: string; exitCode?: number; error?: string }>,
   openInEditor: (filePath) => call('app:open-in-editor', filePath),
-  setActiveRepo: (path: string) => ipcRenderer.send('repo:set-active', path),
+  setActiveRepo: (path: string | null) => ipcRenderer.send('repo:set-active', path),
   getGitFlowConfig: () => call('git:flow:get-config'),
   initGitFlow: (config) => call('git:flow:init', config),
   startGitFlowBranch: (params) => call('git:flow:start', params),

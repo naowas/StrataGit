@@ -18,13 +18,8 @@ export async function getStatus(repoPath: string): Promise<GitStatus> {
   const unstaged: GitFileStatus[] = [];
 
   for (const file of s.files) {
-    let cleanPath = file.path;
-    let renamedFrom: string | undefined;
-    if (cleanPath.includes(' -> ')) {
-      const [from, to] = cleanPath.split(' -> ');
-      renamedFrom = from;
-      cleanPath = to;
-    }
+    const cleanPath = file.path;
+    const renamedFrom = (file.index === 'R' || file.working_dir === 'R') ? file.from : undefined;
 
     // Index status (staged changes)
     if (file.index && file.index !== ' ' && file.index !== '?') {
@@ -74,9 +69,9 @@ export async function getStatus(repoPath: string): Promise<GitStatus> {
 /** Obtain the same patch for rendering and editing, including untracked files. */
 export async function getWorkingDiffText(repoPath: string, filePath: string, staged = false): Promise<string> {
   return withGit(repoPath, async git => {
-    const diff = await git.diff(['--no-ext-diff', '--no-textconv', ...(staged ? ['--cached'] : []), '--', filePath]);
+    const diff = await git.diff(['--no-color', '--unified=3', '--no-ext-diff', '--no-textconv', ...(staged ? ['--cached'] : []), '--', `:(literal)${filePath}`]);
     if (diff || staged) return diff;
-    const untracked = await git.raw(['ls-files', '--others', '--exclude-standard', '-z', '--', filePath]);
+    const untracked = await git.raw(['ls-files', '--others', '--exclude-standard', '-z', '--', `:(literal)${filePath}`]);
     if (!untracked.split('\0').includes(filePath)) return '';
     try {
       const result = await promisify(execFile)('git', ['diff', '--no-ext-diff', '--no-textconv', '--no-index', '--', '/dev/null', filePath], { cwd: repoPath, maxBuffer: 16 * 1024 * 1024 });
@@ -143,4 +138,23 @@ export function parseUnifiedDiff(diffText: string, filePath: string): FileDiff {
     }
   }
   return { path: filePath, hunks, insertions, deletions };
+}
+
+/** Unstage without removing working files, including repositories with no HEAD yet. */
+export async function unstageFiles(repoPath: string, paths?: string[]): Promise<void> {
+  if (paths && paths.length === 0) return;
+  await withGit(repoPath, async git => {
+    const hasHead = await git.raw(['rev-parse', '--verify', 'HEAD']).then(() => true, () => false);
+    if (hasHead) await git.raw(['reset', 'HEAD', '--', ...(paths ? paths.map(p => `:(literal)${p}`) : ['.'])]);
+    else await git.raw(['rm', '--cached', '--force', '--ignore-unmatch', '-r', '--', ...(paths ? paths.map(p => `:(literal)${p}`) : ['.'])]);
+  });
+}
+
+/** Discard unstaged content while keeping the index unchanged. */
+export async function discardFile(repoPath: string, filePath: string): Promise<void> {
+  await withGit(repoPath, async git => {
+    const tracked = await git.raw(['ls-files', '-z', '--', `:(literal)${filePath}`]);
+    if (tracked) await git.raw(['restore', '--worktree', '--', `:(literal)${filePath}`]);
+    else await git.raw(['clean', '-f', '-d', '--', `:(literal)${filePath}`]);
+  });
 }

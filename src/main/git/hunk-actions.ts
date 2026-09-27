@@ -61,6 +61,14 @@ function parseDiffBlocks(diffText: string): { fileHeader: string[]; hunks: strin
   return { fileHeader, hunks };
 }
 
+/** Apply one displayed hunk through stdin, never as a patch filename. */
+export async function applyHunkPatch(repoPath: string, diffText: string, hunkIndex: number, flags: string[]): Promise<void> {
+  const { fileHeader, hunks } = parseDiffBlocks(diffText);
+  const block = hunks[hunkIndex];
+  if (!block) throw new Error(`Hunk #${hunkIndex + 1} not found`);
+  await runGitApply(repoPath, [...fileHeader, ...block].join('\n') + '\n', flags);
+}
+
 /** Stage a single hunk from unstaged changes into git index */
 export async function stageHunk(repoPath: string, filePath: string, hunkIndex: number): Promise<void> {
   return withGit(repoPath, async (git) => {

@@ -1,3 +1,4 @@
+import { getDiffSummary, getCommitBase } from './diff-summary';
 import { CommitDetail, FileChange, FileDiff, ComparisonResult, FileStatusKind } from '../../shared/types';
 import { withGit, errorMessage } from './core';
 import { parseUnifiedDiff, getWorkingDiffText } from './status-diff';
@@ -24,42 +25,8 @@ export async function getCommitDetail(repoPath: string, hash: string): Promise<C
       const body = lines.slice(6, lines.length - 1).join('\n').replace(/\n$/, '');
 
       const parents = parentsLine.trim() ? parentsLine.trim().split(' ') : [];
-      const isRoot = parents.length === 0;
-      const range = isRoot ? [hash, '--'] : [`${hash}~1`, hash, '--'];
-      const numstat = await git.raw(['diff', '--numstat', ...range]);
-      const files: FileChange[] = [];
-      let insertions = 0;
-      let deletions = 0;
-      for (const line of numstat.split('\n')) {
-        if (!line.trim()) continue;
-        const [ins, del, ...rest] = line.split('\t');
-        const file = rest.join('\t');
-        if (!file) continue;
-        files.push({
-          path: file,
-          status: 'modified',
-          insertions: ins === '-' ? undefined : parseInt(ins, 10),
-          deletions: del === '-' ? undefined : parseInt(del, 10)
-        });
-        if (ins !== '-') insertions += parseInt(ins, 10);
-        if (del !== '-') deletions += parseInt(del, 10);
-      }
-
-      // file status (A/M/D) via --name-status
-      const nameStatus = await git.raw(['diff', '--name-status', ...range]);
-      for (const line of nameStatus.split('\n')) {
-        if (!line.trim()) continue;
-        const [st, from, to] = line.split('\t');
-        const target = to || from;
-        const f = files.find((x) => x.path === target);
-        if (!f) continue;
-        if (st === 'A') f.status = 'added';
-        else if (st === 'D') f.status = 'deleted';
-        else if (st === 'R') {
-          f.status = 'renamed';
-          f.renamedFrom = from;
-        }
-      }
+      const base = await getCommitBase(git, hash);
+      const { files, insertions, deletions } = await getDiffSummary(git, base, hash);
 
       return {
         hash: hashFull,
@@ -95,13 +62,7 @@ export async function getFileDiff(
       if (opts?.staged || opts?.worktree) {
         diffText = await getWorkingDiffText(repoPath, filePath, opts.staged);
       } else {
-        const parents = (await git.raw(['rev-list', '--parents', '-n', '1', hash])).trim().split(' ').slice(1);
-        if (parents.length === 0) {
-          const emptyTree = (await git.raw(['hash-object', '-t', 'tree', '/dev/null'])).trim();
-          diffText = await git.diff([`${emptyTree}..${hash}`, '--', filePath]);
-        } else {
-          diffText = await git.diff([`${parents[0]}..${hash}`, '--', filePath]);
-        }
+        diffText = await getCommitDiffText(repoPath, hash, filePath);
       }
 
       const parsed = parseUnifiedDiff(diffText, filePath);
@@ -116,13 +77,14 @@ export async function getFileDiff(
 /** Full diff text for a commit — used by revert-hunk and AI explainer. */
 export async function getCommitDiffText(repoPath: string, hash: string, filePath?: string): Promise<string> {
   return withGit(repoPath, async (git) => {
-    const parents = (await git.raw(['rev-list', '--parents', '-n', '1', hash])).trim().split(' ').slice(1);
-    const args = filePath ? ['--', filePath] : [];
-    if (parents.length === 0) {
-      const emptyTree = (await git.raw(['hash-object', '-t', 'tree', '/dev/null'])).trim();
-      return git.diff([`${emptyTree}..${hash}`, ...args]);
+    const base = await getCommitBase(git, hash);
+    let paths: string[] = [];
+    if (filePath) {
+      const summary = await getDiffSummary(git, base, hash);
+      const file = summary.files.find(f => f.path === filePath);
+      paths = ['--', ...(file?.renamedFrom ? [file.renamedFrom, filePath] : [filePath])];
     }
-    return git.diff([`${parents[0]}..${hash}`, ...args]);
+    return git.diff(['-M', base, hash, ...paths]);
   });
 }
 
@@ -142,37 +104,7 @@ export async function compareCommits(
       const baseLines = baseMeta.trim().split('\n');
       const targetLines = targetMeta.trim().split('\n');
 
-      // NUL-delimited output preserves tabs, Unicode, and rename source/target paths.
-      const numstat = await git.raw(['diff', '--numstat', '-z', '-M', baseHash, targetHash, '--']);
-      const nameStatus = await git.raw(['diff', '--name-status', '-z', '-M', baseHash, targetHash, '--']);
-      const statuses = nameStatus.split('\0');
-      const files: FileChange[] = [];
-      for (let i = 0; i < statuses.length && statuses[i];) {
-        const code = statuses[i++];
-        const firstPath = statuses[i++];
-        const renamed = code.startsWith('R') || code.startsWith('C');
-        files.push({
-          path: renamed ? statuses[i++] : firstPath,
-          renamedFrom: renamed ? firstPath : undefined,
-          status: code.startsWith('A') ? 'added' : code.startsWith('D') ? 'deleted' : renamed ? 'renamed' : 'modified'
-        });
-      }
-      const stats = numstat.split('\0');
-      let insertions = 0;
-      let deletions = 0;
-      for (let i = 0; i < stats.length && stats[i];) {
-        const record = stats[i++];
-        const match = record.match(/^(\d+|-)\t(\d+|-)\t([\s\S]*)$/);
-        if (!match) continue;
-        let filePath = match[3];
-        if (!filePath) { i++; filePath = stats[i++]; }
-        const file = files.find(f => f.path === filePath);
-        if (!file) continue;
-        file.insertions = match[1] === '-' ? undefined : Number(match[1]);
-        file.deletions = match[2] === '-' ? undefined : Number(match[2]);
-        insertions += file.insertions || 0;
-        deletions += file.deletions || 0;
-      }
+      const { files, insertions, deletions } = await getDiffSummary(git, baseHash, targetHash);
 
       return {
         baseHash,

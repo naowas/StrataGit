@@ -2,8 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import os from 'node:os';
-import crypto from 'node:crypto';
 import {
   ConflictFileParsed,
   ConflictSection,
@@ -15,30 +13,23 @@ import { withGit } from './core';
 
 const execFileP = promisify(execFile);
 
-function tmpScript(name: string, code: string): string {
-  const file = path.join(os.tmpdir(), `stratagit-${name}-${crypto.randomBytes(4).toString('hex')}.cjs`);
-  fs.writeFileSync(file, code);
-  return file;
+async function rebaseEditorDirectory(repoPath: string): Promise<string> {
+  const { stdout } = await execFileP('git', ['rev-parse', '--absolute-git-dir'], { cwd: repoPath });
+  return path.join(stdout.trim(), 'stratagit-rebase-editor');
+}
+
+async function cleanupRebaseEditor(repoPath: string): Promise<void> {
+  const directory = await rebaseEditorDirectory(repoPath);
+  // Only files created by this application; never remove Git's rebase state.
+  for (const name of ['todo.cjs', 'message.cjs']) {
+    await fs.promises.unlink(path.join(directory, name)).catch(() => {});
+  }
+  await fs.promises.rmdir(directory).catch(() => {});
 }
 
 /** Check repository operation state (Merge, Rebase, Cherry-Pick, Conflicted files) */
 export async function getRepoOperationState(repoPath: string): Promise<RepoOperationState> {
-  const gitDir = path.join(repoPath, '.git');
-  let realGitDir = gitDir;
-
-  try {
-    if (fs.existsSync(gitDir)) {
-      const stat = fs.statSync(gitDir);
-      if (!stat.isDirectory()) {
-        // May be a git worktree file: "gitdir: /path/to/.git/worktrees/name"
-        const content = fs.readFileSync(gitDir, 'utf8');
-        const match = content.match(/gitdir:\s*(.+)/);
-        if (match) {
-          realGitDir = match[1].trim();
-        }
-      }
-    }
-  } catch {}
+  const realGitDir = (await execFileP('git', ['rev-parse', '--absolute-git-dir'], { cwd: repoPath })).stdout.trim();
 
   const inMerge = fs.existsSync(path.join(realGitDir, 'MERGE_HEAD'));
   const inRebase =
@@ -49,14 +40,8 @@ export async function getRepoOperationState(repoPath: string): Promise<RepoOpera
   // Get list of conflicted files from git status
   const conflictedFiles: string[] = [];
   try {
-    const { stdout } = await execFileP('git', ['status', '--porcelain'], { cwd: repoPath });
-    for (const line of stdout.split('\n')) {
-      if (line.startsWith('UU ') || line.startsWith('AA ') || line.startsWith('DD ') || line.startsWith('UD ') || line.startsWith('DU ')) {
-        conflictedFiles.push(line.slice(3).trim());
-      } else if (line.length > 2 && (line[0] === 'U' || line[1] === 'U')) {
-        conflictedFiles.push(line.slice(3).trim());
-      }
-    }
+    const { stdout } = await execFileP('git', ['diff', '--name-only', '--diff-filter=U', '-z'], { cwd: repoPath });
+    conflictedFiles.push(...stdout.split('\0').filter(Boolean));
   } catch {}
 
   return {
@@ -167,6 +152,7 @@ export async function abortOperation(repoPath: string): Promise<void> {
   const state = await getRepoOperationState(repoPath);
   if (state.inRebase) {
     await execFileP('git', ['rebase', '--abort'], { cwd: repoPath });
+    await cleanupRebaseEditor(repoPath);
   } else if (state.inMerge) {
     await execFileP('git', ['merge', '--abort'], { cwd: repoPath });
   } else if (state.inCherryPick) {
@@ -178,10 +164,12 @@ export async function abortOperation(repoPath: string): Promise<void> {
 export async function continueOperation(repoPath: string): Promise<void> {
   const state = await getRepoOperationState(repoPath);
   if (state.inRebase) {
+    const editor = path.join(await rebaseEditorDirectory(repoPath), 'message.cjs');
     await execFileP('git', ['rebase', '--continue'], {
       cwd: repoPath,
-      env: { ...process.env, GIT_EDITOR: '/bin/true' }
+      env: { ...process.env, GIT_EDITOR: fs.existsSync(editor) ? `node ${JSON.stringify(editor)}` : '/bin/true' }
     });
+    if (!(await getRepoOperationState(repoPath)).inRebase) await cleanupRebaseEditor(repoPath);
   } else if (state.inMerge) {
     await execFileP('git', ['commit', '--no-edit'], { cwd: repoPath });
   } else if (state.inCherryPick) {
@@ -215,7 +203,7 @@ export async function getCommitsForRebase(repoPath: string, baseHash: string): P
   try {
     const { stdout } = await execFileP(
       'git',
-      ['log', '--pretty=format:%H%x09%h%x09%an%x09%s', '--reverse', `${baseHash}..HEAD`],
+      ['log', '--no-merges', '--pretty=format:%H%x09%h%x09%an%x09%s', '--reverse', `${baseHash}..HEAD`],
       { cwd: repoPath }
     );
     const lines = stdout.split(/\r?\n/).filter((l) => l.trim().length > 0);
@@ -240,13 +228,20 @@ export async function executeInteractiveRebase(
   baseHash: string,
   steps: RebaseStep[]
 ): Promise<{ ok: boolean; hasConflicts?: boolean; error?: string }> {
+  const state = await getRepoOperationState(repoPath);
+  if (state.inRebase || state.inMerge || state.inCherryPick) {
+    return { ok: false, error: 'Finish or abort the current Git operation before starting a rebase.' };
+  }
+  if (!steps.length || steps.some(step => !['pick', 'reword', 'edit', 'squash', 'fixup', 'drop'].includes(step.action) || !/^[a-f0-9]{40,64}$/.test(step.hash))) {
+    return { ok: false, error: 'Invalid or empty rebase plan.' };
+  }
   const todoLines: string[] = [];
   const rewordMap: Record<string, string> = {};
 
   for (const step of steps) {
-    todoLines.push(`${step.action} ${step.hash} ${step.message}`);
+    todoLines.push(`${step.action} ${step.hash} ${step.message.split('\n')[0]}`);
     if (step.action === 'reword') {
-      rewordMap[step.hash.slice(0, 7)] = step.message;
+      rewordMap[step.hash] = step.message;
     }
   }
 
@@ -262,17 +257,21 @@ export async function executeInteractiveRebase(
     "const fs = require('node:fs');",
     "const file = process.argv[2];",
     `const rewords = ${JSON.stringify(rewordMap)};`,
-    "const current = fs.readFileSync(file, 'utf8');",
-    "for (const [k, v] of Object.entries(rewords)) {",
-    "  if (current.includes(k) || true) {",
-    "    fs.writeFileSync(file, v);",
-    "    break;",
-    "  }",
-    "}"
+    "const { execFileSync } = require('node:child_process');",
+    "const donePath = execFileSync('git', ['rev-parse', '--git-path', 'rebase-merge/done'], { encoding: 'utf8' }).trim();",
+    "const last = fs.readFileSync(donePath, 'utf8').trim().split('\\n').pop();",
+    "const match = last.match(/^(?:reword|r) ([a-f0-9]+)/);",
+    "const key = match && Object.keys(rewords).find(hash => hash.startsWith(match[1]));",
+    "const message = key ? rewords[key] : undefined;",
+    "if (message !== undefined) fs.writeFileSync(file, message);"
   ].join('\n');
 
-  const todoFile = tmpScript('rebase-todo', todoScript);
-  const msgFile = tmpScript('rebase-msg', msgScript);
+  const directory = await rebaseEditorDirectory(repoPath);
+  await fs.promises.mkdir(directory, { recursive: true });
+  const todoFile = path.join(directory, 'todo.cjs');
+  const msgFile = path.join(directory, 'message.cjs');
+  await fs.promises.writeFile(todoFile, todoScript);
+  await fs.promises.writeFile(msgFile, msgScript);
 
   try {
     await execFileP('git', ['rebase', '-i', baseHash], {
@@ -287,15 +286,14 @@ export async function executeInteractiveRebase(
   } catch (err: unknown) {
     const state = await getRepoOperationState(repoPath);
     if (state.inRebase || state.conflictedFiles.length > 0) {
-      return { ok: false, hasConflicts: true, error: 'Conflicts occurred during rebase' };
+      return { ok: false, hasConflicts: true, error: err instanceof Error ? err.message : String(err) };
     }
     // If not in rebase conflict, attempt abort to leave repo clean
     await execFileP('git', ['rebase', '--abort'], { cwd: repoPath }).catch(() => {});
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, error: message };
   } finally {
-    void fs.promises.unlink(todoFile).catch(() => {});
-    void fs.promises.unlink(msgFile).catch(() => {});
+    if (!(await getRepoOperationState(repoPath)).inRebase) await cleanupRebaseEditor(repoPath);
   }
 }
 

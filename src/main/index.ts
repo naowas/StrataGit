@@ -54,7 +54,7 @@ app.whenReady().then(() => {
 
   // Track the active repo path (sent from renderer when a tab is focused)
   const { ipcMain } = require('electron') as typeof import('electron');
-  ipcMain.on('repo:set-active', (_e, repoPath: string) => {
+  ipcMain.on('repo:set-active', (_e, repoPath: string | null) => {
     currentRepo = repoPath;
   });
 

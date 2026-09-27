@@ -84,7 +84,7 @@ export async function createWorktree(repoPath: string, worktreePath: string, has
 export async function editCommitMessage(repoPath: string, hash: string, message: string): Promise<void> {
   const { stdout } = await execFileP('git', ['rev-parse', 'HEAD'], { cwd: repoPath });
   if (stdout.trim() === hash) {
-    await withGit(repoPath, (git) => git.raw(['commit', '--amend', '-m', message]));
+    await withGit(repoPath, (git) => git.raw(['commit', '--amend', '--only', '-m', message]));
     return;
   }
   const short = hash.slice(0, 7);
@@ -135,20 +135,19 @@ export async function applyPatchCommit(repoPath: string, hash: string): Promise<
 
 /** Move a commit one step down (towards older commits) via an interactive rebase. */
 export async function moveCommitDown(repoPath: string, hash: string): Promise<void> {
+  const parent = await execFileP('git', ['rev-parse', '--verify', `${hash}^`], { cwd: repoPath }).catch(() => null);
+  if (!parent) throw new Error('The root commit cannot move further down.');
   const short = hash.slice(0, 7);
   const todoScript = [
     "const todo = process.argv[2];",
     "const fs = require('node:fs');",
     "const lines = fs.readFileSync(todo, 'utf8').split('\\n');",
-    "const idx = lines.findIndex((l) => l.startsWith('pick ') && l.slice(4).trim().startsWith('" + short + "'));",
-    "if (idx !== -1 && idx + 1 < lines.length) {",
-    "  const t = lines[idx + 1];",
-    "  lines[idx + 1] = lines[idx];",
-    "  lines[idx] = t;",
-    "  fs.writeFileSync(todo, lines.join('\\n'));",
-    "}"
+    `const idx = lines.findIndex(l => l.startsWith('pick ') && l.slice(4).trim().startsWith('${short}'));`,
+    "if (idx < 1 || !lines[idx - 1].startsWith('pick ')) throw new Error('Commit cannot be moved down');",
+    "[lines[idx - 1], lines[idx]] = [lines[idx], lines[idx - 1]];",
+    "fs.writeFileSync(todo, lines.join('\\n'));"
   ].join('\n');
-  await interactiveRebase(repoPath, await rebaseBase(repoPath, hash), todoScript);
+  await interactiveRebase(repoPath, await rebaseBase(repoPath, parent.stdout.trim()), todoScript);
 }
 
 /** Set a local branch's upstream tracking branch. */

@@ -1,3 +1,5 @@
+import { applyHunkPatch } from './hunk-actions';
+import { getDiffSummary } from './diff-summary';
 import { BranchInfo, StashInfo, StashDetail, FileDiff, FileChange } from '../../shared/types';
 import { withGit, errorMessage } from './core';
 import { parseUnifiedDiff } from './status-diff';
@@ -102,30 +104,7 @@ export async function stashDrop(repoPath: string, index?: number): Promise<void>
 
 /** Apply the inverse of a single hunk (Revert Hunk) via `git apply -R --cached`-less worktree patch. */
 export async function revertHunk(repoPath: string, diffText: string, hunkIndex: number): Promise<void> {
-  await withGit(repoPath, async (git) => {
-    const lines = diffText.split('\n');
-    const headerLines: string[] = [];
-    const hunkBlocks: string[][] = [];
-    let current: string[] | null = null;
-    for (const line of lines) {
-      if (line.startsWith('@@')) {
-        current = [line];
-        hunkBlocks.push(current);
-      } else if (current) {
-        current.push(line);
-      } else {
-        headerLines.push(line);
-      }
-    }
-    const block = hunkBlocks[hunkIndex];
-    if (!block) throw new Error(`Hunk ${hunkIndex} not found`);
-    // Keep only file headers that git apply needs (drop index lines with hashes mismatch tolerance)
-    const fileHeader = headerLines.filter(
-      (l) => l.startsWith('--- ') || l.startsWith('+++ ') || l.startsWith('diff --git')
-    );
-    const patch = [...fileHeader, ...block].join('\n') + '\n';
-    await git.applyPatch(patch, ['--reverse', '--whitespace=nofix', '--recount']);
-  });
+  await applyHunkPatch(repoPath, diffText, hunkIndex, ['--reverse', '--whitespace=nowarn', '--recount']);
 }
 
 export async function mergeBranch(repoPath: string, branchName: string): Promise<void> {
@@ -140,43 +119,7 @@ export async function getStashDetail(repoPath: string, index: number): Promise<S
       const [message, relativeDate, date, hash] = logOut.trim().split('\0');
       if (!hash) return null;
 
-      const numstatOut = await git.raw(['diff', '--numstat', `${ref}^1`, ref]).catch(() => '');
-      const nameStatusOut = await git.raw(['diff', '--name-status', `${ref}^1`, ref]).catch(() => '');
-
-      const statusMap = new Map<string, string>();
-      for (const line of nameStatusOut.split('\n')) {
-        const parts = line.trim().split('\t');
-        if (parts.length >= 2) {
-          statusMap.set(parts[parts.length - 1], parts[0]);
-        }
-      }
-
-      const files: FileChange[] = [];
-      let totalAdditions = 0;
-      let totalDeletions = 0;
-
-      for (const line of numstatOut.split('\n')) {
-        const parts = line.trim().split('\t');
-        if (parts.length < 3) continue;
-        const add = parts[0] === '-' ? 0 : parseInt(parts[0], 10) || 0;
-        const del = parts[1] === '-' ? 0 : parseInt(parts[1], 10) || 0;
-        const path = parts[2];
-        totalAdditions += add;
-        totalDeletions += del;
-
-        const statusCode = statusMap.get(path) || 'M';
-        let status: 'modified' | 'added' | 'deleted' | 'renamed' = 'modified';
-        if (statusCode.startsWith('A')) status = 'added';
-        else if (statusCode.startsWith('D')) status = 'deleted';
-        else if (statusCode.startsWith('R')) status = 'renamed';
-
-        files.push({
-          path,
-          status,
-          insertions: add,
-          deletions: del
-        });
-      }
+      const { files, insertions: totalAdditions, deletions: totalDeletions } = await getDiffSummary(git, `${ref}^1`, ref);
 
       return {
         index,
@@ -197,7 +140,10 @@ export async function getStashFileDiff(repoPath: string, index: number, filePath
   return await withGit(repoPath, async (git) => {
     try {
       const ref = `stash@{${index}}`;
-      const diffText = await git.raw(['diff', `${ref}^1`, ref, '--', filePath]);
+      const summary = await getDiffSummary(git, `${ref}^1`, ref);
+      const file = summary.files.find(f => f.path === filePath);
+      const paths = file?.renamedFrom ? [file.renamedFrom, filePath] : [filePath];
+      const diffText = await git.raw(['diff', '-M', `${ref}^1`, ref, '--', ...paths]);
       return parseUnifiedDiff(diffText, filePath);
     } catch {
       return null;
@@ -208,6 +154,9 @@ export async function getStashFileDiff(repoPath: string, index: number, filePath
 export async function applyStashFile(repoPath: string, index: number, filePath: string): Promise<void> {
   await withGit(repoPath, async (git) => {
     const ref = `stash@{${index}}`;
-    await git.raw(['checkout', ref, '--', filePath]);
+    // Refuse overwriting either staged or unstaged work, including untracked files.
+    const dirty = await git.raw(['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', `:(literal)${filePath}`]);
+    if (dirty) throw new Error(`Commit or stash local changes to ${filePath} before restoring it.`);
+    await git.raw(['restore', `--source=${ref}`, '--worktree', '--', `:(literal)${filePath}`]);
   });
 }

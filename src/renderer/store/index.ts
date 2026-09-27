@@ -165,6 +165,33 @@ export type AppStore = AppState & AppActions;
 
 export const WIP_HASH = '0000000-wip';
 
+// Invalidate in-flight reads when their selection, repository, or newer request changes.
+let repositoryEpoch = 0;
+let openingRequest = 0;
+let refreshRequest = 0;
+let logRequest = 0;
+let detailRequest = 0;
+let diffRequest = 0;
+function resetRepositoryView(cancelOpening = true): Partial<AppState> {
+  repositoryEpoch++;
+  if (cancelOpening) openingRequest++;
+  refreshRequest++;
+  logRequest++;
+  detailRequest++;
+  diffRequest++;
+  return {
+    selectedCommit: null, commitDetail: null, compareCommits: null, comparisonResult: null,
+    selectedStashIndex: null, stashDetail: null, openDiff: null, fileDiff: null,
+    status: null, log: null, branches: { local: [], remote: [] }, stashes: [], tags: [],
+    remotes: [], submodules: [], worktrees: [], operationState: null,
+    detailLoading: false, diffLoading: false, isLoadingMoreCommits: false, commitLimit: 300,
+    isOpeningRepo: false, openingRepoName: null,
+    conflictedFileToResolve: null, rebaseModalBaseCommit: null, tagModalCommit: null,
+    bisectModalOpen: false, worktreesModalOpen: false, gitFlowModalOpen: false,
+    changelogModalOpen: false, simulateMergeBranch: null, addRemoteModalOpen: false
+  };
+}
+
 export const useApp = create<AppStore>((set, get) => ({
   tabs: [],
   activeTab: null,
@@ -227,6 +254,7 @@ export const useApp = create<AppStore>((set, get) => ({
   },
 
   async openRepo(p) {
+    const request = ++openingRequest;
     const targetName = p.split('/').pop() || p;
     set({ isOpeningRepo: true, openingRepoName: targetName });
     const startTime = Date.now();
@@ -236,6 +264,7 @@ export const useApp = create<AppStore>((set, get) => ({
         repo?: { path: string; name: string };
         error?: string;
       };
+      if (request !== openingRequest) return;
       if (!res.ok || !res.repo) {
         get().notify('error', res.error || 'Failed to open repository');
         set({ isOpeningRepo: false, openingRepoName: null });
@@ -244,15 +273,18 @@ export const useApp = create<AppStore>((set, get) => ({
       api.setActiveRepo(res.repo.path);
       const repo = res.repo;
       const tabs = [...get().tabs.filter((t) => t.path !== repo.path), { path: repo.path, name: repo.name }];
-      set({ tabs, activeTab: repo.path, openingRepoName: repo.name });
+      const reset = resetRepositoryView(false);
+      set({ ...reset, tabs, activeTab: repo.path, openingRepoName: repo.name, isOpeningRepo: true });
       await get().refresh();
-      get().notify('success', `Opened ${repo.name}`);
+      if (request === openingRequest) get().notify('success', `Opened ${repo.name}`);
     } catch (err) {
+      if (request !== openingRequest) return;
       get().notify('error', String(err).replace('Error: ', ''));
     } finally {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, 600 - elapsed);
       setTimeout(() => {
+        if (request !== openingRequest) return;
         set({ isOpeningRepo: false, openingRepoName: null });
       }, remaining);
     }
@@ -276,9 +308,10 @@ export const useApp = create<AppStore>((set, get) => ({
     const tabs = get().tabs.filter((t) => t.path !== p);
     let activeTab = get().activeTab;
     if (activeTab === p) activeTab = tabs.length > 0 ? tabs[tabs.length - 1].path : null;
-    set({ tabs, activeTab, selectedCommit: null, commitDetail: null, openDiff: null, fileDiff: null, commitLimit: 300 });
+    if (get().activeTab !== p) { set({ tabs }); return; }
+    set({ ...resetRepositoryView(), tabs, activeTab });
+    api.setActiveRepo(activeTab);
     if (activeTab) {
-      api.setActiveRepo(activeTab);
       void get().refresh();
     } else {
       set({
@@ -295,12 +328,15 @@ export const useApp = create<AppStore>((set, get) => ({
   },
 
   setActiveTab(p) {
-    set({ activeTab: p, selectedCommit: null, commitDetail: null, openDiff: null, fileDiff: null, commitLimit: 300 });
+    if (get().activeTab === p) return;
+    set({ ...resetRepositoryView(), activeTab: p });
     api.setActiveRepo(p);
     void get().refresh();
   },
 
   async refresh() {
+    const request = ++refreshRequest;
+    const epoch = repositoryEpoch;
     const repo = get().activeTab;
     if (!repo) return;
     const limit = get().commitLimit || 300;
@@ -316,8 +352,10 @@ export const useApp = create<AppStore>((set, get) => ({
         unwrap(api.getSubmodules()).catch(() => []),
         unwrap(api.getWorktrees()).catch(() => [])
       ]);
+      if (epoch !== repositoryEpoch || request !== refreshRequest) return;
       set({ status, log, branches, stashes, operationState, tags, remotes, submodules, worktrees });
     } catch (err) {
+      if (epoch !== repositoryEpoch || request !== refreshRequest) return;
       get().notify('error', String(err).replace('Error: ', ''));
     }
   },
@@ -327,22 +365,28 @@ export const useApp = create<AppStore>((set, get) => ({
     if (!activeTab || isLoadingMoreCommits) return;
     if (!log || !log.hasMore) return;
 
+    const epoch = repositoryEpoch;
+    const request = ++logRequest;
     const newLimit = commitLimit + 300;
     set({ isLoadingMoreCommits: true });
     try {
       const nextLog = await unwrap(api.getLog(newLimit));
+      if (epoch !== repositoryEpoch || request !== logRequest) return;
       set({
         log: nextLog,
         commitLimit: newLimit,
         isLoadingMoreCommits: false
       });
     } catch (err) {
+      if (epoch !== repositoryEpoch || request !== logRequest) return;
       set({ isLoadingMoreCommits: false });
       get().notify('error', `Failed to load more commits: ${String(err)}`);
     }
   },
 
   async selectCommit(hash) {
+    const request = ++detailRequest;
+    const epoch = repositoryEpoch;
     set({ selectedCommit: hash, commitDetail: null, compareCommits: null, comparisonResult: null, selectedStashIndex: null, stashDetail: null, detailLoading: true });
     if (!hash) {
       set({ detailLoading: false });
@@ -372,16 +416,23 @@ export const useApp = create<AppStore>((set, get) => ({
       });
       return;
     }
-    const detail = await api.getCommitDetail(hash);
-    if (get().selectedCommit === hash) {
+    try {
+      const detail = await api.getCommitDetail(hash);
+      if (epoch !== repositoryEpoch || request !== detailRequest) return;
       set({ commitDetail: detail, detailLoading: false });
       if (!detail) get().notify('error', 'Failed to load commit details');
+    } catch (err) {
+      if (epoch !== repositoryEpoch || request !== detailRequest) return;
+      set({ detailLoading: false });
+      get().notify('error', String(err));
     }
   },
 
   async setCompareCommits(hashes) {
+    const request = ++detailRequest;
+    const epoch = repositoryEpoch;
     if (!hashes) {
-      set({ compareCommits: null, comparisonResult: null });
+      set({ compareCommits: null, comparisonResult: null, detailLoading: false });
       return;
     }
     set({
@@ -395,19 +446,21 @@ export const useApp = create<AppStore>((set, get) => ({
     });
     try {
       const res = await api.compareCommits(hashes[0], hashes[1]);
-      if (get().compareCommits !== hashes) return;
+      if (epoch !== repositoryEpoch || request !== detailRequest) return;
       if (!res) throw new Error('Unable to load comparison');
       set({ comparisonResult: res, detailLoading: false });
     } catch (err) {
-      if (get().compareCommits !== hashes) return;
+      if (epoch !== repositoryEpoch || request !== detailRequest) return;
       set({ detailLoading: false });
       get().notify('error', `Failed to compare commits: ${String(err)}`);
     }
   },
 
   async inspectStash(index) {
+    const request = ++detailRequest;
+    const epoch = repositoryEpoch;
     if (index === null || index === undefined) {
-      set({ selectedStashIndex: null, stashDetail: null });
+      set({ selectedStashIndex: null, stashDetail: null, detailLoading: false });
       return;
     }
     set({
@@ -421,14 +474,18 @@ export const useApp = create<AppStore>((set, get) => ({
     });
     try {
       const detail = await api.getStashDetail(index);
+      if (epoch !== repositoryEpoch || request !== detailRequest) return;
       set({ stashDetail: detail, detailLoading: false });
     } catch (err) {
+      if (epoch !== repositoryEpoch || request !== detailRequest) return;
       set({ detailLoading: false });
       get().notify('error', `Failed to inspect stash: ${String(err)}`);
     }
   },
 
   async openFileDiff(d) {
+    const request = ++diffRequest;
+    const epoch = repositoryEpoch;
     set({ openDiff: d, fileDiff: null, diffLoading: true, diffMaximized: true });
     try {
       let diff: FileDiff | null = null;
@@ -442,18 +499,21 @@ export const useApp = create<AppStore>((set, get) => ({
           worktree: d.worktree ?? d.commitHash === null
         });
       }
+      if (epoch !== repositoryEpoch || request !== diffRequest || get().openDiff !== d) return;
       set({
         fileDiff: diff ?? { path: d.filePath, hunks: [], insertions: 0, deletions: 0 },
         diffLoading: false
       });
     } catch (err) {
+      if (epoch !== repositoryEpoch || request !== diffRequest) return;
       set({ diffLoading: false });
       get().notify('error', String(err).replace('Error: ', ''));
     }
   },
 
   closeDiff() {
-    set({ openDiff: null, fileDiff: null, diffMaximized: true });
+    diffRequest++;
+    set({ openDiff: null, fileDiff: null, diffLoading: false, diffMaximized: true });
   },
 
   setDiffHeight(h) {
@@ -478,6 +538,8 @@ export const useApp = create<AppStore>((set, get) => ({
   },
 
   async reloadCurrentDiff() {
+    const request = ++diffRequest;
+    const epoch = repositoryEpoch;
     const d = get().openDiff;
     if (!d) return;
     try {
@@ -492,8 +554,9 @@ export const useApp = create<AppStore>((set, get) => ({
           worktree: d.worktree ?? d.commitHash === null
         });
       }
+      if (epoch !== repositoryEpoch || request !== diffRequest || get().openDiff !== d) return;
       set({
-        fileDiff: diff ?? { path: d.filePath, hunks: [], insertions: 0, deletions: 0 }
+        fileDiff: diff ?? { path: d.filePath, hunks: [], insertions: 0, deletions: 0 }, diffLoading: false
       });
     } catch (err) {
       console.error('Failed to reload diff:', err);
