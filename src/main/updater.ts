@@ -3,7 +3,7 @@ import electronUpdater, { type UpdateInfo } from 'electron-updater';
 import type { AppUpdateState } from '../shared/types';
 
 const { autoUpdater } = electronUpdater;
-const releasePageUrl = 'https://github.com/naowas/stratagit/releases/latest';
+const releasePageUrl = 'https://github.com/naowas/StrataGit/releases/latest';
 
 let getWindow: (() => BrowserWindow | null) | undefined;
 let checkInProgress: Promise<AppUpdateState> | null = null;

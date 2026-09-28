@@ -114,7 +114,7 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/naowas/stratagit.git
+   git clone https://github.com/naowas/StrataGit.git
    cd stratagit
    ```
 
@@ -157,7 +157,7 @@ Output files will be generated in `dist/`:
 
 ### Publishing a release and its update files
 
-StrataGit checks public, non-draft GitHub Releases in `naowas/stratagit`. Release uploads are manual; the `dist` commands build files locally and do not publish anything. Set `package.json`'s version to the release version before building, and use a matching `v<version>` tag.
+StrataGit checks public, non-draft GitHub Releases in `naowas/StrataGit`. Release uploads are manual; the `dist` commands build files locally and do not publish anything. Set `package.json`'s version to the release version before building, and use a matching `v<version>` tag.
 
 Build each supported platform on its native operating system:
 
