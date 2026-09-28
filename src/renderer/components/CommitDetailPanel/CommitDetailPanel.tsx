@@ -210,13 +210,15 @@ function WorkdirPanel() {
                 >
                   {f.path}
                 </span>
-                <button
-                  className="hidden group-hover:flex items-center justify-center w-5 h-5 rounded text-dim hover:text-fg hover:bg-panel3"
-                  title="Unstage"
-                  onClick={() => void runAndRefresh(() => api.unstageFiles([f.path]))}
-                >
-                  <Undo2 size={11} />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded text-dim hover:text-fg hover:bg-panel3 transition-opacity"
+                    title="Unstage"
+                    onClick={() => void runAndRefresh(() => api.unstageFiles([f.path]))}
+                  >
+                    <Undo2 size={11} />
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -280,22 +282,24 @@ function WorkdirPanel() {
                     new
                   </span>
                 )}
-                <button
-                  className="hidden group-hover:flex items-center justify-center w-5 h-5 rounded text-dim hover:text-fg hover:bg-panel3"
-                  title="Stage file"
-                  onClick={() => void runAndRefresh(() => api.stageFiles([f.path]))}
-                >
-                  <Plus size={11} />
-                </button>
-                {f.status !== 'untracked' && (
+                <div className="flex items-center gap-1 shrink-0">
                   <button
-                    className="hidden group-hover:flex items-center justify-center w-5 h-5 rounded text-dim hover:text-del hover:bg-del/10"
-                    title="Discard changes"
-                    onClick={() => void runAndRefresh(() => api.discardFile(f.path), 'Changes discarded')}
+                    className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded text-dim hover:text-fg hover:bg-panel3 transition-opacity"
+                    title="Stage file"
+                    onClick={() => void runAndRefresh(() => api.stageFiles([f.path]))}
                   >
-                    <RotateCcw size={11} />
+                    <Plus size={11} />
                   </button>
-                )}
+                  {f.status !== 'untracked' && (
+                    <button
+                      className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded text-dim hover:text-del hover:bg-del/10 transition-opacity"
+                      title="Discard changes"
+                      onClick={() => void runAndRefresh(() => api.discardFile(f.path), 'Changes discarded')}
+                    >
+                      <RotateCcw size={11} />
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
