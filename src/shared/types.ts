@@ -339,8 +339,36 @@ export interface GitFlowFinishParams {
   keepBranch?: boolean;
 }
 
+export type AppUpdateStatus =
+  | 'idle'
+  | 'checking'
+  | 'not-available'
+  | 'available'
+  | 'downloading'
+  | 'downloaded'
+  | 'error'
+  | 'unsupported';
+
+export interface AppUpdateState {
+  status: AppUpdateStatus;
+  currentVersion: string;
+  availableVersion?: string;
+  releaseName?: string;
+  releaseNotes?: string;
+  progress?: number;
+  error?: string;
+  /** Linux builds support in-app installation; macOS currently uses the release page. */
+  canInstallInApp: boolean;
+}
+
 // IPC API exposed via contextBridge
 export interface StrataGitApi {
+  getAppUpdateState(): Promise<AppUpdateState>;
+  checkForAppUpdates(): Promise<AppUpdateState>;
+  downloadAppUpdate(): Promise<AppUpdateState>;
+  installAppUpdate(): Promise<boolean>;
+  openAppReleasePage(): Promise<void>;
+  onAppUpdateState(cb: (state: AppUpdateState) => void): () => void;
   openRepo(path: string): Promise<{ ok: boolean; repo?: RepoSummary; error?: string }>;
   initRepo(opts: InitRepoOptions): Promise<{ ok: boolean; repo?: RepoSummary; error?: string }>;
   selectDirectory(title?: string): Promise<{ ok: boolean; path?: string; error?: string }>;
@@ -448,4 +476,3 @@ export interface StrataGitApi {
 
 export type ApiEvent = 'repo-updated';
 export type GraphGitApi = StrataGitApi;
-

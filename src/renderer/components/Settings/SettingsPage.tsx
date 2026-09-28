@@ -22,7 +22,9 @@ import {
   Command,
   FileCode2,
   SlidersHorizontal,
-  Bot
+  Bot,
+  Download,
+  ExternalLink
 } from 'lucide-react';
 import {
   useSettings,
@@ -34,8 +36,9 @@ import {
 } from '../../store/settings';
 import { useApp } from '../../store';
 import { api } from '../../lib/api';
-import { CommitProfile, AiCommitConfig } from '../../../shared/types';
+import { AppUpdateState, CommitProfile, AiCommitConfig } from '../../../shared/types';
 import { StrataLogo } from '../Common/StrataLogo';
+import { APP_VERSION } from '../../lib/appVersion';
 
 type SettingsTab = 'themes' | 'typography' | 'profiles' | 'ai' | 'git' | 'shortcuts' | 'about';
 
@@ -99,6 +102,26 @@ export function SettingsPage() {
   const [testGenerating, setTestGenerating] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
+  const [updateState, setUpdateState] = useState<AppUpdateState | null>(null);
+  const [updateActionBusy, setUpdateActionBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const unsubscribe = typeof api.onAppUpdateState === 'function'
+      ? api.onAppUpdateState((next) => {
+          if (active) setUpdateState(next);
+        })
+      : () => {};
+
+    void api.getAppUpdateState().then((current) => {
+      if (active) setUpdateState(current);
+    }).catch(() => {});
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
 
   // Keyboard shortcut listener to close on Escape
   useEffect(() => {
@@ -205,6 +228,89 @@ export function SettingsPage() {
       setTestGenerating(false);
     }
   };
+
+  const handleCheckForUpdates = async () => {
+    setUpdateActionBusy(true);
+    try {
+      setUpdateState(await api.checkForAppUpdates());
+    } catch (err: any) {
+      setUpdateState((current) => ({
+        status: 'error',
+        currentVersion: current?.currentVersion || APP_VERSION,
+        canInstallInApp: current?.canInstallInApp || false,
+        error: err?.message || 'Could not check for updates. Check your internet connection and try again.'
+      }));
+    } finally {
+      setUpdateActionBusy(false);
+    }
+  };
+
+  const handleUpdateAction = async () => {
+    if (!updateState) return handleCheckForUpdates();
+    setUpdateActionBusy(true);
+    try {
+      if (updateState.status === 'downloaded') {
+        const started = await api.installAppUpdate();
+        if (!started) {
+          setUpdateState({ ...updateState, status: 'error', error: 'The update could not be started. Please try again.' });
+        }
+      } else if (updateState.status === 'available' && updateState.canInstallInApp) {
+        setUpdateState(await api.downloadAppUpdate());
+      } else if (updateState.status === 'available') {
+        await api.openAppReleasePage();
+      } else {
+        await handleCheckForUpdates();
+      }
+    } catch (err: any) {
+      setUpdateState({
+        ...updateState,
+        status: 'error',
+        error: err?.message || 'The update action failed. Please try again.'
+      });
+    } finally {
+      setUpdateActionBusy(false);
+    }
+  };
+
+  const handleOpenReleasePage = async () => {
+    try {
+      await api.openAppReleasePage();
+    } catch (err: any) {
+      notify('error', err?.message || 'Could not open the StrataGit release page.');
+    }
+  };
+
+  const updateStatusText = !updateState
+    ? 'Getting update status…'
+    : updateState.status === 'checking'
+      ? 'Checking for updates…'
+      : updateState.status === 'not-available'
+        ? `You’re up to date${updateState.currentVersion ? ` (v${updateState.currentVersion})` : ''}.`
+        : updateState.status === 'available'
+          ? `Version ${updateState.availableVersion || 'new'} is available.`
+          : updateState.status === 'downloading'
+            ? `Downloading update${typeof updateState.progress === 'number' ? ` · ${Math.floor(updateState.progress)}%` : '…'}`
+            : updateState.status === 'downloaded'
+              ? `Version ${updateState.availableVersion || ''} is ready to install. Restart StrataGit to finish.`
+              : updateState.status === 'error'
+                ? 'Couldn’t check or install the update. Try again or open the release page.'
+                : updateState.status === 'unsupported'
+                  ? updateState.error || 'Update checks are available in an installed build.'
+                  : `Current version: v${updateState.currentVersion}`;
+
+  const updateButtonLabel = updateState?.status === 'checking'
+    ? 'Checking…'
+    : updateState?.status === 'downloading'
+      ? `Downloading ${Math.floor(updateState.progress || 0)}%`
+      : updateActionBusy
+        ? 'Please wait…'
+        : updateState?.status === 'available'
+          ? updateState.canInstallInApp ? 'Download update' : 'View release'
+          : updateState?.status === 'downloaded'
+            ? 'Restart & install'
+            : 'Check for updates';
+
+  const installedVersion = updateState?.currentVersion || APP_VERSION;
 
   const categories = [
     { id: 'themes' as const, label: 'Appearance & Themes', icon: <Palette size={16} />, desc: 'Color palettes, UI accents & toast position' },
@@ -332,7 +438,7 @@ export function SettingsPage() {
           <div className="mt-auto pt-4 border-t border-edge/60 px-2 space-y-1">
             <div className="flex items-center gap-2 text-[11px] text-dim font-mono">
               <StrataLogo size={14} />
-              <span>StrataGit v0.1.0</span>
+              <span>StrataGit v{installedVersion}</span>
             </div>
             <p className="text-[10px] text-faint leading-relaxed">
               Settings automatically persist to local storage.
@@ -1324,7 +1430,7 @@ export function SettingsPage() {
                     <StrataLogo size={52} />
                     <div>
                       <div className="text-base font-bold text-fg">
-                        Strata<span className="text-accent">Git</span> <span className="text-xs text-faint font-mono">v0.1.0</span>
+                        Strata<span className="text-accent">Git</span> <span className="text-xs text-faint font-mono">v{installedVersion}</span>
                       </div>
                       <div className="text-xs text-dim mt-0.5">
                         Built with Electron, React 19, TypeScript, Tailwind CSS v4 &amp; Vite
@@ -1345,6 +1451,84 @@ export function SettingsPage() {
                       <Sparkles size={14} />
                       <span>Start Interactive Usage Tour</span>
                     </button>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-edge bg-panel2/50 p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-fg">Software updates</h3>
+                      <p className="text-xs text-dim mt-1">StrataGit checks quietly at startup. You can also check GitHub here.</p>
+                    </div>
+                    {updateState?.status === 'available' && (
+                      <span className="shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold bg-accent/15 text-accent border border-accent/30">
+                        Update available
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs text-dim" aria-live="polite">
+                    {updateState?.status === 'checking' || updateState?.status === 'downloading'
+                      ? <Loader2 size={13} className="shrink-0 animate-spin text-accent" />
+                      : updateState?.status === 'error'
+                        ? <AlertCircle size={13} className="shrink-0 text-warn" />
+                        : updateState?.status === 'not-available'
+                          ? <CheckCircle2 size={13} className="shrink-0 text-accent" />
+                          : <Info size={13} className="shrink-0 text-dim" />}
+                    <span>{updateStatusText}</span>
+                  </div>
+
+                  {updateState?.status === 'error' && updateState.error && (
+                    <p className="text-[11px] text-warn break-words">{updateState.error}</p>
+                  )}
+
+                  {updateState?.status === 'downloading' && (
+                    <div className="h-1.5 rounded-full bg-panel overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor(updateState.progress || 0)}>
+                      <div
+                        className="h-full bg-accent transition-all duration-200"
+                        style={{ width: `${Math.max(0, Math.min(100, updateState.progress || 0))}%` }}
+                      />
+                    </div>
+                  )}
+
+                  {updateState?.releaseNotes && (
+                    <div className="rounded-lg border border-edge/60 bg-base/50 p-3">
+                      <div className="text-[11px] font-semibold text-fg mb-1">
+                        {updateState.releaseName || `Release ${updateState.availableVersion || ''}`} notes
+                      </div>
+                      <pre className="text-[11px] text-dim leading-relaxed whitespace-pre-wrap font-sans max-h-36 overflow-y-auto">{updateState.releaseNotes}</pre>
+                    </div>
+                  )}
+
+                  {updateState?.status === 'downloaded' && updateState.canInstallInApp && (
+                    <p className="text-[11px] text-dim">StrataGit will close and restart. Your repository files are not changed by the update.</p>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => void handleUpdateAction()}
+                      disabled={updateActionBusy || updateState?.status === 'checking' || updateState?.status === 'downloading'}
+                      className="btn bg-accent text-white hover:bg-accent-hover text-xs font-medium px-3 py-1.5 shadow-xs flex items-center gap-2 transition-all rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {updateState?.status === 'available' && updateState.canInstallInApp
+                        ? <Download size={13} />
+                        : updateState?.status === 'available'
+                          ? <ExternalLink size={13} />
+                          : <RefreshCw size={13} />}
+                      <span>{updateButtonLabel}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleOpenReleasePage()}
+                      className="px-3 py-1.5 rounded-lg border border-edge text-xs text-dim hover:text-fg hover:bg-panel3 transition-colors flex items-center gap-1.5"
+                    >
+                      <ExternalLink size={12} />
+                      View releases
+                    </button>
+                    {updateState?.status === 'downloaded' && updateState.canInstallInApp && (
+                      <span className="text-[10px] text-faint">Your system may ask for permission to install this update.</span>
+                    )}
                   </div>
                 </div>
 

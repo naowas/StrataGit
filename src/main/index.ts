@@ -2,6 +2,7 @@ import { app, BrowserWindow, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { registerIpc } from './ipc';
+import { registerUpdater } from './updater';
 
 let mainWindow: BrowserWindow | null = null;
 let currentRepo: string | null = null;
@@ -51,6 +52,7 @@ app.whenReady().then(() => {
     () => mainWindow,
     () => currentRepo
   );
+  registerUpdater(() => mainWindow);
 
   // Track the active repo path (sent from renderer when a tab is focused)
   const { ipcMain } = require('electron') as typeof import('electron');

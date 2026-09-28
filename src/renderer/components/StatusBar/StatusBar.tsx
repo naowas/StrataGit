@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { GitBranch, ArrowUp, ArrowDown, Archive, Check, ChevronDown, ZoomIn, ZoomOut, Terminal, Search } from 'lucide-react';
 import { useApp } from '../../store';
 import { api } from '../../lib/api';
 import { Dropdown } from '../ui/Dropdown';
 import { StrataLogo } from '../Common/StrataLogo';
-
-const VERSION = '1.0.0';
+import { APP_VERSION } from '../../lib/appVersion';
 
 export function StatusBar() {
+  const [version, setVersion] = useState(APP_VERSION);
   const status = useApp((s) => s.status);
   const stashes = useApp((s) => s.stashes);
   const log = useApp((s) => s.log);
@@ -21,6 +21,14 @@ export function StatusBar() {
   const behind = status?.behind ?? 0;
   const branch = status?.currentBranch ?? '—';
   const dirty = (status?.staged.length ?? 0) + (status?.unstaged.length ?? 0);
+
+  useEffect(() => {
+    let active = true;
+    void api.getAppUpdateState().then((update) => {
+      if (active) setVersion(update.currentVersion);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   return (
     <div className="flex items-center gap-1 bg-panel border-t border-edge px-2 py-0.5 text-xs text-dim shrink-0">
@@ -118,7 +126,7 @@ export function StatusBar() {
 
       <span className="flex items-center gap-1.5 px-1.5 font-mono text-[11px] text-dim hover:text-fg transition-colors">
         <StrataLogo size={12} />
-        <span>StrataGit v{VERSION}</span>
+        <span>StrataGit v{version}</span>
       </span>
     </div>
   );

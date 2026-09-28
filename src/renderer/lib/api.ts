@@ -1,6 +1,7 @@
 import type { Api } from '../../preload/index';
 import type { StrataGitApi, AiCommitConfig } from '../../shared/types';
 import { generateCommitMessage } from '../../shared/ai';
+import { APP_VERSION } from './appVersion';
 
 // In browser preview environments where Electron preload is not injected,
 // provide realistic mock data so UI development, testing, and screenshots work seamlessly.
@@ -68,6 +69,27 @@ const createMockApi = (): Api & StrataGitApi => {
   ];
 
   const mock: Record<string, unknown> = {
+    getAppUpdateState: async () => ({
+      status: 'unsupported',
+      currentVersion: APP_VERSION,
+      canInstallInApp: false,
+      error: 'Update checks are available in the installed app.'
+    }),
+    checkForAppUpdates: async () => ({
+      status: 'unsupported',
+      currentVersion: APP_VERSION,
+      canInstallInApp: false,
+      error: 'Update checks are available in the installed app.'
+    }),
+    downloadAppUpdate: async () => ({
+      status: 'unsupported',
+      currentVersion: APP_VERSION,
+      canInstallInApp: false,
+      error: 'Update checks are available in the installed app.'
+    }),
+    installAppUpdate: async () => false,
+    openAppReleasePage: async () => {},
+    onAppUpdateState: () => () => {},
     openRepo: async (p: string) => ({ ok: true, repo: { path: p, name: p.split('/').pop() || p } }),
     openRepoDialog: async () => ({ ok: true, repo: { path: activeRepo, name: 'stratagit' } }),
     initRepo: async (opts: any) => ({ ok: true, repo: { path: opts.path, name: opts.path.split('/').pop() || opts.path } }),

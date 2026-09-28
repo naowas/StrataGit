@@ -155,6 +155,23 @@ Output files will be generated in `dist/`:
 - `dist/StrataGit-<version>.dmg`
 - `dist/StrataGit-<version>-mac.zip`
 
+### Publishing a release and its update files
+
+StrataGit checks public, non-draft GitHub Releases in `naowas/stratagit`. Release uploads are manual; the `dist` commands build files locally and do not publish anything. Set `package.json`'s version to the release version before building, and use a matching `v<version>` tag.
+
+Build each supported platform on its native operating system:
+
+```bash
+npm run dist:linux
+npm run dist:mac
+```
+
+Attach the installers and every updater file generated in `dist/` to the same GitHub Release. This includes the platform metadata (`latest-linux.yml` and `latest-mac.yml`) and any generated `.blockmap` files alongside the AppImage, deb, dmg, and macOS zip. Keep the release public and non-draft so installed apps can find its metadata.
+
+Linux AppImage and deb builds can download and install an update from About → Software updates. A deb install may ask for system authorization. macOS builds are currently unsigned, so StrataGit checks for a release but opens the release page for manual download and installation until code signing is configured.
+
+The updater is included in the first public build. Builds made before it is included cannot update themselves and must be replaced manually.
+
 ### Production Bundle Check
 ```bash
 npm run build

@@ -9,6 +9,12 @@ const call = <T>(channel: string, ...args: unknown[]): Promise<T> =>
   });
 
 export type Api = {
+  getAppUpdateState(): Promise<import('../shared/types').AppUpdateState>;
+  checkForAppUpdates(): Promise<import('../shared/types').AppUpdateState>;
+  downloadAppUpdate(): Promise<import('../shared/types').AppUpdateState>;
+  installAppUpdate(): Promise<boolean>;
+  openAppReleasePage(): Promise<void>;
+  onAppUpdateState(cb: (state: import('../shared/types').AppUpdateState) => void): () => void;
   openRepo(path: string): Promise<{ ok: boolean; repo?: { path: string; name: string }; error?: string }>;
   openRepoDialog(): Promise<{ ok: boolean; repo?: { path: string; name: string }; error?: string }>;
   initRepo(opts: import('../shared/types').InitRepoOptions): Promise<{ ok: boolean; repo?: { path: string; name: string }; error?: string }>;
@@ -121,6 +127,16 @@ export type Api = {
 };
 
 const api: Api = {
+  getAppUpdateState: () => call('app-update:get-state'),
+  checkForAppUpdates: () => call('app-update:check'),
+  downloadAppUpdate: () => call('app-update:download'),
+  installAppUpdate: () => call('app-update:install'),
+  openAppReleasePage: () => call('app-update:open-release-page'),
+  onAppUpdateState: (cb) => {
+    const handler = (_e: IpcRendererEvent, next: import('../shared/types').AppUpdateState) => cb(next);
+    ipcRenderer.on('app-update:state', handler);
+    return () => ipcRenderer.removeListener('app-update:state', handler);
+  },
   openRepo: (path) => call('repo:open-path', path),
   openRepoDialog: () => call('repo:open-dialog'),
   initRepo: (opts) => call('repo:init', opts),
