@@ -12,7 +12,7 @@ export interface GitGraphCanvasProps {
   hoveredHash?: string | null;
   hasWip?: boolean;
   visibleRange?: { startIndex: number; endIndex: number };
-  onHover?: (hash: string | null) => void;
+  onHover?: (hash: string | null, pointer?: { x: number; y: number }) => void;
   onSelect?: (hash: string) => void;
   onContextMenu?: (e: React.MouseEvent, hash: string) => void;
 }
@@ -30,7 +30,7 @@ function CommitAvatarNode({
   commit: RenderedGraphCommit;
   isSelected: boolean;
   isHovered: boolean;
-  onHover?: (hash: string | null) => void;
+  onHover?: (hash: string | null, pointer?: { x: number; y: number }) => void;
   onSelect?: (hash: string) => void;
   onContextMenu?: (e: React.MouseEvent, hash: string) => void;
 }) {
@@ -43,7 +43,7 @@ function CommitAvatarNode({
     <g
       transform={`translate(${c.x}, ${c.y})`}
       className="pointer-events-auto cursor-pointer"
-      onMouseEnter={() => onHover?.(c.hash)}
+      onMouseEnter={(event) => onHover?.(c.hash, { x: event.clientX, y: event.clientY })}
       onMouseLeave={() => onHover?.(null)}
       onClick={(e) => {
         e.stopPropagation();

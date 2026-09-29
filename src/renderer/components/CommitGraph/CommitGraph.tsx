@@ -4,6 +4,8 @@ import { useApp, WIP_HASH } from '../../store';
 import { useSettings } from '../../store/settings';
 import { api } from '../../lib/api';
 import { ContextMenu, ContextMenuItem } from '../ui/ContextMenu';
+import { Dropdown } from '../ui/Dropdown';
+import { CommitHoverCard } from './CommitHoverCard';
 import { buildGitGraph } from './gitgraph';
 import { LANE_W, ROW_H, BRANCH_W } from './lanes';
 import { GitGraphCanvas } from './GitGraphCanvas';
@@ -31,10 +33,19 @@ import {
   Layers,
   X,
   Filter,
-  Calendar
+  Calendar,
+  Settings,
+  Copy
 } from 'lucide-react';
+import { Avatar } from '../ui/Avatar';
 
 const DOT_R = 5;
+const MESSAGE_MIN_W = 250;
+const AUTHOR_COLUMN_W = 150;
+const DATE_COLUMN_W = 160;
+const SHA_COLUMN_W = 100;
+const COLUMN_SETTINGS_W = 36;
+type PointerPosition = { x: number; y: number };
 
 /** Stable empty list, so the conversion memo keys off the filtered commits only. */
 const NO_COMMITS: Commit[] = [];
@@ -203,7 +214,12 @@ function CommitRow({
   graphW,
   laneColor = '#26c6da',
   hovered = false,
+  hoverPoint,
   rowH = ROW_H,
+  showAuthor,
+  showDate,
+  showSha,
+  minRowWidth,
   onContextMenu,
   onRefContextMenu
 }: {
@@ -212,7 +228,12 @@ function CommitRow({
   graphW: number;
   laneColor?: string;
   hovered?: boolean;
+  hoverPoint?: PointerPosition | null;
   rowH?: number;
+  showAuthor: boolean;
+  showDate: boolean;
+  showSha: boolean;
+  minRowWidth: number;
   onContextMenu?: (e: React.MouseEvent, commit: Commit) => void;
   onRefContextMenu?: (e: React.MouseEvent, ref: CommitRef) => void;
 }) {
@@ -222,6 +243,60 @@ function CommitRow({
   const setCompareCommits = useApp((s) => s.setCompareCommits);
   const openFileDiff = useApp((s) => s.openFileDiff);
   const status = useApp((s) => s.status);
+  const remotes = useApp((s) => s.remotes);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [hoverCardOpen, setHoverCardOpen] = useState(false);
+  const [cardPointer, setCardPointer] = useState<PointerPosition | null>(null);
+  const lastPointer = useRef<PointerPosition | null>(null);
+  const rowHovered = useRef(false);
+  const cardHovered = useRef(false);
+  const openCardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeCardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearOpenCardTimer = () => {
+    if (openCardTimer.current) clearTimeout(openCardTimer.current);
+    openCardTimer.current = null;
+  };
+
+  const clearCloseCardTimer = () => {
+    if (closeCardTimer.current) clearTimeout(closeCardTimer.current);
+    closeCardTimer.current = null;
+  };
+
+  const openHoverCard = () => {
+    if (isWip) return;
+    clearCloseCardTimer();
+    if (hoverCardOpen || openCardTimer.current) return;
+    openCardTimer.current = setTimeout(() => {
+      openCardTimer.current = null;
+      const rect = rowRef.current?.getBoundingClientRect();
+      setCardPointer(lastPointer.current ?? hoverPoint ?? {
+        x: rect ? rect.left + Math.min(graphW + BRANCH_W + 24, rect.width - 24) : 0,
+        y: rect ? rect.top + rect.height / 2 : 0
+      });
+      setHoverCardOpen(true);
+    }, 300);
+  };
+
+  const closeHoverCard = () => {
+    clearOpenCardTimer();
+    clearCloseCardTimer();
+    closeCardTimer.current = setTimeout(() => {
+      closeCardTimer.current = null;
+      if (!rowHovered.current && !cardHovered.current) setHoverCardOpen(false);
+    }, 150);
+  };
+
+  useEffect(() => () => {
+    clearOpenCardTimer();
+    clearCloseCardTimer();
+  }, []);
+
+  useEffect(() => {
+    if (hovered && hoverPoint) lastPointer.current = hoverPoint;
+    if (hovered && !rowHovered.current) openHoverCard();
+    else if (!hovered && !rowHovered.current && !cardHovered.current) closeHoverCard();
+  }, [hovered]);
 
   const isBaseCompare = compareCommits ? compareCommits[0] === commit.hash : false;
   const isTargetCompare = compareCommits ? compareCommits[1] === commit.hash : false;
@@ -286,6 +361,8 @@ function CommitRow({
 
   return (
     <div
+      ref={rowRef}
+      data-commit-row={!isWip ? commit.hash : undefined}
       className={`flex items-center cursor-pointer select-none transition-colors ${
         isCompared
           ? 'bg-cyan-500/15 font-medium border-l-2 border-cyan-400'
@@ -295,10 +372,24 @@ function CommitRow({
               ? 'bg-panel2/70'
               : 'hover:bg-panel2/40'
       }`}
-      style={{ height: rowH }}
+      style={{ height: rowH, minWidth: minRowWidth }}
+      onMouseEnter={(event) => {
+        lastPointer.current = { x: event.clientX, y: event.clientY };
+        rowHovered.current = true;
+        openHoverCard();
+      }}
+      onMouseMove={(event) => {
+        lastPointer.current = { x: event.clientX, y: event.clientY };
+      }}
+      onMouseLeave={() => {
+        rowHovered.current = false;
+        closeHoverCard();
+      }}
       onClick={handleClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={(e) => {
+        clearOpenCardTimer();
+        setHoverCardOpen(false);
         if (!isWip && onContextMenu) {
           e.preventDefault();
           onContextMenu(e, commit);
@@ -339,7 +430,7 @@ function CommitRow({
       <div className="relative shrink-0" style={{ width: graphW }} />
 
       {/* 3. COMMIT MESSAGE column */}
-      <div className="flex items-center flex-1 min-w-0 pr-3 pl-1 overflow-hidden">
+      <div className="flex items-center flex-1 pr-3 pl-1 overflow-hidden" style={{ minWidth: MESSAGE_MIN_W }}>
         {/* Vertical cyan indicator bar as in the reference image (only on regular commits) */}
         {!isWip && (
           <div
@@ -405,7 +496,6 @@ function CommitRow({
               className={`truncate text-xs font-normal ${
                 isSelected ? 'text-white font-medium' : 'text-fg/90'
               }`}
-              title={commit.message}
             >
               {commit.message || '(no message)'}
             </span>
@@ -419,16 +509,52 @@ function CommitRow({
           </span>
         )}
 
-        {/* Relative date on the right edge */}
-        {!isWip && commit.date && (
-          <span
-            className="text-[11px] text-faint ml-auto shrink-0 pl-3 select-none"
-            title={formatFullDate(commit.date)}
-          >
-            {formatRelativeDate(commit.date)}
-          </span>
-        )}
       </div>
+      {showAuthor && (
+        <div className="flex items-center gap-1.5 px-2 h-full shrink-0 border-l border-edge/50 text-[11px] text-dim overflow-hidden" style={{ width: AUTHOR_COLUMN_W }}>
+          {!isWip && <Avatar name={commit.authorName} email={commit.authorEmail} avatarHash={commit.avatarHash} size={16} />}
+          <span className="truncate">{isWip ? 'Working tree' : commit.authorName || 'Unknown author'}</span>
+        </div>
+      )}
+      {showDate && (
+        <div className="flex items-center px-2 h-full shrink-0 border-l border-edge/50 text-[11px] text-dim tabular-nums" style={{ width: DATE_COLUMN_W }}>
+          {!isWip && commit.date ? formatRelativeDate(commit.date) : '—'}
+        </div>
+      )}
+      {showSha && (
+        <div className="flex items-center px-2 h-full shrink-0 border-l border-edge/50" style={{ width: SHA_COLUMN_W }}>
+          {!isWip ? (
+            <button
+              type="button"
+              className="font-mono text-[11px] text-accent hover:text-fg inline-flex items-center gap-1 min-w-0"
+              aria-label={`Copy full commit SHA ${commit.hash}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                void navigator.clipboard.writeText(commit.hash);
+              }}
+            >
+              <span className="truncate">{commit.shortHash}</span>
+              <Copy size={11} className="shrink-0 opacity-70" />
+            </button>
+          ) : <span className="font-mono text-[11px] text-faint">—</span>}
+        </div>
+      )}
+      <div className="h-full shrink-0" style={{ width: COLUMN_SETTINGS_W }} />
+      {hoverCardOpen && cardPointer && !isWip && (
+        <CommitHoverCard
+          commit={commit}
+          remotes={remotes}
+          pointer={cardPointer}
+          onMouseEnter={() => {
+            cardHovered.current = true;
+            clearCloseCardTimer();
+          }}
+          onMouseLeave={() => {
+            cardHovered.current = false;
+            closeHoverCard();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -462,6 +588,7 @@ export function CommitGraph() {
   const [menu, setMenu] = useState<{ x: number; y: number; commit: Commit } | null>(null);
   const [refMenu, setRefMenu] = useState<{ x: number; y: number; ref: CommitRef } | null>(null);
   const [hoveredHash, setHoveredHash] = useState<string | null>(null);
+  const graphPointer = useRef<PointerPosition | null>(null);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -556,6 +683,10 @@ export function CommitGraph() {
   }, [allCommits, q, filterAuthor, filterDateRange]);
 
   const graphRowHeight = useSettings((s) => s.graphRowHeight);
+  const showAuthorColumn = useSettings((s) => s.commitColumns.author);
+  const showDateColumn = useSettings((s) => s.commitColumns.date);
+  const showShaColumn = useSettings((s) => s.commitColumns.sha);
+  const setCommitColumns = useSettings((s) => s.setCommitColumns);
   const rowH = graphRowHeight || ROW_H;
 
   const graphData = useMemo(() => buildGitGraph(commits, { rowH, laneW: LANE_W }), [commits, rowH]);
@@ -566,6 +697,10 @@ export function CommitGraph() {
 
   const wip = status && (status.staged.length > 0 || status.unstaged.length > 0);
   const graphW = Math.max(graphData.width, 40);
+  const rowMinWidth = BRANCH_W + graphW + MESSAGE_MIN_W +
+    (showAuthorColumn ? AUTHOR_COLUMN_W : 0) +
+    (showDateColumn ? DATE_COLUMN_W : 0) +
+    (showShaColumn ? SHA_COLUMN_W : 0) + COLUMN_SETTINGS_W;
   const rowTop = wip ? rowH : 0;
 
   const BUFFER = 15;
@@ -908,15 +1043,56 @@ export function CommitGraph() {
         </div>
       )}
 
-      <div className="sticky top-0 z-10 flex items-center bg-panel border-b border-edge text-[11px] font-semibold tracking-wider text-dim select-none h-7">
+      <div
+        className="sticky top-0 z-10 flex items-center bg-panel border-b border-edge text-[11px] font-semibold tracking-wider text-dim select-none h-7"
+        style={{ minWidth: rowMinWidth }}
+      >
         <div className="pl-3" style={{ width: BRANCH_W }}>
           BRANCH / TAG
         </div>
         <div className="pl-1" style={{ width: graphW }}>
           GRAPH
         </div>
-        <div className="flex-1 min-w-0 pl-1">
-          COMMIT MESSAGE
+        <div className="flex-1 pl-1" style={{ minWidth: MESSAGE_MIN_W }}>COMMIT MESSAGE</div>
+        {showAuthorColumn && <div className="shrink-0 px-2" style={{ width: AUTHOR_COLUMN_W }}>AUTHOR</div>}
+        {showDateColumn && <div className="shrink-0 px-2" style={{ width: DATE_COLUMN_W }}>COMMIT DATE/TIME</div>}
+        {showShaColumn && <div className="shrink-0 px-2" style={{ width: SHA_COLUMN_W }}>SHA</div>}
+        <div className="sticky right-0 z-30 flex h-full shrink-0 items-center justify-center border-l border-edge bg-panel" style={{ width: COLUMN_SETTINGS_W }}>
+          <Dropdown
+            align="right"
+            width={190}
+            trigger={(
+              <button
+                type="button"
+                className="inline-flex h-6 w-6 items-center justify-center rounded text-dim hover:bg-panel2 hover:text-fg"
+                aria-label="Choose visible commit columns"
+                title="Choose visible commit columns"
+              >
+                <Settings size={14} />
+              </button>
+            )}
+          >
+            {() => (
+              <div className="p-2 text-xs normal-case tracking-normal">
+                <div className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-faint">Show in commit list</div>
+                {([
+                  ['author', 'Author', showAuthorColumn],
+                  ['date', 'Commit date/time', showDateColumn],
+                  ['sha', 'Commit SHA', showShaColumn]
+                ] as const).map(([key, label, visible]) => (
+                  <label key={key} className="flex items-center gap-2 rounded px-2 py-1.5 text-fg/90 hover:bg-panel3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={visible}
+                      onChange={(event) => setCommitColumns({ [key]: event.target.checked })}
+                      className="accent-cyan-400"
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </Dropdown>
         </div>
       </div>
       {/* The rows scrolling under the overlay */}
@@ -935,7 +1111,10 @@ export function CommitGraph() {
             hoveredHash={hoveredHash}
             hasWip={!!wip}
             visibleRange={{ startIndex, endIndex }}
-            onHover={setHoveredHash}
+            onHover={(hash, pointer) => {
+              if (pointer) graphPointer.current = pointer;
+              setHoveredHash(hash);
+            }}
             onSelect={(hash) => void selectCommit(hash)}
             onContextMenu={(e, hash) => {
               void selectCommit(hash);
@@ -955,6 +1134,10 @@ export function CommitGraph() {
             graphW={graphW}
             laneColor={graphData.commits[0]?.color || '#26c6da'}
             rowH={rowH}
+            showAuthor={showAuthorColumn}
+            showDate={showDateColumn}
+            showSha={showShaColumn}
+            minRowWidth={rowMinWidth}
           />
         )}
 
@@ -971,7 +1154,12 @@ export function CommitGraph() {
               graphW={graphW}
               laneColor={graphData.commits[i]?.color || '#26c6da'}
               hovered={hoveredHash === c.hash}
+              hoverPoint={hoveredHash === c.hash ? graphPointer.current : null}
               rowH={rowH}
+              showAuthor={showAuthorColumn}
+              showDate={showDateColumn}
+              showSha={showShaColumn}
+              minRowWidth={rowMinWidth}
               onContextMenu={(e, commit) => {
                 void selectCommit(commit.hash);
                 setRefMenu(null);
@@ -1013,7 +1201,7 @@ export function CommitGraph() {
       </div>
 
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} items={commitMenuItems(menu.commit)} onClose={() => setMenu(null)} />
+        <ContextMenu x={menu.x} y={menu.y} width={360} items={commitMenuItems(menu.commit)} onClose={() => setMenu(null)} />
       )}
 
       {refMenu && (
@@ -1022,4 +1210,3 @@ export function CommitGraph() {
     </div>
   );
 }
-

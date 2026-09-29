@@ -375,6 +375,12 @@ export const CODE_FONT_PRESETS = [
 
 export type ToastPosition = 'top-center' | 'top-right' | 'bottom-center' | 'bottom-right';
 
+export interface CommitColumnVisibility {
+  author: boolean;
+  date: boolean;
+  sha: boolean;
+}
+
 export interface SettingsState {
   isSettingsOpen: boolean;
   theme: ThemeId;
@@ -385,6 +391,7 @@ export interface SettingsState {
   codeFontFamily: string;
   customCodeFont: string;
   graphRowHeight: number;
+  commitColumns: CommitColumnVisibility;
   autoFetch: boolean;
   autoFetchInterval: number; // in seconds
   toastPosition: ToastPosition;
@@ -409,6 +416,7 @@ export interface SettingsState {
   setCodeFontFamily: (font: string) => void;
   setCustomCodeFont: (font: string) => void;
   setGraphRowHeight: (height: number) => void;
+  setCommitColumns: (columns: Partial<CommitColumnVisibility>) => void;
   setAutoFetch: (enabled: boolean) => void;
   setAutoFetchInterval: (seconds: number) => void;
   setToastPosition: (pos: 'top-center' | 'top-right' | 'bottom-center' | 'bottom-right') => void;
@@ -433,6 +441,7 @@ const DEFAULT_SETTINGS = {
   codeFontFamily: 'JetBrains Mono',
   customCodeFont: '',
   graphRowHeight: 26,
+  commitColumns: { author: true, date: true, sha: true } as CommitColumnVisibility,
   autoFetch: true,
   autoFetchInterval: 60,
   toastPosition: 'top-center' as 'top-center' | 'top-right' | 'bottom-center' | 'bottom-right',
@@ -463,7 +472,11 @@ function loadStoredSettings() {
     if (parsed.theme === 'graphgit-dark') {
       parsed.theme = 'stratagit-dark';
     }
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    return {
+      ...DEFAULT_SETTINGS,
+      ...parsed,
+      commitColumns: { ...DEFAULT_SETTINGS.commitColumns, ...parsed.commitColumns }
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -604,6 +617,12 @@ export const useSettings = create<SettingsState>((set, get) => ({
   setGraphRowHeight: (graphRowHeight: number) => {
     set({ graphRowHeight });
     saveSettings({ graphRowHeight });
+  },
+
+  setCommitColumns: (columns: Partial<CommitColumnVisibility>) => {
+    const commitColumns = { ...get().commitColumns, ...columns };
+    set({ commitColumns });
+    saveSettings({ commitColumns });
   },
 
   setAutoFetch: (autoFetch: boolean) => {

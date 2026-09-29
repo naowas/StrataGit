@@ -20,12 +20,14 @@ export function ContextMenu({
   x,
   y,
   items,
-  onClose
+  onClose,
+  width = 240
 }: {
   x: number;
   y: number;
   items: ContextMenuItem[];
   onClose: () => void;
+  width?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -47,15 +49,20 @@ export function ContextMenu({
   }, [onClose]);
 
   // Keep the menu inside the viewport
+  const menuWidth = Math.min(window.innerWidth - 16, Math.max(200, width));
+  const estimatedHeight = Math.min(items.length * 42 + 32, window.innerHeight - 16);
+  const top = Math.max(8, Math.min(y, window.innerHeight - estimatedHeight - 8));
   const style: React.CSSProperties = {
     position: 'fixed',
-    left: Math.min(x, window.innerWidth - 260),
-    top: Math.min(y, window.innerHeight - Math.min(items.length * 30 + 20, window.innerHeight - 10)),
-    zIndex: 1000
+    left: Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8)),
+    top,
+    width: menuWidth,
+    maxHeight: Math.max(120, window.innerHeight - top - 8),
+    zIndex: 2000
   };
 
   return (
-    <div ref={ref} style={style} className="w-60 rounded-md border border-edge bg-panel2 shadow-xl py-1 text-xs select-none">
+    <div ref={ref} style={style} className="overflow-y-auto rounded-md border border-edge bg-panel2 shadow-xl py-1 text-xs select-none">
       {items.map((item, i) => {
         if (item.divider) return <div key={i} className="my-1 border-t border-edge" />;
         if (item.prompt) {
@@ -80,7 +87,7 @@ export function ContextMenu({
             }}
           >
             {item.icon && <span className="shrink-0 opacity-80">{item.icon}</span>}
-            <span className="truncate">{item.label}</span>
+            <span className="min-w-0 whitespace-normal break-words">{item.label}</span>
           </button>
         );
       })}

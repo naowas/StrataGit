@@ -145,7 +145,7 @@ function StashRow({
       <span className="truncate flex-1 text-xs">
         #{index} {message}
       </span>
-      <span className="hidden group-hover:flex gap-0.5">
+      <span className="flex w-16 shrink-0 justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
         <button
           className="btn-icon !w-5 !h-5"
           title="Pop stash"
