@@ -239,6 +239,35 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
 
   async function openRepoPath(p: string) {
     const abs = path.resolve(p);
+    if (process.platform === 'darwin') {
+      const gitMarker = path.join(abs, '.git');
+      const candidates: Array<{ path: string; mode: number }> = [
+        { path: abs, mode: fs.constants.R_OK | fs.constants.X_OK }
+      ];
+      try {
+        const stat = fs.statSync(gitMarker);
+        candidates.push({
+          path: gitMarker,
+          mode: fs.constants.R_OK | (stat.isDirectory() ? fs.constants.X_OK : 0)
+        });
+      } catch {
+        candidates.push({ path: gitMarker, mode: fs.constants.R_OK });
+      }
+
+      for (const candidate of candidates) {
+        try {
+          fs.accessSync(candidate.path, candidate.mode);
+        } catch (err) {
+          const code = (err as NodeJS.ErrnoException)?.code;
+          if (code === 'EACCES' || code === 'EPERM') {
+            return {
+              ok: false,
+              error: `macOS denied StrataGit access to "${candidate.path}". In System Settings → Privacy & Security → Files & Folders, allow StrataGit to access this folder, then try again.`
+            };
+          }
+        }
+      }
+    }
     if (!isValidRepo(abs)) return { ok: false, error: `${abs} is not a git repository` };
     const list = readRecent().filter((r) => r !== abs);
     list.unshift(abs);

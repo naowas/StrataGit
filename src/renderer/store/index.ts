@@ -307,7 +307,11 @@ export const useApp = create<AppStore>((set, get) => ({
         repo?: { path: string; name: string };
         error?: string;
       };
-      if (res.ok && res.repo) await get().openRepo(res.repo.path);
+      if (res.ok && res.repo) {
+        await get().openRepo(res.repo.path);
+      } else if (!res.error?.toLowerCase().includes('canceled')) {
+        get().notify('error', res.error || 'Could not open the selected repository. Choose its root folder and try again.');
+      }
     } catch (err) {
       if (String(err).includes('canceled')) return;
       get().notify('error', String(err).replace('Error: ', ''));
