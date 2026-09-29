@@ -357,7 +357,7 @@ export interface AppUpdateState {
   releaseNotes?: string;
   progress?: number;
   error?: string;
-  /** Linux builds support in-app installation; macOS currently uses the release page. */
+  /** Windows and Linux packages support in-app installation; unsigned macOS builds use the release page. */
   canInstallInApp: boolean;
 }
 

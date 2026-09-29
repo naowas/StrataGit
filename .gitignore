@@ -13,6 +13,7 @@ release/
 *.AppImage
 *.deb
 *.rpm
+*.pacman
 *.snap
 *.dmg
 *.zip

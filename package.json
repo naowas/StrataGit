@@ -2,7 +2,7 @@
   "name": "stratagit",
   "productName": "StrataGit",
   "version": "0.1.0",
-  "description": "A commit-graph-centric visual Git client for Linux and macOS",
+  "description": "A commit-graph-centric visual Git client for Linux, macOS, and Windows",
   "main": "out/main/index.js",
   "author": {
     "name": "StrataGit Team",
@@ -17,7 +17,8 @@
     "test:features": "node scripts/test-features.cjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "dist": "electron-vite build && electron-builder --publish never",
-    "dist:linux": "electron-vite build && electron-builder --linux AppImage deb --publish never",
+    "dist:linux": "electron-vite build && electron-builder --linux AppImage deb rpm pacman --publish never",
+    "dist:win": "electron-vite build && electron-builder --win nsis --publish never",
     "dist:mac": "electron-vite build && electron-builder --mac dmg zip --publish never"
   },
   "dependencies": {
@@ -68,6 +69,12 @@
       "maintainer": "support@stratagit.dev",
       "category": "Development",
       "icon": "build/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
     },
     "mac": {
       "target": [

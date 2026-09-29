@@ -1446,7 +1446,7 @@ export function SettingsPage() {
                         closeSettings();
                         useApp.getState().openUsageGuide();
                       }}
-                      className="btn bg-accent text-white hover:bg-accent-hover text-xs font-medium px-4 py-1.5 shadow-xs flex items-center gap-2 transition-all rounded-lg"
+                      className="btn bg-fg text-base hover:opacity-90 text-xs font-medium px-4 py-1.5 shadow-xs flex items-center gap-2 transition-all rounded-lg"
                     >
                       <Sparkles size={14} />
                       <span>Start Interactive Usage Tour</span>
@@ -1509,7 +1509,7 @@ export function SettingsPage() {
                       type="button"
                       onClick={() => void handleUpdateAction()}
                       disabled={updateActionBusy || updateState?.status === 'checking' || updateState?.status === 'downloading'}
-                      className="btn bg-accent text-white hover:bg-accent-hover text-xs font-medium px-3 py-1.5 shadow-xs flex items-center gap-2 transition-all rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="btn bg-fg text-base hover:opacity-90 text-xs font-medium px-3 py-1.5 shadow-xs flex items-center gap-2 transition-all rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {updateState?.status === 'available' && updateState.canInstallInApp
                         ? <Download size={13} />

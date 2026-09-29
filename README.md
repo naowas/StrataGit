@@ -139,36 +139,39 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 
 StrataGit uses [`electron-builder`](https://www.electron.build/) to package distribution-ready binaries:
 
-### Build for Linux (AppImage & deb)
+### Build for Linux (AppImage, deb, rpm & Arch)
 ```bash
 npm run dist:linux
 ```
-Output files will be generated in `dist/`:
-- `dist/StrataGit-<version>.AppImage`
-- `dist/stratagit_<version>_amd64.deb`
+This creates an AppImage, Debian package, RPM package, and Pacman package in `dist/`.
 
-### Build for macOS (dmg & zip)
+### Build for Windows (NSIS installer)
+```bash
+npm run dist:win
+```
+This creates a Windows installer (`.exe`) and `latest.yml` updater metadata in `dist/`. Build on Windows for the most reliable release and smoke-test the installer there. Linux can cross-build it when Wine is available.
+
+### Build for macOS (manual download)
 ```bash
 npm run dist:mac
 ```
-Output files will be generated in `dist/`:
-- `dist/StrataGit-<version>.dmg`
-- `dist/StrataGit-<version>-mac.zip`
+This creates a DMG and ZIP in `dist/`. macOS builds are unsigned and will always use the GitHub release page for manual download and installation; in-app macOS updates are not enabled.
 
 ### Publishing a release and its update files
 
 StrataGit checks public, non-draft GitHub Releases in `naowas/StrataGit`. Release uploads are manual; the `dist` commands build files locally and do not publish anything. Set `package.json`'s version to the release version before building, and use a matching `v<version>` tag.
 
-Build each supported platform on its native operating system:
+Build each platform for the same version and tag. Native builds are recommended. Unsigned macOS packages can be cross-built in some environments, but signing requires macOS; Windows packages can be cross-built from Linux when Wine is installed:
 
 ```bash
 npm run dist:linux
+npm run dist:win
 npm run dist:mac
 ```
 
-Attach the installers and every updater file generated in `dist/` to the same GitHub Release. This includes the platform metadata (`latest-linux.yml` and `latest-mac.yml`) and any generated `.blockmap` files alongside the AppImage, deb, dmg, and macOS zip. Keep the release public and non-draft so installed apps can find its metadata.
+Attach all installers and updater files from each build to the same GitHub Release. Include `latest-linux.yml`, `latest.yml`, `latest-mac.yml` when generated, and every `.blockmap` file alongside the AppImage, deb, rpm, Pacman package, Windows installer, DMG, and macOS ZIP. Keep the release public and non-draft so installed apps can find its metadata.
 
-Linux AppImage and deb builds can download and install an update from About → Software updates. A deb install may ask for system authorization. macOS builds are currently unsigned, so StrataGit checks for a release but opens the release page for manual download and installation until code signing is configured.
+Windows NSIS and Linux AppImage, deb, rpm, and Pacman builds can download and install updates from About → Software updates. Package-manager installs may request system authorization. macOS stays manual because builds are unsigned: StrataGit opens the release page for download and installation.
 
 The updater is included in the first public build. Builds made before it is included cannot update themselves and must be replaced manually.
 

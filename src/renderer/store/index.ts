@@ -258,6 +258,7 @@ export const useApp = create<AppStore>((set, get) => ({
     const targetName = p.split('/').pop() || p;
     set({ isOpeningRepo: true, openingRepoName: targetName });
     const startTime = Date.now();
+    let pendingNotification: { kind: 'success' | 'error'; message: string } | null = null;
     try {
       const res = (await unwrap(api.openRepo(p))) as {
         ok: boolean;
@@ -266,8 +267,7 @@ export const useApp = create<AppStore>((set, get) => ({
       };
       if (request !== openingRequest) return;
       if (!res.ok || !res.repo) {
-        get().notify('error', res.error || 'Failed to open repository');
-        set({ isOpeningRepo: false, openingRepoName: null });
+        pendingNotification = { kind: 'error', message: res.error || 'Failed to open repository' };
         return;
       }
       api.setActiveRepo(res.repo.path);
@@ -276,16 +276,26 @@ export const useApp = create<AppStore>((set, get) => ({
       const reset = resetRepositoryView(false);
       set({ ...reset, tabs, activeTab: repo.path, openingRepoName: repo.name, isOpeningRepo: true });
       await get().refresh();
-      if (request === openingRequest) get().notify('success', `Opened ${repo.name}`);
+      if (request === openingRequest) {
+        pendingNotification = { kind: 'success', message: `Opened ${repo.name}` };
+      }
     } catch (err) {
       if (request !== openingRequest) return;
-      get().notify('error', String(err).replace('Error: ', ''));
+      pendingNotification = { kind: 'error', message: String(err).replace('Error: ', '') };
     } finally {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, 600 - elapsed);
       setTimeout(() => {
         if (request !== openingRequest) return;
         set({ isOpeningRepo: false, openingRepoName: null });
+        if (pendingNotification) {
+          // Let RepoOpeningAnimation finish its 350ms exit before showing the
+          // toast, so the notification does not cover the repository transition.
+          setTimeout(() => {
+            if (request !== openingRequest || !pendingNotification) return;
+            get().notify(pendingNotification.kind, pendingNotification.message);
+          }, 400);
+        }
       }, remaining);
     }
   },
@@ -773,4 +783,3 @@ export const useApp = create<AppStore>((set, get) => ({
     }
   }
 }));
-
