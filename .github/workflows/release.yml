@@ -45,6 +45,10 @@ jobs:
       - name: Build AppImage, deb, rpm, and Pacman packages
         run: npm run dist:linux
 
+      - name: Verify Linux updater metadata
+        shell: bash
+        run: test -s dist/latest-linux.yml
+
       - name: Upload Linux release assets
         uses: actions/upload-artifact@v7
         with:
@@ -91,6 +95,10 @@ jobs:
       - name: Build Windows NSIS installer
         run: npm run dist:win
 
+      - name: Verify Windows updater metadata
+        shell: bash
+        run: test -s dist/latest.yml
+
       - name: Upload Windows release assets
         uses: actions/upload-artifact@v7
         with:
@@ -136,6 +144,10 @@ jobs:
       - name: Build universal unsigned macOS DMG and ZIP
         run: npm run dist:mac -- --universal
 
+      - name: Verify macOS updater metadata
+        shell: bash
+        run: test -s dist/latest-mac.yml
+
       - name: Upload macOS release assets
         uses: actions/upload-artifact@v7
         with:
@@ -165,6 +177,13 @@ jobs:
           pattern: stratagit-*
           path: release-assets
           merge-multiple: true
+
+      - name: Verify release metadata before attaching assets
+        shell: bash
+        run: |
+          test -s release-assets/latest-linux.yml
+          test -s release-assets/latest.yml
+          test -s release-assets/latest-mac.yml
 
       - name: Create draft release or refresh its assets
         env:

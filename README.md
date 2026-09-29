@@ -172,7 +172,7 @@ git push origin main
 git push origin v0.1.1-beta.1
 ```
 
-The workflow builds Linux packages on Ubuntu, the Windows installer on Windows, and a universal unsigned DMG/ZIP on macOS. It creates a **draft** GitHub Release and attaches all installers, updater metadata, and blockmaps. A new draft for a tag with a prerelease suffix (such as `-beta.1`) is marked as a prerelease. Review its generated title and notes, then publish it in GitHub when ready; published releases are visible to the in-app updater.
+The workflow builds Linux packages on Ubuntu, the Windows installer on Windows, and a universal unsigned DMG/ZIP on macOS. It creates a **draft** GitHub Release and attaches all installers, updater metadata, and blockmaps. A new draft for a tag with a prerelease suffix (such as `-beta.1`) is marked as a prerelease. Wait for the **Build release packages** workflow to finish successfully before publishing. Do not create or publish the release manually while the builds are running: the updater can see a published release before its metadata is attached and report a 404. Review the draft's title and notes, confirm `latest-linux.yml`, `latest.yml`, and the platform installers are attached, then publish it in GitHub. If metadata is missing after the workflow finishes, rerun the workflow; do not upload a `dist/` file from an older build.
 
 Windows NSIS and Linux AppImage, deb, rpm, and Pacman builds can download and install updates from About → Software updates. Package-manager installs may request system authorization. macOS stays manual because builds are unsigned: StrataGit opens the release page for download and installation.
 

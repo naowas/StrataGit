@@ -58,6 +58,11 @@ function errorText(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error || 'Unknown update error');
   const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
 
+  const missingMetadata = message.match(/Cannot find (latest(?:-[\w-]+)?\.yml) in the latest release artifacts/i);
+  if (missingMetadata) {
+    return `The latest GitHub release is missing ${missingMetadata[1]}. Wait for the release workflow to finish, then check again. If it has finished, verify that this file is attached to the release.`;
+  }
+
   if (
     /ERR_UPDATER_(LATEST_VERSION_NOT_FOUND|INVALID_RELEASE_FEED|NO_PUBLISHED_VERSIONS)/.test(code) ||
     /Unable to find latest version on GitHub|Cannot parse releases feed|No published versions on GitHub|HttpError: 406/i.test(message)
