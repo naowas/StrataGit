@@ -1,7 +1,7 @@
 {
   "name": "stratagit",
   "productName": "StrataGit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A commit-graph-centric visual Git client for Linux, macOS, and Windows",
   "main": "out/main/index.js",
   "author": {
