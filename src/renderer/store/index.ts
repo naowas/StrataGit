@@ -102,7 +102,7 @@ interface AppState {
 
 interface AppActions {
   init(): Promise<void>;
-  openRepo(path: string): Promise<void>;
+  openRepo(path: string, options?: { notifyOnSuccess?: boolean }): Promise<void>;
   openRepoDialog(): Promise<void>;
   closeTab(path: string): void;
   setActiveTab(path: string): void;
@@ -250,10 +250,10 @@ export const useApp = create<AppStore>((set, get) => ({
   async init() {
     const recent = (await unwrap(api.recentRepos()).catch(() => [])) as string[];
     set({ recentRepos: recent });
-    if (recent.length > 0) await get().openRepo(recent[0]);
+    if (recent.length > 0) await get().openRepo(recent[0], { notifyOnSuccess: false });
   },
 
-  async openRepo(p) {
+  async openRepo(p, options) {
     const request = ++openingRequest;
     const targetName = p.split('/').pop() || p;
     set({ isOpeningRepo: true, openingRepoName: targetName });
@@ -276,7 +276,7 @@ export const useApp = create<AppStore>((set, get) => ({
       const reset = resetRepositoryView(false);
       set({ ...reset, tabs, activeTab: repo.path, openingRepoName: repo.name, isOpeningRepo: true });
       await get().refresh();
-      if (request === openingRequest) {
+      if (request === openingRequest && options?.notifyOnSuccess !== false) {
         pendingNotification = { kind: 'success', message: `Opened ${repo.name}` };
       }
     } catch (err) {

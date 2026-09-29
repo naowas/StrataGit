@@ -42,6 +42,27 @@ import { APP_VERSION } from '../../lib/appVersion';
 
 type SettingsTab = 'themes' | 'typography' | 'profiles' | 'ai' | 'git' | 'shortcuts' | 'about';
 
+function formatReleaseNotes(notes: string): string {
+  if (!/<\/?[a-z][\s\S]*?>/i.test(notes)) return notes;
+
+  const template = document.createElement('template');
+  template.innerHTML = notes;
+  template.content.querySelectorAll('script, style').forEach((node) => node.remove());
+  template.content.querySelectorAll('br').forEach((node) => node.replaceWith('\n'));
+  template.content.querySelectorAll('li').forEach((node) => {
+    node.insertBefore(document.createTextNode('• '), node.firstChild);
+    node.append(document.createTextNode('\n'));
+  });
+  template.content.querySelectorAll('p, h1, h2, h3, h4, blockquote').forEach((node) => {
+    node.append(document.createTextNode('\n\n'));
+  });
+
+  return (template.content.textContent || '')
+    .replace(/[\t ]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function SettingsPage() {
   const {
     closeSettings,
@@ -311,6 +332,9 @@ export function SettingsPage() {
             : 'Check for updates';
 
   const installedVersion = updateState?.currentVersion || APP_VERSION;
+  const formattedReleaseNotes = updateState?.releaseNotes
+    ? formatReleaseNotes(updateState.releaseNotes)
+    : '';
 
   const categories = [
     { id: 'themes' as const, label: 'Appearance & Themes', icon: <Palette size={16} />, desc: 'Color palettes, UI accents & toast position' },
@@ -1446,7 +1470,7 @@ export function SettingsPage() {
                         closeSettings();
                         useApp.getState().openUsageGuide();
                       }}
-                      className="btn bg-fg text-base hover:opacity-90 text-xs font-medium px-4 py-1.5 shadow-xs flex items-center gap-2 transition-all rounded-lg"
+                      className="btn btn-primary text-xs font-medium px-4 py-1.5 shadow-xs flex items-center gap-2 transition-all rounded-lg"
                     >
                       <Sparkles size={14} />
                       <span>Start Interactive Usage Tour</span>
@@ -1496,7 +1520,7 @@ export function SettingsPage() {
                       <div className="text-[11px] font-semibold text-fg mb-1">
                         {updateState.releaseName || `Release ${updateState.availableVersion || ''}`} notes
                       </div>
-                      <pre className="text-[11px] text-dim leading-relaxed whitespace-pre-wrap font-sans max-h-36 overflow-y-auto">{updateState.releaseNotes}</pre>
+                      <pre className="text-[11px] text-dim leading-relaxed whitespace-pre-wrap font-sans max-h-36 overflow-y-auto">{formattedReleaseNotes}</pre>
                     </div>
                   )}
 
@@ -1509,7 +1533,7 @@ export function SettingsPage() {
                       type="button"
                       onClick={() => void handleUpdateAction()}
                       disabled={updateActionBusy || updateState?.status === 'checking' || updateState?.status === 'downloading'}
-                      className="btn bg-fg text-base hover:opacity-90 text-xs font-medium px-3 py-1.5 shadow-xs flex items-center gap-2 transition-all rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="btn btn-primary text-xs font-medium px-3 py-1.5 shadow-xs flex items-center gap-2 transition-all rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {updateState?.status === 'available' && updateState.canInstallInApp
                         ? <Download size={13} />

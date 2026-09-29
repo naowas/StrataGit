@@ -178,6 +178,18 @@ code,
 .btn:hover { background-color: var(--color-panel3); }
 .btn:disabled { opacity: 0.4; pointer-events: none; }
 
+/* Primary actions keep readable text across dark and light themes. */
+.btn-primary {
+  background-color: var(--color-accent);
+  color: var(--color-base);
+}
+.btn-primary:hover { background-color: var(--color-accentHover, var(--color-accent-hover)); }
+.light .btn-primary {
+  background-color: var(--color-accentHover, var(--color-accent-hover));
+  color: #fff;
+}
+.light .btn-primary:hover { background-color: var(--color-accent); }
+
 .btn-icon {
   display: flex;
   align-items: center;
