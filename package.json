@@ -64,7 +64,9 @@
     "linux": {
       "target": [
         "AppImage",
-        "deb"
+        "deb",
+        "rpm",
+        "pacman"
       ],
       "maintainer": "support@stratagit.dev",
       "category": "Development",

@@ -159,19 +159,24 @@ This creates a DMG and ZIP in `dist/`. macOS builds are unsigned and will always
 
 ### Publishing a release and its update files
 
-StrataGit checks public, non-draft GitHub Releases in `naowas/StrataGit`. Release uploads are manual; the `dist` commands build files locally and do not publish anything. Set `package.json`'s version to the release version before building, and use a matching `v<version>` tag.
+StrataGit checks public, non-draft GitHub Releases in `naowas/StrataGit`. Local `dist` commands only build files; the GitHub Actions release workflow builds and uploads them automatically when a version tag is pushed.
 
-Build each platform for the same version and tag. Native builds are recommended. Unsigned macOS packages can be cross-built in some environments, but signing requires macOS; Windows packages can be cross-built from Linux when Wine is installed:
+First commit and push the workflow and packaging changes to `main`. For each release, bump `package.json`'s version to match the tag (without the `v` prefix), commit and push that version, then push the tag:
 
 ```bash
-npm run dist:linux
-npm run dist:win
-npm run dist:mac
+npm version 0.1.1-beta.1 --no-git-tag-version
+git add package.json package-lock.json
+git commit -m "chore: prepare v0.1.1-beta.1 release"
+git tag v0.1.1-beta.1
+git push origin main
+git push origin v0.1.1-beta.1
 ```
 
-Attach all installers and updater files from each build to the same GitHub Release. Include `latest-linux.yml`, `latest.yml`, `latest-mac.yml` when generated, and every `.blockmap` file alongside the AppImage, deb, rpm, Pacman package, Windows installer, DMG, and macOS ZIP. Keep the release public and non-draft so installed apps can find its metadata.
+The workflow builds Linux packages on Ubuntu, the Windows installer on Windows, and a universal unsigned DMG/ZIP on macOS. It creates a **draft** GitHub Release and attaches all installers, updater metadata, and blockmaps. A new draft for a tag with a prerelease suffix (such as `-beta.1`) is marked as a prerelease. Review its generated title and notes, then publish it in GitHub when ready; published releases are visible to the in-app updater.
 
 Windows NSIS and Linux AppImage, deb, rpm, and Pacman builds can download and install updates from About → Software updates. Package-manager installs may request system authorization. macOS stays manual because builds are unsigned: StrataGit opens the release page for download and installation.
+
+The workflow uses GitHub's `GITHUB_TOKEN` with `contents: write` for draft releases. If the release job is denied permission, allow read/write workflow token permissions under the repository's **Settings → Actions → General**. Re-running a tag workflow replaces same-named installer assets on that tag's release.
 
 The updater is included in the first public build. Builds made before it is included cannot update themselves and must be replaced manually.
 
