@@ -381,6 +381,18 @@ export interface CommitColumnVisibility {
   sha: boolean;
 }
 
+export interface CommitColumnWidths {
+  author: number;
+  date: number;
+  sha: number;
+}
+
+export const DEFAULT_COMMIT_COLUMN_WIDTHS: CommitColumnWidths = {
+  author: 150,
+  date: 200,
+  sha: 100
+};
+
 export interface SettingsState {
   isSettingsOpen: boolean;
   theme: ThemeId;
@@ -392,6 +404,7 @@ export interface SettingsState {
   customCodeFont: string;
   graphRowHeight: number;
   commitColumns: CommitColumnVisibility;
+  commitColumnWidths: CommitColumnWidths;
   autoFetch: boolean;
   autoFetchInterval: number; // in seconds
   toastPosition: ToastPosition;
@@ -417,6 +430,7 @@ export interface SettingsState {
   setCustomCodeFont: (font: string) => void;
   setGraphRowHeight: (height: number) => void;
   setCommitColumns: (columns: Partial<CommitColumnVisibility>) => void;
+  setCommitColumnWidths: (widths: Partial<CommitColumnWidths>) => void;
   setAutoFetch: (enabled: boolean) => void;
   setAutoFetchInterval: (seconds: number) => void;
   setToastPosition: (pos: 'top-center' | 'top-right' | 'bottom-center' | 'bottom-right') => void;
@@ -441,7 +455,8 @@ const DEFAULT_SETTINGS = {
   codeFontFamily: 'JetBrains Mono',
   customCodeFont: '',
   graphRowHeight: 26,
-  commitColumns: { author: true, date: true, sha: true } as CommitColumnVisibility,
+  commitColumns: { author: true, date: false, sha: true } as CommitColumnVisibility,
+  commitColumnWidths: DEFAULT_COMMIT_COLUMN_WIDTHS,
   autoFetch: true,
   autoFetchInterval: 60,
   toastPosition: 'top-center' as 'top-center' | 'top-right' | 'bottom-center' | 'bottom-right',
@@ -475,7 +490,8 @@ function loadStoredSettings() {
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
-      commitColumns: { ...DEFAULT_SETTINGS.commitColumns, ...parsed.commitColumns }
+      commitColumns: { ...DEFAULT_SETTINGS.commitColumns, ...parsed.commitColumns },
+      commitColumnWidths: { ...DEFAULT_COMMIT_COLUMN_WIDTHS, ...parsed.commitColumnWidths }
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -623,6 +639,12 @@ export const useSettings = create<SettingsState>((set, get) => ({
     const commitColumns = { ...get().commitColumns, ...columns };
     set({ commitColumns });
     saveSettings({ commitColumns });
+  },
+
+  setCommitColumnWidths: (widths: Partial<CommitColumnWidths>) => {
+    const commitColumnWidths = { ...get().commitColumnWidths, ...widths };
+    set({ commitColumnWidths });
+    saveSettings({ commitColumnWidths });
   },
 
   setAutoFetch: (autoFetch: boolean) => {

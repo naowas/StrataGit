@@ -1,11 +1,11 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Commit, CommitRef, GitFileStatus } from '../../../shared/types';
 import { useApp, WIP_HASH } from '../../store';
-import { useSettings } from '../../store/settings';
+import { useSettings, CommitColumnWidths, DEFAULT_COMMIT_COLUMN_WIDTHS } from '../../store/settings';
 import { api } from '../../lib/api';
 import { ContextMenu, ContextMenuItem } from '../ui/ContextMenu';
-import { Dropdown } from '../ui/Dropdown';
 import { CommitHoverCard } from './CommitHoverCard';
+import { CommitColumnMenu, ResizableColumnHeader } from './CommitColumnControls';
 import { buildGitGraph } from './gitgraph';
 import { LANE_W, ROW_H, BRANCH_W } from './lanes';
 import { GitGraphCanvas } from './GitGraphCanvas';
@@ -34,16 +34,12 @@ import {
   X,
   Filter,
   Calendar,
-  Settings,
   Copy
 } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 
 const DOT_R = 5;
 const MESSAGE_MIN_W = 250;
-const AUTHOR_COLUMN_W = 150;
-const DATE_COLUMN_W = 160;
-const SHA_COLUMN_W = 100;
 const COLUMN_SETTINGS_W = 36;
 type PointerPosition = { x: number; y: number };
 
@@ -219,6 +215,7 @@ function CommitRow({
   showAuthor,
   showDate,
   showSha,
+  columnWidths,
   minRowWidth,
   onContextMenu,
   onRefContextMenu
@@ -233,6 +230,7 @@ function CommitRow({
   showAuthor: boolean;
   showDate: boolean;
   showSha: boolean;
+  columnWidths: CommitColumnWidths;
   minRowWidth: number;
   onContextMenu?: (e: React.MouseEvent, commit: Commit) => void;
   onRefContextMenu?: (e: React.MouseEvent, ref: CommitRef) => void;
@@ -358,6 +356,10 @@ function CommitRow({
   };
 
   const displayRefs = useMemo(() => consolidateRefs(commit.refs), [commit.refs]);
+  const fullCommitDate = useMemo(
+    () => !isWip && commit.date ? formatFullDate(commit.date) : '',
+    [isWip, commit.date]
+  );
 
   return (
     <div
@@ -508,21 +510,27 @@ function CommitRow({
             - {commit.body.split('\n')[0]}
           </span>
         )}
-
+        {!isWip && !showDate && commit.date && (
+          <span className="ml-auto shrink-0 pl-3 text-[11px] text-faint tabular-nums">
+            {formatRelativeDate(commit.date)}
+          </span>
+        )}
       </div>
       {showAuthor && (
-        <div className="flex items-center gap-1.5 px-2 h-full shrink-0 border-l border-edge/50 text-[11px] text-dim overflow-hidden" style={{ width: AUTHOR_COLUMN_W }}>
+        <div className="flex items-center gap-1.5 px-2 h-full shrink-0 border-l border-edge/50 text-[11px] text-dim overflow-hidden" style={{ width: columnWidths.author }}>
           {!isWip && <Avatar name={commit.authorName} email={commit.authorEmail} avatarHash={commit.avatarHash} size={16} />}
           <span className="truncate">{isWip ? 'Working tree' : commit.authorName || 'Unknown author'}</span>
         </div>
       )}
       {showDate && (
-        <div className="flex items-center px-2 h-full shrink-0 border-l border-edge/50 text-[11px] text-dim tabular-nums" style={{ width: DATE_COLUMN_W }}>
-          {!isWip && commit.date ? formatRelativeDate(commit.date) : '—'}
+        <div className="flex items-center px-2 h-full shrink-0 border-l border-edge/50 text-[11px] text-dim tabular-nums" style={{ width: columnWidths.date }}>
+          <span className="truncate" aria-label={fullCommitDate || undefined}>
+            {fullCommitDate || '—'}
+          </span>
         </div>
       )}
       {showSha && (
-        <div className="flex items-center px-2 h-full shrink-0 border-l border-edge/50" style={{ width: SHA_COLUMN_W }}>
+        <div className="flex items-center px-2 h-full shrink-0 border-l border-edge/50" style={{ width: columnWidths.sha }}>
           {!isWip ? (
             <button
               type="button"
@@ -687,6 +695,10 @@ export function CommitGraph() {
   const showDateColumn = useSettings((s) => s.commitColumns.date);
   const showShaColumn = useSettings((s) => s.commitColumns.sha);
   const setCommitColumns = useSettings((s) => s.setCommitColumns);
+  const savedColumnWidths = useSettings((s) => s.commitColumnWidths);
+  const setCommitColumnWidths = useSettings((s) => s.setCommitColumnWidths);
+  const [columnWidths, setColumnWidths] = useState(savedColumnWidths);
+  useEffect(() => setColumnWidths(savedColumnWidths), [savedColumnWidths]);
   const rowH = graphRowHeight || ROW_H;
 
   const graphData = useMemo(() => buildGitGraph(commits, { rowH, laneW: LANE_W }), [commits, rowH]);
@@ -698,9 +710,9 @@ export function CommitGraph() {
   const wip = status && (status.staged.length > 0 || status.unstaged.length > 0);
   const graphW = Math.max(graphData.width, 40);
   const rowMinWidth = BRANCH_W + graphW + MESSAGE_MIN_W +
-    (showAuthorColumn ? AUTHOR_COLUMN_W : 0) +
-    (showDateColumn ? DATE_COLUMN_W : 0) +
-    (showShaColumn ? SHA_COLUMN_W : 0) + COLUMN_SETTINGS_W;
+    (showAuthorColumn ? columnWidths.author : 0) +
+    (showDateColumn ? columnWidths.date : 0) +
+    (showShaColumn ? columnWidths.sha : 0) + COLUMN_SETTINGS_W;
   const rowTop = wip ? rowH : 0;
 
   const BUFFER = 15;
@@ -1054,45 +1066,26 @@ export function CommitGraph() {
           GRAPH
         </div>
         <div className="flex-1 pl-1" style={{ minWidth: MESSAGE_MIN_W }}>COMMIT MESSAGE</div>
-        {showAuthorColumn && <div className="shrink-0 px-2" style={{ width: AUTHOR_COLUMN_W }}>AUTHOR</div>}
-        {showDateColumn && <div className="shrink-0 px-2" style={{ width: DATE_COLUMN_W }}>COMMIT DATE/TIME</div>}
-        {showShaColumn && <div className="shrink-0 px-2" style={{ width: SHA_COLUMN_W }}>SHA</div>}
+        {([
+          ['author', 'AUTHOR', showAuthorColumn],
+          ['date', 'DATE/TIME', showDateColumn],
+          ['sha', 'SHA', showShaColumn]
+        ] as const).map(([column, label, visible]) => visible && (
+          <ResizableColumnHeader
+            key={column}
+            column={column}
+            label={label}
+            width={columnWidths[column]}
+            onResize={(key, width) => setColumnWidths((current) => ({ ...current, [key]: width }))}
+            onCommit={(key, width) => setCommitColumnWidths({ [key]: width })}
+          />
+        ))}
         <div className="sticky right-0 z-30 flex h-full shrink-0 items-center justify-center border-l border-edge bg-panel" style={{ width: COLUMN_SETTINGS_W }}>
-          <Dropdown
-            align="right"
-            width={190}
-            trigger={(
-              <button
-                type="button"
-                className="inline-flex h-6 w-6 items-center justify-center rounded text-dim hover:bg-panel2 hover:text-fg"
-                aria-label="Choose visible commit columns"
-                title="Choose visible commit columns"
-              >
-                <Settings size={14} />
-              </button>
-            )}
-          >
-            {() => (
-              <div className="p-2 text-xs normal-case tracking-normal">
-                <div className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-faint">Show in commit list</div>
-                {([
-                  ['author', 'Author', showAuthorColumn],
-                  ['date', 'Commit date/time', showDateColumn],
-                  ['sha', 'Commit SHA', showShaColumn]
-                ] as const).map(([key, label, visible]) => (
-                  <label key={key} className="flex items-center gap-2 rounded px-2 py-1.5 text-fg/90 hover:bg-panel3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={visible}
-                      onChange={(event) => setCommitColumns({ [key]: event.target.checked })}
-                      className="accent-cyan-400"
-                    />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </Dropdown>
+          <CommitColumnMenu
+            visibility={{ author: showAuthorColumn, date: showDateColumn, sha: showShaColumn }}
+            onChange={setCommitColumns}
+            onResetWidths={() => setCommitColumnWidths(DEFAULT_COMMIT_COLUMN_WIDTHS)}
+          />
         </div>
       </div>
       {/* The rows scrolling under the overlay */}
@@ -1137,6 +1130,7 @@ export function CommitGraph() {
             showAuthor={showAuthorColumn}
             showDate={showDateColumn}
             showSha={showShaColumn}
+            columnWidths={columnWidths}
             minRowWidth={rowMinWidth}
           />
         )}
@@ -1159,6 +1153,7 @@ export function CommitGraph() {
               showAuthor={showAuthorColumn}
               showDate={showDateColumn}
               showSha={showShaColumn}
+              columnWidths={columnWidths}
               minRowWidth={rowMinWidth}
               onContextMenu={(e, commit) => {
                 void selectCommit(commit.hash);
