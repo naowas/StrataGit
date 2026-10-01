@@ -86,6 +86,7 @@ interface AppState {
   gitFlowModalOpen: boolean;
   bisectModalOpen: boolean;
   reflogModalOpen: boolean;
+  pullRequestsModalOpen: boolean;
   changelogModalOpen: boolean;
   simulateMergeBranch: string | null;
   worktreesModalOpen: boolean;
@@ -145,6 +146,8 @@ interface AppActions {
   closeBisectModal(): void;
   openReflogModal(): void;
   closeReflogModal(): void;
+  openPullRequestsModal(): void;
+  closePullRequestsModal(): void;
   openChangelogModal(): void;
   closeChangelogModal(): void;
   openSimulateMerge(branch: string): void;
@@ -190,7 +193,7 @@ function resetRepositoryView(cancelOpening = true): Partial<AppState> {
     detailLoading: false, diffLoading: false, isLoadingMoreCommits: false, commitLimit: 300,
     isOpeningRepo: false, openingRepoName: null,
     conflictedFileToResolve: null, rebaseModalBaseCommit: null, tagModalCommit: null,
-    bisectModalOpen: false, reflogModalOpen: false, worktreesModalOpen: false, gitFlowModalOpen: false,
+    bisectModalOpen: false, reflogModalOpen: false, pullRequestsModalOpen: false, worktreesModalOpen: false, gitFlowModalOpen: false,
     changelogModalOpen: false, simulateMergeBranch: null, addRemoteModalOpen: false
   };
 }
@@ -237,6 +240,7 @@ export const useApp = create<AppStore>((set, get) => ({
   gitFlowModalOpen: false,
   bisectModalOpen: false,
   reflogModalOpen: false,
+  pullRequestsModalOpen: false,
   changelogModalOpen: false,
   simulateMergeBranch: null,
   worktreesModalOpen: false,
@@ -689,6 +693,14 @@ export const useApp = create<AppStore>((set, get) => ({
 
   closeReflogModal() {
     set({ reflogModalOpen: false });
+  },
+
+  openPullRequestsModal() {
+    set({ pullRequestsModalOpen: true });
+  },
+
+  closePullRequestsModal() {
+    set({ pullRequestsModalOpen: false });
   },
 
   openChangelogModal() {

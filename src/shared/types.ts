@@ -90,6 +90,42 @@ export interface RemoteInfo {
   pushUrl: string;
 }
 
+export type PullRequestProvider = 'github' | 'gitlab' | 'bitbucket';
+
+export interface PullRequestCredential {
+  token: string;
+  /** Bitbucket Cloud API tokens use the Atlassian account email as the Basic Auth username. */
+  username?: string;
+}
+
+export type PullRequestCredentialStatus = Record<PullRequestProvider, boolean>;
+
+export interface HostedPullRequest {
+  id: string;
+  title: string;
+  state: 'open' | 'closed' | 'merged';
+  draft: boolean;
+  author: string;
+  sourceBranch: string;
+  targetBranch: string;
+  url: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PullRequestContext {
+  provider: PullRequestProvider | null;
+  remoteName: string | null;
+  remoteUrl?: string;
+  repository?: string;
+  repositoryUrl?: string;
+  currentBranch: string;
+  defaultBranch: string;
+  credentialConfigured: boolean;
+  pullRequests: HostedPullRequest[];
+  error?: string;
+}
+
 export interface SubmoduleInfo {
   name: string;
   path: string;
@@ -448,6 +484,11 @@ export interface StrataGitApi {
   deleteTag(name: string, deleteRemote?: boolean, remoteName?: string): Promise<{ ok: boolean; error?: string }>;
   pushTag(name: string, remoteName?: string): Promise<{ ok: boolean; error?: string }>;
   getRemotes(): Promise<RemoteInfo[]>;
+  getPullRequestCredentialStatus(): Promise<PullRequestCredentialStatus>;
+  savePullRequestCredential(provider: PullRequestProvider, credential: PullRequestCredential): Promise<{ ok: boolean; error?: string }>;
+  removePullRequestCredential(provider: PullRequestProvider): Promise<{ ok: boolean; error?: string }>;
+  getPullRequestContext(remoteName?: string, providerOverride?: PullRequestProvider): Promise<PullRequestContext>;
+  createHostedPullRequest(params: { remoteName: string; title: string; description: string; targetBranch: string; providerOverride?: PullRequestProvider }): Promise<{ ok: boolean; pullRequest?: HostedPullRequest; error?: string }>;
   addRemote(name: string, url: string): Promise<{ ok: boolean; error?: string }>;
   renameRemote(oldName: string, newName: string): Promise<{ ok: boolean; error?: string }>;
   setRemoteUrl(name: string, url: string): Promise<{ ok: boolean; error?: string }>;

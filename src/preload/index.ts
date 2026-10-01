@@ -90,6 +90,11 @@ export type Api = {
   deleteTag(name: string, deleteRemote?: boolean, remoteName?: string): Promise<{ ok: boolean; error?: string }>;
   pushTag(name: string, remoteName?: string): Promise<{ ok: boolean; error?: string }>;
   getRemotes(): Promise<import('../shared/types').RemoteInfo[]>;
+  getPullRequestCredentialStatus(): Promise<import('../shared/types').PullRequestCredentialStatus>;
+  savePullRequestCredential(provider: import('../shared/types').PullRequestProvider, credential: import('../shared/types').PullRequestCredential): Promise<{ ok: boolean; error?: string }>;
+  removePullRequestCredential(provider: import('../shared/types').PullRequestProvider): Promise<{ ok: boolean; error?: string }>;
+  getPullRequestContext(remoteName?: string, providerOverride?: import('../shared/types').PullRequestProvider): Promise<import('../shared/types').PullRequestContext>;
+  createHostedPullRequest(params: { remoteName: string; title: string; description: string; targetBranch: string; providerOverride?: import('../shared/types').PullRequestProvider }): Promise<{ ok: boolean; pullRequest?: import('../shared/types').HostedPullRequest; error?: string }>;
   addRemote(name: string, url: string): Promise<{ ok: boolean; error?: string }>;
   renameRemote(oldName: string, newName: string): Promise<{ ok: boolean; error?: string }>;
   setRemoteUrl(name: string, url: string): Promise<{ ok: boolean; error?: string }>;
@@ -211,6 +216,11 @@ const api: Api = {
   deleteTag: (name, deleteRemote, remoteName) => call('git:delete-tag', name, deleteRemote, remoteName),
   pushTag: (name, remoteName) => call('git:push-tag', name, remoteName),
   getRemotes: () => call('git:get-remotes'),
+  getPullRequestCredentialStatus: () => call('git:pull-requests:credentials'),
+  savePullRequestCredential: (provider, credential) => call('git:pull-requests:save-credential', provider, credential),
+  removePullRequestCredential: (provider) => call('git:pull-requests:remove-credential', provider),
+  getPullRequestContext: (remoteName, providerOverride) => call('git:pull-requests:context', remoteName, providerOverride),
+  createHostedPullRequest: (params) => call('git:pull-requests:create', params),
   addRemote: (name, url) => call('git:add-remote', name, url),
   renameRemote: (oldName, newName) => call('git:rename-remote', oldName, newName),
   setRemoteUrl: (name, url) => call('git:set-remote-url', name, url),

@@ -29,6 +29,7 @@ import { BisectModal } from './components/Bisect/BisectModal';
 import { ReflogModal } from './components/Reflog/ReflogModal';
 import { ChangelogModal } from './components/Changelog/ChangelogModal';
 import { WorktreesModal } from './components/Worktrees/WorktreesModal';
+import { PullRequestsModal } from './components/PullRequests/PullRequestsModal';
 import { ToastContainer } from './components/Common/ToastContainer';
 
 export function App() {
@@ -206,6 +207,7 @@ export function App() {
       <ReflogModal />
       <ChangelogModal />
       <WorktreesModal />
+      <PullRequestsModal />
       {usageGuideOpen && <UsageGuideModal onClose={closeUsageGuide} />}
       {gitFlowModalOpen && <GitFlowModal onClose={closeGitFlowModal} />}
       <RepoOpeningAnimation />

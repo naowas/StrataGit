@@ -14,6 +14,7 @@ import {
   FolderOpen,
   FolderPlus,
   GitMerge,
+  GitPullRequest,
   History,
   Settings,
   X,
@@ -379,6 +380,15 @@ export function Toolbar() {
                 onClick={() => {
                   close();
                   void runAndRefresh(() => api.fetch(), 'Fetched');
+                }}
+              />
+              <MenuItem
+                icon={<GitPullRequest size={14} className="text-accent" />}
+                label="Pull Requests / Merge Requests…"
+                disabled={!hasRepo}
+                onClick={() => {
+                  close();
+                  useApp.getState().openPullRequestsModal();
                 }}
               />
               <MenuItem

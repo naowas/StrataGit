@@ -8,6 +8,16 @@ import { APP_VERSION } from './appVersion';
 const createMockApi = (): Api & StrataGitApi => {
   const activeRepo = '/var/www/git-gui';
   const recent = ['/var/www/git-gui', '/home/projects/web-platform', '/home/projects/mobile-core'];
+  const mockProviderCredentials: Record<'github' | 'gitlab' | 'bitbucket', boolean> = {
+    github: false,
+    gitlab: false,
+    bitbucket: false
+  };
+  const mockPullRequests: import('../../shared/types').HostedPullRequest[] = [{
+    id: '42', title: 'Add hosted pull request context', state: 'open', draft: false,
+    author: 'jane-developer', sourceBranch: 'feature/conflict-ui', targetBranch: 'main',
+    url: 'https://github.com/stratagit/stratagit/pull/42', createdAt: new Date().toISOString()
+  }];
 
   const mockCommits = [
     {
@@ -164,6 +174,39 @@ const createMockApi = (): Api & StrataGitApi => {
       { name: 'origin', fetchUrl: 'https://github.com/stratagit/stratagit.git', pushUrl: 'https://github.com/stratagit/stratagit.git' },
       { name: 'upstream', fetchUrl: 'git@github.com:core/upstream.git', pushUrl: 'git@github.com:core/upstream.git' }
     ],
+
+    getPullRequestCredentialStatus: async () => ({ ...mockProviderCredentials }),
+    savePullRequestCredential: async (provider: 'github' | 'gitlab' | 'bitbucket') => {
+      mockProviderCredentials[provider] = true;
+      return { ok: true };
+    },
+    removePullRequestCredential: async (provider: 'github' | 'gitlab' | 'bitbucket') => {
+      mockProviderCredentials[provider] = false;
+      return { ok: true };
+    },
+    getPullRequestContext: async (remoteName?: string, providerOverride?: 'github' | 'gitlab' | 'bitbucket') => {
+      const provider = providerOverride || 'github';
+      return {
+        provider,
+        remoteName: remoteName || 'origin',
+        remoteUrl: 'https://github.com/stratagit/stratagit.git',
+        repository: 'stratagit/stratagit',
+        repositoryUrl: 'https://github.com/stratagit/stratagit',
+        currentBranch: 'feature/conflict-ui',
+        defaultBranch: mockProviderCredentials[provider] ? 'main' : '',
+        credentialConfigured: mockProviderCredentials[provider],
+        pullRequests: mockProviderCredentials[provider] ? mockPullRequests : []
+      };
+    },
+    createHostedPullRequest: async (params: { title: string; targetBranch: string }) => {
+      const created = {
+        id: String(Date.now()), title: params.title, state: 'open' as const, draft: false,
+        author: 'you', sourceBranch: 'feature/conflict-ui', targetBranch: params.targetBranch,
+        url: 'https://github.com/stratagit/stratagit/pull/43', createdAt: new Date().toISOString()
+      };
+      mockPullRequests.unshift(created);
+      return { ok: true, pullRequest: created };
+    },
 
     addRemote: async () => ({ ok: true }),
     renameRemote: async () => ({ ok: true }),

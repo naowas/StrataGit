@@ -20,6 +20,7 @@ import {
   FolderOpen,
   X,
   GitMerge,
+  GitPullRequest,
   Sparkles,
   GitCompare,
   Target,
@@ -114,6 +115,14 @@ export function CommandPalette() {
         subtitle: 'Download objects and refs from all remotes',
         icon: <Download size={14} className="text-sky-400" />,
         action: () => runAndRefresh(() => api.fetch(), 'Fetched from all remotes')
+      },
+      {
+        id: 'cmd-pull-requests',
+        category: 'Commands',
+        title: 'Open Pull Request Context…',
+        subtitle: 'View or create GitHub, GitLab, and Bitbucket requests for this branch',
+        icon: <GitPullRequest size={14} className="text-accent" />,
+        action: () => useApp.getState().openPullRequestsModal()
       },
       {
         id: 'cmd-pull',

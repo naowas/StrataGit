@@ -14,7 +14,9 @@ import {
   StashInfo,
   CommitDetail,
   FileDiff,
-  RebaseStep
+  RebaseStep,
+  PullRequestCredential,
+  PullRequestProvider
 } from '../shared/types';
 import { isValidRepo, errorMessage, withGit } from './git/core';
 import { getLog, repoDisplayName } from './git/log';
@@ -99,7 +101,18 @@ import {
 import { startBisect, stepBisect, resetBisect, getBisectState } from './git/bisect';
 import { generateChangelog } from './git/changelog';
 import { getReflog, createRecoveryBranch, restoreHeadFromReflog } from './git/reflog';
+import { getPullRequestContext, createHostedPullRequest } from './git/pull-requests';
+import {
+  getPullRequestCredential,
+  getPullRequestCredentialStatus,
+  removePullRequestCredential,
+  savePullRequestCredential
+} from './git/provider-credentials';
 import { explainCodeChanges } from '../shared/ai';
+
+const pullRequestProviders: PullRequestProvider[] = ['github', 'gitlab', 'bitbucket'];
+const isPullRequestProvider = (value: unknown): value is PullRequestProvider =>
+  typeof value === 'string' && pullRequestProviders.includes(value as PullRequestProvider);
 
 /** Recently opened repos persisted in the user config dir. */
 const recentFile = () => path.join(os.homedir(), '.config', 'stratagit', 'recent-repos.json');
@@ -640,6 +653,41 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
   handle('git:push-tag', async (name: string, remoteName?: string) => {
     await pushTag(requireRepo(), name, remoteName);
     return { ok: true };
+  });
+
+  // Hosted pull request / merge request providers
+  handle('git:pull-requests:credentials', async () => getPullRequestCredentialStatus());
+
+  handle('git:pull-requests:save-credential', async (provider: unknown, credential: PullRequestCredential) => {
+    if (!isPullRequestProvider(provider)) throw new Error('Choose GitHub, GitLab, or Bitbucket.');
+    savePullRequestCredential(provider, credential);
+    return { ok: true };
+  });
+
+  handle('git:pull-requests:remove-credential', async (provider: unknown) => {
+    if (!isPullRequestProvider(provider)) throw new Error('Choose GitHub, GitLab, or Bitbucket.');
+    removePullRequestCredential(provider);
+    return { ok: true };
+  });
+
+  handle('git:pull-requests:context', async (remoteName?: string, providerOverride?: PullRequestProvider) => {
+    if (providerOverride && !isPullRequestProvider(providerOverride)) throw new Error('Choose GitHub, GitLab, or Bitbucket.');
+    return getPullRequestContext(requireRepo(), remoteName, providerOverride, getPullRequestCredential);
+  });
+
+  handle('git:pull-requests:create', async (params: {
+    remoteName: string;
+    title: string;
+    description: string;
+    targetBranch: string;
+    providerOverride?: PullRequestProvider;
+  }) => {
+    if (params.providerOverride && !isPullRequestProvider(params.providerOverride)) throw new Error('Choose GitHub, GitLab, or Bitbucket.');
+    const pullRequest = await createHostedPullRequest(
+      requireRepo(), params.remoteName, params.title, params.description,
+      params.targetBranch, params.providerOverride, getPullRequestCredential
+    );
+    return { ok: true, pullRequest };
   });
 
   // Remotes
