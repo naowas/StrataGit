@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { DiffHunk } from '../../../shared/types';
 import { alignHunkLinesForSplit, InlineDiffPart } from './diffUtils';
 import { HunkHeader } from './HunkHeader';
@@ -28,66 +28,27 @@ function RenderParts({ parts }: { parts: InlineDiffPart[] }) {
 }
 
 export function SplitDiffView({ hunks }: SplitDiffViewProps) {
-  // Map of hunkIndex -> Set of hunkLineIndex
-  const [selectedLinesByHunk, setSelectedLinesByHunk] = useState<Record<number, Set<number>>>({});
-
-  useEffect(() => setSelectedLinesByHunk({}), [hunks]);
-
-  const toggleLine = (hunkIdx: number, lineIdx: number) => {
-    setSelectedLinesByHunk((prev) => {
-      const cur = new Set(prev[hunkIdx] || []);
-      if (cur.has(lineIdx)) {
-        cur.delete(lineIdx);
-      } else {
-        cur.add(lineIdx);
-      }
-      return { ...prev, [hunkIdx]: cur };
-    });
-  };
-
-  const clearSelection = (hunkIdx: number) => {
-    setSelectedLinesByHunk((prev) => {
-      const next = { ...prev };
-      delete next[hunkIdx];
-      return next;
-    });
-  };
-
   return (
     <div className="font-mono leading-5" style={{ fontSize: 'var(--font-size-code)' }}>
       {hunks.map((hunk, hunkIdx) => {
         const rows = alignHunkLinesForSplit(hunk);
-        const selected = selectedLinesByHunk[hunkIdx] || new Set<number>();
 
         return (
           <div key={hunkIdx} className="border-b border-edge/40">
             <HunkHeader
               hunk={hunk}
               hunkIndex={hunkIdx}
-              selectedLineIndices={selected}
-              onClearSelection={() => clearSelection(hunkIdx)}
+              selectedLineIndices={new Set<number>()}
+              onClearSelection={() => {}}
             />
 
             <div className="select-text">
               {rows.map((row, rowIdx) => {
-                const leftSelected = row.left !== undefined && selected.has(row.left.hunkLineIndex);
-                const rightSelected = row.right !== undefined && selected.has(row.right.hunkLineIndex);
                 const hasLeftChange = row.left?.kind === 'del';
                 const hasRightChange = row.right?.kind === 'add';
 
-                let leftBg = '';
-                if (leftSelected) {
-                  leftBg = 'bg-accent/20 border-l-2 border-accent';
-                } else if (hasLeftChange) {
-                  leftBg = 'bg-del-bg text-del/90';
-                }
-
-                let rightBg = '';
-                if (rightSelected) {
-                  rightBg = 'bg-accent/20 border-l-2 border-accent';
-                } else if (hasRightChange) {
-                  rightBg = 'bg-add-bg text-add/90';
-                }
+                const leftBg = hasLeftChange ? 'bg-del-bg text-del/90' : '';
+                const rightBg = hasRightChange ? 'bg-add-bg text-add/90' : '';
 
                 return (
                   <div key={rowIdx} className="flex min-w-full hover:brightness-105 transition-colors">
@@ -97,25 +58,6 @@ export function SplitDiffView({ hunks }: SplitDiffViewProps) {
                         row.left ? leftBg : 'bg-panel3/30'
                       }`}
                     >
-                      {/* Line selection checkbox */}
-                      <div
-                        className={`w-5 shrink-0 flex items-center justify-center cursor-pointer select-none border-r border-edge/30 transition-colors ${
-                          hasLeftChange ? 'hover:bg-accent/30' : 'opacity-0'
-                        }`}
-                        title={hasLeftChange ? 'Select line' : undefined}
-                        onClick={() => hasLeftChange && toggleLine(hunkIdx, row.left!.hunkLineIndex)}
-                      >
-                        {hasLeftChange && (
-                          <div
-                            className={`w-2 h-2 rounded-xs border transition-all ${
-                              leftSelected
-                                ? 'bg-accent border-accent ring-1 ring-accent/50'
-                                : 'border-dim/40'
-                            }`}
-                          />
-                        )}
-                      </div>
-
                       {/* Old line number */}
                       <span className="w-10 shrink-0 text-right pr-2 text-faint/70 select-none border-r border-edge/30 text-[11px]">
                         {row.left?.lineNo ?? ''}
@@ -142,25 +84,6 @@ export function SplitDiffView({ hunks }: SplitDiffViewProps) {
                         row.right ? rightBg : 'bg-panel3/30'
                       }`}
                     >
-                      {/* Line selection checkbox */}
-                      <div
-                        className={`w-5 shrink-0 flex items-center justify-center cursor-pointer select-none border-r border-edge/30 transition-colors ${
-                          hasRightChange ? 'hover:bg-accent/30' : 'opacity-0'
-                        }`}
-                        title={hasRightChange ? 'Select line' : undefined}
-                        onClick={() => hasRightChange && toggleLine(hunkIdx, row.right!.hunkLineIndex)}
-                      >
-                        {hasRightChange && (
-                          <div
-                            className={`w-2 h-2 rounded-xs border transition-all ${
-                              rightSelected
-                                ? 'bg-accent border-accent ring-1 ring-accent/50'
-                                : 'border-dim/40'
-                            }`}
-                          />
-                        )}
-                      </div>
-
                       {/* New line number */}
                       <span className="w-10 shrink-0 text-right pr-2 text-faint/70 select-none border-r border-edge/30 text-[11px]">
                         {row.right?.lineNo ?? ''}
