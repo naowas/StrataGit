@@ -57,6 +57,11 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 - **Rebase Helpers**: Revert commits, drop commits, and edit commit messages without writing complex rebase scripts by hand.
 - **Patch Application**: Apply individual commit patches onto your current working branch.
 
+### 🛟 Reflog & Recovery
+- Browse recent local `HEAD` and reference movements to find commits hidden by a reset, rebase, or deleted branch.
+- Create a recovery branch at any reflog entry to keep that commit reachable.
+- Restore the current branch to a selected entry after confirming; StrataGit first creates a safety branch at the current tip and requires a clean working tree.
+
 ### 🎨 Theming & Visual Customization
 - **Curated Theme Palettes**:
   - `StrataGit Dark` (Default, sleek onyx & electric cyan)

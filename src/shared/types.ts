@@ -66,6 +66,15 @@ export interface StashInfo {
   date: string;
 }
 
+export interface ReflogEntry {
+  hash: string;
+  shortHash: string;
+  ref: string;
+  action: string;
+  subject: string;
+  date: string;
+}
+
 export interface TagInfo {
   name: string;
   hash: string;
@@ -378,6 +387,9 @@ export interface StrataGitApi {
   setGitConfig(config: { name?: string; email?: string; scope?: 'local' | 'global' }): Promise<{ ok: boolean; error?: string }>;
   getStatus(): Promise<GitStatus | null>;
   getLog(limit?: number): Promise<GraphResult>;
+  getReflog(): Promise<ReflogEntry[]>;
+  createRecoveryBranch(hash: string, branchName?: string): Promise<{ ok: boolean; branchName?: string; error?: string }>;
+  restoreHeadFromReflog(hash: string): Promise<{ ok: boolean; branchName?: string; backupBranch?: string; error?: string }>;
   getBranches(): Promise<{ local: BranchInfo[]; remote: BranchInfo[] }>;
   getStashes(): Promise<StashInfo[]>;
   getCommitDetail(hash: string): Promise<CommitDetail | null>;

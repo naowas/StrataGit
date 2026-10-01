@@ -23,7 +23,8 @@ import {
   Sparkles,
   GitCompare,
   Target,
-  FolderGit2
+  FolderGit2,
+  History
 } from 'lucide-react';
 import { useApp } from '../../store';
 import { useSettings } from '../../store/settings';
@@ -257,6 +258,14 @@ export function CommandPalette() {
         subtitle: 'Interactively track down bug regression commits using binary search',
         icon: <Target size={14} className="text-rose-400" />,
         action: () => useApp.getState().openBisectModal()
+      },
+      {
+        id: 'cmd-reflog',
+        category: 'Commands',
+        title: 'Reflog & Recovery…',
+        subtitle: 'Find commits and branches moved by reset, rebase, or deletion',
+        icon: <History size={14} className="text-amber-400" />,
+        action: () => useApp.getState().openReflogModal()
       },
       {
         id: 'cmd-changelog',

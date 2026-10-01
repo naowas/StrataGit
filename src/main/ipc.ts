@@ -98,6 +98,7 @@ import {
 } from './git/gitflow';
 import { startBisect, stepBisect, resetBisect, getBisectState } from './git/bisect';
 import { generateChangelog } from './git/changelog';
+import { getReflog, createRecoveryBranch, restoreHeadFromReflog } from './git/reflog';
 import { explainCodeChanges } from '../shared/ai';
 
 /** Recently opened repos persisted in the user config dir. */
@@ -475,6 +476,15 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
     await resetBranchTo(requireRepo(), hash, mode);
     return { ok: true };
   });
+  handle('git:reflog', async () => getReflog(requireRepo()));
+  handle('git:reflog-recover-branch', async (hash: string, branchName?: string) => ({
+    ok: true,
+    ...(await createRecoveryBranch(requireRepo(), hash, branchName))
+  }));
+  handle('git:reflog-restore-head', async (hash: string) => ({
+    ok: true,
+    ...(await restoreHeadFromReflog(requireRepo(), hash))
+  }));
   handle('git:edit-commit-message', async (hash: string, message: string) => {
     await editCommitMessage(requireRepo(), hash, message);
     return { ok: true };

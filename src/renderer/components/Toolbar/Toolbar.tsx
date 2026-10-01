@@ -391,6 +391,15 @@ export function Toolbar() {
               />
               <MenuItem
                 icon={<History size={14} />}
+                label="Reflog & Recovery…"
+                disabled={!hasRepo}
+                onClick={() => {
+                  close();
+                  useApp.getState().openReflogModal();
+                }}
+              />
+              <MenuItem
+                icon={<History size={14} />}
                 label="Refresh"
                 onClick={() => {
                   close();

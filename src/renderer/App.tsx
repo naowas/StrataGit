@@ -26,6 +26,7 @@ import { UsageGuideModal } from './components/Help/UsageGuideModal';
 import { GitFlowModal } from './components/GitFlow/GitFlowModal';
 import { MergeSimulationModal } from './components/ConflictResolver/MergeSimulationModal';
 import { BisectModal } from './components/Bisect/BisectModal';
+import { ReflogModal } from './components/Reflog/ReflogModal';
 import { ChangelogModal } from './components/Changelog/ChangelogModal';
 import { WorktreesModal } from './components/Worktrees/WorktreesModal';
 import { ToastContainer } from './components/Common/ToastContainer';
@@ -202,6 +203,7 @@ export function App() {
       <ShortcutsModal />
       <MergeSimulationModal />
       <BisectModal />
+      <ReflogModal />
       <ChangelogModal />
       <WorktreesModal />
       {usageGuideOpen && <UsageGuideModal onClose={closeUsageGuide} />}

@@ -25,6 +25,9 @@ export type Api = {
   setGitConfig(config: { name?: string; email?: string; scope?: 'local' | 'global' }): Promise<{ ok: boolean; error?: string }>;
   getStatus(): Promise<import('../shared/types').GitStatus>;
   getLog(limit?: number): Promise<import('../shared/types').GraphResult>;
+  getReflog(): Promise<import('../shared/types').ReflogEntry[]>;
+  createRecoveryBranch(hash: string, branchName?: string): Promise<{ ok: boolean; branchName?: string; error?: string }>;
+  restoreHeadFromReflog(hash: string): Promise<{ ok: boolean; branchName?: string; backupBranch?: string; error?: string }>;
   getBranches(): Promise<{ local: import('../shared/types').BranchInfo[]; remote: import('../shared/types').BranchInfo[] }>;
   getStashes(): Promise<import('../shared/types').StashInfo[]>;
   getCommitDetail(hash: string): Promise<import('../shared/types').CommitDetail | null>;
@@ -147,6 +150,9 @@ const api: Api = {
   setGitConfig: (config) => call('git:config-set', config),
   getStatus: () => call('git:status'),
   getLog: (limit) => call('git:log', limit),
+  getReflog: () => call('git:reflog'),
+  createRecoveryBranch: (hash, branchName) => call('git:reflog-recover-branch', hash, branchName),
+  restoreHeadFromReflog: (hash) => call('git:reflog-restore-head', hash),
   getBranches: () => call('git:branches'),
   getStashes: () => call('git:stashes'),
   getCommitDetail: (hash) => call('git:commit-detail', hash),

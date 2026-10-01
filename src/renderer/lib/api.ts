@@ -122,6 +122,20 @@ const createMockApi = (): Api & StrataGitApi => {
       hasUncommittedChanges: true
     }),
 
+    getReflog: async () => mockCommits.map((commit, index) => ({
+      hash: commit.hash,
+      shortHash: commit.shortHash,
+      ref: index === 0 ? 'HEAD' : 'refs/heads/main',
+      action: index === 0 ? 'commit: moved HEAD forward' : 'checkout: moved between branches',
+      subject: commit.message,
+      date: new Date(Date.now() - index * 60 * 60 * 1000).toISOString()
+    })),
+    createRecoveryBranch: async (hash: string, branchName?: string) => ({
+      ok: true,
+      branchName: branchName || `recovered/${hash.slice(0, 7)}-${new Date().toISOString().slice(0, 10)}`
+    }),
+    restoreHeadFromReflog: async () => ({ ok: true, branchName: 'main', backupBranch: 'stratagit-recovery-backup-20261001120000-a1b2c3d' }),
+
     getBranches: async () => ({
       local: [
         { name: 'main', fullName: 'main', isCurrent: true, isRemote: false, tracking: 'origin/main' },
