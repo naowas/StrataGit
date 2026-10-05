@@ -156,6 +156,16 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 
 ---
 
+## 🧪 Manual Testing Playground
+
+Create disposable repositories with realistic history, staged and unstaged edits, stashes, tags, local remotes, submodules, a linked worktree, and ready-to-resolve merge/rebase/cherry-pick conflicts:
+
+```bash
+npm run demo:create
+```
+
+Open `.tmp/stratagit-demo/workspace` in StrataGit to start. The generated `GUIDE.md` maps each feature to its fixture folder. Use `npm run demo:create -- --fresh` to create another copy while keeping your experiments. See [the manual testing guide](docs/demo-repositories.md) for the full checklist and features that require live provider accounts or a packaged build.
+
 ## 📦 Building & Packaging
 
 StrataGit uses [`electron-builder`](https://www.electron.build/) to package distribution-ready binaries:
