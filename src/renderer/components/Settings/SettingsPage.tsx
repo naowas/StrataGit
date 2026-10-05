@@ -24,7 +24,8 @@ import {
   SlidersHorizontal,
   Bot,
   Download,
-  ExternalLink
+  ExternalLink,
+  GitPullRequest
 } from 'lucide-react';
 import {
   useSettings,
@@ -32,15 +33,17 @@ import {
   ThemeId,
   UI_FONT_PRESETS,
   CODE_FONT_PRESETS,
-  ToastPosition
+  ToastPosition,
+  SettingsSection
 } from '../../store/settings';
 import { useApp } from '../../store';
 import { api } from '../../lib/api';
 import { AppUpdateState, CommitProfile, AiCommitConfig } from '../../../shared/types';
 import { StrataLogo } from '../Common/StrataLogo';
 import { APP_VERSION } from '../../lib/appVersion';
+import { PullRequestProvidersSettings } from './PullRequestProvidersSettings';
 
-type SettingsTab = 'themes' | 'typography' | 'profiles' | 'ai' | 'git' | 'shortcuts' | 'about';
+type SettingsTab = SettingsSection;
 
 function formatReleaseNotes(notes: string): string {
   if (!/<\/?[a-z][\s\S]*?>/i.test(notes)) return notes;
@@ -66,6 +69,7 @@ function formatReleaseNotes(notes: string): string {
 export function SettingsPage() {
   const {
     closeSettings,
+    settingsSection,
     theme,
     setTheme,
     uiFontSize,
@@ -107,7 +111,7 @@ export function SettingsPage() {
   const activeRepoPath = useApp((s) => s.activeTab);
   const activeRepoTab = useApp((s) => s.tabs.find((t) => t.path === s.activeTab));
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>('themes');
+  const [activeTab, setActiveTab] = useState<SettingsTab>(settingsSection);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Commit profile tab state
@@ -342,6 +346,7 @@ export function SettingsPage() {
     { id: 'profiles' as const, label: 'Commit Profiles & GPG', icon: <User size={16} />, desc: 'Git credentials, signing keys & identities' },
     { id: 'ai' as const, label: 'AI Assistant', icon: <Sparkles size={16} />, desc: 'Code reviews, commit messages & providers' },
     { id: 'git' as const, label: 'Git & Synchronization', icon: <RefreshCw size={16} />, desc: 'Auto-fetch, focus sync & remotes' },
+    { id: 'providers' as const, label: 'Pull Request Providers', icon: <GitPullRequest size={16} />, desc: 'GitHub, GitLab & Bitbucket tokens' },
     { id: 'shortcuts' as const, label: 'Keyboard Shortcuts', icon: <Command size={16} />, desc: 'Hotkeys, quick actions & navigation' },
     { id: 'about' as const, label: 'About & Information', icon: <Info size={16} />, desc: 'StrataGit version, build & usage tour' },
   ];
@@ -1402,6 +1407,8 @@ export function SettingsPage() {
                 </div>
               </div>
             )}
+
+            {activeTab === 'providers' && <PullRequestProvidersSettings />}
 
             {/* TAB 6: KEYBOARD SHORTCUTS */}
             {activeTab === 'shortcuts' && (

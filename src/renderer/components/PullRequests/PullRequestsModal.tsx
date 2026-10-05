@@ -8,7 +8,7 @@ import {
   KeyRound,
   Loader2,
   RefreshCw,
-  ShieldCheck,
+  Settings2,
   X
 } from 'lucide-react';
 import type {
@@ -19,24 +19,13 @@ import type {
   RemoteInfo
 } from '../../../shared/types';
 import { useApp } from '../../store';
+import { useSettings } from '../../store/settings';
 import { api } from '../../lib/api';
 
-const providerInfo: Record<PullRequestProvider, { label: string; tokenLabel: string; tokenUrl: string; tokenHelp: string }> = {
-  github: {
-    label: 'GitHub', tokenLabel: 'Personal access token',
-    tokenUrl: 'https://github.com/settings/personal-access-tokens/new',
-    tokenHelp: 'Give the token Pull requests read and write access to this repository.'
-  },
-  gitlab: {
-    label: 'GitLab', tokenLabel: 'Personal access token',
-    tokenUrl: 'https://gitlab.com/-/user_settings/personal_access_tokens?name=StrataGit&scopes=api',
-    tokenHelp: 'Create a token with the api scope. For self-managed GitLab, create it on your GitLab server.'
-  },
-  bitbucket: {
-    label: 'Bitbucket Cloud', tokenLabel: 'API token',
-    tokenUrl: 'https://id.atlassian.com/manage-profile/security/api-tokens',
-    tokenHelp: 'Allow repository read plus pull request read and write. Use your Atlassian account email with this token.'
-  }
+const providerInfo: Record<PullRequestProvider, { label: string }> = {
+  github: { label: 'GitHub' },
+  gitlab: { label: 'GitLab' },
+  bitbucket: { label: 'Bitbucket Cloud' }
 };
 
 function dateLabel(value?: string): string {
@@ -59,12 +48,7 @@ export function PullRequestsModal() {
   const [providerOverride, setProviderOverride] = useState<PullRequestProvider | undefined>();
   const [context, setContext] = useState<PullRequestContext | null>(null);
   const [credentialStatus, setCredentialStatus] = useState<PullRequestCredentialStatus | null>(null);
-  const [token, setToken] = useState('');
-  const [bitbucketEmail, setBitbucketEmail] = useState('');
-  const [editingCredential, setEditingCredential] = useState(false);
-  const [showToken, setShowToken] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [savingCredential, setSavingCredential] = useState(false);
   const [creatingRequest, setCreatingRequest] = useState(false);
   const [message, setMessage] = useState('');
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -109,11 +93,9 @@ export function PullRequestsModal() {
     if (!isOpen) return;
     let current = true;
     setContext(null);
-    setToken('');
     setTitle('');
     setDescription('');
     setTargetBranch('');
-    setEditingCredential(false);
     setProviderOverride(undefined);
     setSelectedRequestId(null);
     setMessage('');
@@ -173,38 +155,9 @@ export function PullRequestsModal() {
     if (selectedRemote) void loadContext(selectedRemote, value, remotes);
   };
 
-  const saveCredential = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!activeProvider || savingCredential) return;
-    setSavingCredential(true);
-    setMessage('');
-    try {
-      const result = await api.savePullRequestCredential(activeProvider, {
-        token,
-        ...(activeProvider === 'bitbucket' ? { username: bitbucketEmail } : {})
-      });
-      if (!result.ok) throw new Error(result.error || 'Could not save this token.');
-      setToken('');
-      setEditingCredential(false);
-      await loadContext(selectedRemote || undefined, providerOverride, remotes);
-    } catch (error) {
-      setMessage(String(error).replace(/^Error:\s*/, ''));
-    } finally {
-      setSavingCredential(false);
-    }
-  };
-
-  const disconnectProvider = async () => {
-    if (!activeProvider) return;
-    try {
-      await api.removePullRequestCredential(activeProvider);
-      setCredentialStatus((saved) => saved ? { ...saved, [activeProvider]: false } : saved);
-      setEditingCredential(false);
-      setContext((existing) => existing ? { ...existing, credentialConfigured: false, pullRequests: [] } : existing);
-      setMessage('Provider token removed from this device.');
-    } catch (error) {
-      setMessage(String(error).replace(/^Error:\s*/, ''));
-    }
+  const openProviderSettings = () => {
+    close();
+    useSettings.getState().openSettings('providers');
   };
 
   const createRequest = async (event: React.FormEvent) => {
@@ -351,45 +304,24 @@ export function PullRequestsModal() {
                 <div className="rounded-xl border border-edge bg-panel2/35 p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2.5">
-                      <div className="mt-0.5 w-7 h-7 rounded-lg bg-add/10 border border-add/20 flex items-center justify-center text-add"><ShieldCheck size={14} /></div>
+                      <div className="mt-0.5 w-7 h-7 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent"><Settings2 size={14} /></div>
                       <div>
-                        <h3 className="text-xs font-semibold text-fg">{provider.label} connection</h3>
-                        <p className="text-[10px] text-dim mt-0.5">Tokens are encrypted with your operating system keychain on this device.</p>
+                        <h3 className="text-xs font-semibold text-fg">{provider.label} provider settings</h3>
+                        <p className="text-[10px] text-dim mt-0.5">Manage this provider’s access token in Settings.</p>
                       </div>
                     </div>
-                    {configured && !editingCredential ? <span className="text-[10px] text-add flex items-center gap-1"><CheckCircle2 size={12} /> Token saved</span> : null}
+                    {configured ? <span className="text-[10px] text-add flex items-center gap-1"><CheckCircle2 size={12} /> Token saved</span> : null}
                   </div>
-
-                  {configured && !editingCredential ? (
-                    <div className="flex items-center gap-2 pl-9">
-                      <button className="btn text-[10px] !px-2.5 !py-1" onClick={() => setEditingCredential(true)}>Change token</button>
-                      <button className="btn text-[10px] !px-2.5 !py-1 text-del" onClick={() => void disconnectProvider()}>Remove connection</button>
-                    </div>
-                  ) : (
-                    <form className="pl-9 space-y-2.5" onSubmit={(event) => void saveCredential(event)}>
-                      {activeProvider === 'bitbucket' ? (
-                        <label className="block text-[10px] text-dim space-y-1">
-                          Atlassian account email
-                          <input className="input w-full text-xs" type="email" autoComplete="username" value={bitbucketEmail} onChange={(event) => setBitbucketEmail(event.target.value)} placeholder="you@example.com" required />
-                        </label>
-                      ) : null}
-                      <label className="block text-[10px] text-dim space-y-1">
-                        {provider.tokenLabel}
-                        <div className="flex gap-1.5">
-                          <input className="input min-w-0 flex-1 text-xs" type={showToken ? 'text' : 'password'} autoComplete="new-password" value={token} onChange={(event) => setToken(event.target.value)} placeholder={configured ? 'Enter a replacement token' : 'Paste your access token'} required />
-                          <button type="button" className="btn text-[10px] !px-2" onClick={() => setShowToken((shown) => !shown)}>{showToken ? 'Hide' : 'Show'}</button>
-                        </div>
-                      </label>
-                      <p className="text-[10px] text-dim leading-relaxed">{provider.tokenHelp}</p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <a href={provider.tokenUrl} target="_blank" rel="noreferrer" className="text-[10px] text-accent hover:underline inline-flex items-center gap-1">Create token <ExternalLink size={10} /></a>
-                        <button type="submit" className="btn btn-primary !px-3 !py-1 text-[10px]" disabled={savingCredential || !token.trim()}>
-                          {savingCredential ? <><Loader2 size={11} className="animate-spin" /> Saving…</> : configured ? 'Replace token' : 'Save token'}
-                        </button>
-                        {configured ? <button type="button" className="btn !px-2.5 !py-1 text-[10px]" onClick={() => { setEditingCredential(false); setToken(''); }}>Cancel</button> : null}
-                      </div>
-                    </form>
-                  )}
+                  <div className="pl-9 space-y-2">
+                    <p className="text-[10px] text-dim leading-relaxed">
+                      {configured
+                        ? 'Your token is stored encrypted on this device. You can replace or remove it from the provider settings page.'
+                        : 'No token is saved for this provider yet. Add one in Settings to load requests and create new ones.'}
+                    </p>
+                    <button className="btn text-[10px] !px-2.5 !py-1.5" onClick={openProviderSettings}>
+                      <Settings2 size={12} /> {configured ? 'Manage provider settings' : 'Configure in Settings'}
+                    </button>
+                  </div>
                 </div>
 
                 {configured ? (

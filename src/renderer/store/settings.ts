@@ -374,6 +374,7 @@ export const CODE_FONT_PRESETS = [
 ];
 
 export type ToastPosition = 'top-center' | 'top-right' | 'bottom-center' | 'bottom-right';
+export type SettingsSection = 'themes' | 'typography' | 'profiles' | 'ai' | 'git' | 'providers' | 'shortcuts' | 'about';
 
 export interface CommitColumnVisibility {
   author: boolean;
@@ -395,6 +396,7 @@ export const DEFAULT_COMMIT_COLUMN_WIDTHS: CommitColumnWidths = {
 
 export interface SettingsState {
   isSettingsOpen: boolean;
+  settingsSection: SettingsSection;
   theme: ThemeId;
   uiFontSize: number;
   codeFontSize: number;
@@ -419,7 +421,7 @@ export interface SettingsState {
   // AI Commit Assistant
   aiCommit: AiCommitConfig;
 
-  openSettings: () => void;
+  openSettings: (section?: SettingsSection) => void;
   closeSettings: () => void;
   setTheme: (theme: ThemeId) => void;
   setUiFontSize: (size: number) => void;
@@ -583,9 +585,10 @@ if (typeof document !== 'undefined') {
 
 export const useSettings = create<SettingsState>((set, get) => ({
   isSettingsOpen: false,
+  settingsSection: 'themes',
   ...initial,
 
-  openSettings: () => set({ isSettingsOpen: true }),
+  openSettings: (section = 'themes') => set({ isSettingsOpen: true, settingsSection: section }),
   closeSettings: () => set({ isSettingsOpen: false }),
 
   setTheme: (theme: ThemeId) => {

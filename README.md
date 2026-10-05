@@ -66,7 +66,7 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 - Open **Actions → Pull Requests / Merge Requests** to see open requests for a repository remote, including source/target branches, author, draft state, and links to the provider.
 - Create a request from the checked-out branch. StrataGit pushes that branch using the repository's configured Git authentication, then creates a GitHub pull request, GitLab merge request, or Bitbucket Cloud pull request through the provider API.
 - GitHub.com, GitLab.com, self-managed GitLab (choose GitLab for an unrecognized remote), and Bitbucket Cloud are supported. Bitbucket Data Center and GitHub Enterprise are not supported yet.
-- Connect with a provider access token. GitHub needs **Pull requests: read and write**; GitLab needs the **`api`** scope; Bitbucket Cloud needs **repository read** and **pull request read/write** permissions plus the Atlassian account email used with the API token. StrataGit encrypts tokens with the operating system keychain and does not store them in app preferences.
+- Connect with a provider access token in **Settings → Pull Request Providers**. GitHub needs **Pull requests: read and write**; GitLab needs the **`api`** scope; Bitbucket Cloud needs **repository read** and **pull request read/write** permissions plus the Atlassian account email used with the API token. StrataGit encrypts tokens with the operating system keychain and does not store them in app preferences.
 - Uncommitted edits stay local; only commits on the current branch are pushed and included. Your normal SSH key or Git credential helper still handles the Git push.
 
 ### 🎨 Theming & Visual Customization
