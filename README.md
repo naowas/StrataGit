@@ -57,6 +57,15 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 - **Rebase Helpers**: Revert commits, drop commits, and edit commit messages without writing complex rebase scripts by hand.
 - **Patch Application**: Apply individual commit patches onto your current working branch.
 
+### 🔀 Three-Pane Merge Editor
+- Open a conflicted file from the operation banner or its **Resolve** button in the changes list.
+- Compare the complete, read-only **Current** and **Incoming** versions around an editable **Merge result**. Resize the panes, link scrolling, or inspect the common ancestor with **Show base**.
+- Use the gutter arrows or conflict toolbar to accept either side, keep both in either order, or restore a diff3 base block. Non-conflicting changes from Git's working file are retained automatically.
+- Edit the result directly with syntax highlighting, line numbers, search, and undo/redo. Confirm manual edits with **Mark resolved**; move between conflicts with **Alt+Up/Down**.
+- **Apply & Next File** saves and stages only the reviewed file, then opens the next conflict. On the last file, **Apply & Continue** explicitly resumes the merge, rebase, or cherry-pick.
+- Binary files and symbolic links support complete-side choices; delete/modify conflicts support keeping the deletion. Submodule conflicts display guidance for resolving the submodule with Git.
+- Line endings are preserved. Changed files or index entries detected during a save require a reload, and unapplied edits are confirmed before closing or switching files.
+
 ### 🛟 Reflog & Recovery
 - Browse recent local `HEAD` and reference movements to find commits hidden by a reset, rebase, or deleted branch.
 - Create a recovery branch at any reflog entry to keep that commit reachable.

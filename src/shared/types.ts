@@ -301,6 +301,10 @@ export interface ConflictSection {
   currentLines: string[];
   incomingLabel: string;
   incomingLines: string[];
+  baseLines?: string[];
+  startOffset: number;
+  endOffset: number;
+  hasTrailingNewline: boolean;
   resolvedChoice?: 'current' | 'incoming' | 'both';
 }
 
@@ -312,6 +316,21 @@ export interface ConflictFileParsed {
   >;
   totalConflicts: number;
   rawContent: string;
+  currentContent: string | null;
+  incomingContent: string | null;
+  baseContent: string | null;
+  currentLabel: string;
+  incomingLabel: string;
+  kind: 'text' | 'binary' | 'symlink' | 'submodule';
+  lineEnding: '\n' | '\r\n';
+  snapshot: string;
+  workingTreeExists: boolean;
+  parseWarning?: string;
+}
+
+export interface ConflictResolutionOptions {
+  expectedSnapshot: string;
+  action?: 'result' | 'current' | 'incoming' | 'delete';
 }
 
 export interface RepoOperationState {
@@ -472,7 +491,7 @@ export interface StrataGitApi {
   getBlame(filePath: string): Promise<BlameLine[]>;
   getFileHistory(filePath: string): Promise<FileHistoryEntry[]>;
   getConflictFile(filePath: string): Promise<ConflictFileParsed>;
-  resolveConflictFile(filePath: string, content: string): Promise<{ ok: boolean; error?: string }>;
+  resolveConflictFile(filePath: string, content: string, options?: ConflictResolutionOptions): Promise<{ ok: boolean; error?: string }>;
   getRepoOperationState(): Promise<RepoOperationState>;
   abortOperation(): Promise<{ ok: boolean; error?: string }>;
   continueOperation(): Promise<{ ok: boolean; error?: string }>;

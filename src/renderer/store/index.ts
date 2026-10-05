@@ -800,12 +800,15 @@ export const useApp = create<AppStore>((set, get) => ({
   },
 
   async runAndRefresh(fn, successMsg) {
+    const repo = get().activeTab;
     try {
       await unwrap(fn());
       await get().refresh();
       if (successMsg) get().notify('success', successMsg);
       return true;
     } catch (err) {
+      // Git may have changed the index before reporting a merge, stash, or rebase conflict.
+      if (get().activeTab === repo) await get().refresh();
       get().notify('error', String(err).replace('Error: ', ''));
       return false;
     }

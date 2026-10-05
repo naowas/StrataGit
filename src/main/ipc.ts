@@ -15,6 +15,7 @@ import {
   CommitDetail,
   FileDiff,
   RebaseStep,
+  ConflictResolutionOptions,
   PullRequestCredential,
   PullRequestProvider
 } from '../shared/types';
@@ -604,8 +605,8 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
     return getConflictFile(requireRepo(), filePath);
   });
 
-  handle('git:resolve-conflict-file', async (filePath: string, content: string) => {
-    await resolveConflictFile(requireRepo(), filePath, content);
+  handle('git:resolve-conflict-file', async (filePath: string, content: string, options?: ConflictResolutionOptions) => {
+    await resolveConflictFile(requireRepo(), filePath, content, options);
     return { ok: true };
   });
 

@@ -21,6 +21,12 @@ export async function getStatus(repoPath: string): Promise<GitStatus> {
     const cleanPath = file.path;
     const renamedFrom = (file.index === 'R' || file.working_dir === 'R') ? file.from : undefined;
 
+    // All unmerged statuses belong in the conflict resolver, including add/add and delete/modify.
+    if (s.conflicted.includes(cleanPath)) {
+      unstaged.push({ path: cleanPath, status: 'conflicted', staged: false, unstaged: true });
+      continue;
+    }
+
     // Index status (staged changes)
     if (file.index && file.index !== ' ' && file.index !== '?') {
       let status: FileStatusKind = 'modified';

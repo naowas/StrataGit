@@ -24,7 +24,8 @@ import {
   User,
   AlertCircle,
   Sliders,
-  ChevronUp
+  ChevronUp,
+  GitMerge
 } from 'lucide-react';
 import { FileChange, FileStatusKind, ComparisonResult, StashDetail } from '../../../shared/types';
 import { useApp, WIP_HASH } from '../../store';
@@ -40,7 +41,7 @@ export function StatusIcon({ status }: { status: FileStatusKind }) {
     deleted: { icon: <Minus size={12} className="stroke-[2.5]" />, color: 'text-del', title: 'Deleted' },
     renamed: { icon: <ArrowRight size={11} />, color: 'text-accent', title: 'Renamed' },
     untracked: { icon: <Plus size={12} className="stroke-[2.5]" />, color: 'text-add', title: 'Untracked / New file' },
-    conflicted: { icon: <Pencil size={11} />, color: 'text-del', title: 'Conflicted' }
+    conflicted: { icon: <GitMerge size={12} />, color: 'text-del', title: 'Conflicted · open merge editor' }
   };
   const { icon, color, title } = map[status] || map.modified;
   return (
@@ -273,7 +274,10 @@ function WorkdirPanel() {
                         : 'text-fg/90 hover:text-accent'
                   }`}
                   title={f.path}
-                  onClick={() => void useApp.getState().openFileDiff({ commitHash: null, filePath: f.path, staged: false, status: f.status })}
+                  onClick={() => {
+                    if (f.status === 'conflicted') useApp.getState().openConflictResolver(f.path);
+                    else void useApp.getState().openFileDiff({ commitHash: null, filePath: f.path, staged: false, status: f.status });
+                  }}
                 >
                   {f.path}
                 </span>
@@ -283,14 +287,18 @@ function WorkdirPanel() {
                   </span>
                 )}
                 <div className="flex items-center gap-1 shrink-0">
-                  <button
+                  {f.status === 'conflicted' ? <button
+                    className="flex items-center gap-1 rounded border border-warn/30 px-1.5 py-0.5 text-[10px] text-warn hover:bg-warn/10"
+                    title="Resolve this file in the three-pane merge editor"
+                    onClick={() => useApp.getState().openConflictResolver(f.path)}
+                  ><GitMerge size={11} />Resolve</button> : <button
                     className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded text-dim hover:text-fg hover:bg-panel3 transition-opacity"
                     title="Stage file"
                     onClick={() => void runAndRefresh(() => api.stageFiles([f.path]))}
                   >
                     <Plus size={11} />
-                  </button>
-                  {f.status !== 'untracked' && (
+                  </button>}
+                  {f.status !== 'untracked' && f.status !== 'conflicted' && (
                     <button
                       className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 rounded text-dim hover:text-del hover:bg-del/10 transition-opacity"
                       title="Discard changes"
@@ -1093,5 +1101,3 @@ export function CommitDetailPanel() {
     </div>
   );
 }
-
-

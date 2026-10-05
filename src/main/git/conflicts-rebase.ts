@@ -3,8 +3,6 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import {
-  ConflictFileParsed,
-  ConflictSection,
   RepoOperationState,
   RebaseStep,
   MergeSimulationResult
@@ -52,100 +50,7 @@ export async function getRepoOperationState(repoPath: string): Promise<RepoOpera
   };
 }
 
-/** Parse a conflicted file on disk into text segments and conflict markers */
-export async function getConflictFile(repoPath: string, filePath: string): Promise<ConflictFileParsed> {
-  const fullPath = path.resolve(repoPath, filePath);
-  const rawContent = await fs.promises.readFile(fullPath, 'utf8');
-  const rawLines = rawContent.split(/\r?\n/);
-
-  const sections: ConflictFileParsed['sections'] = [];
-  let currentTextLines: string[] = [];
-  let totalConflicts = 0;
-
-  let i = 0;
-  while (i < rawLines.length) {
-    const line = rawLines[i];
-    if (line.startsWith('<<<<<<<')) {
-      if (currentTextLines.length > 0) {
-        sections.push({ type: 'text', lines: currentTextLines });
-        currentTextLines = [];
-      }
-
-      totalConflicts++;
-      const conflictId = `conflict-${totalConflicts}-${i}`;
-      const startLine = i + 1;
-      const currentLabel = line.replace(/^<{7}\s*/, '').trim() || 'Current Change (Ours)';
-
-      const currentLines: string[] = [];
-      const incomingLines: string[] = [];
-      let inCurrent = true;
-      let inIncoming = false;
-      let incomingLabel = 'Incoming Change (Theirs)';
-      let endLine = startLine;
-
-      i++;
-      while (i < rawLines.length) {
-        const sub = rawLines[i];
-        if (sub.startsWith('=======')) {
-          inCurrent = false;
-          inIncoming = true;
-        } else if (sub.startsWith('>>>>>>>')) {
-          incomingLabel = sub.replace(/^>{7}\s*/, '').trim() || 'Incoming Change (Theirs)';
-          endLine = i + 1;
-          break;
-        } else if (inCurrent) {
-          // If diff3 format (||||||| marker), ignore base lines
-          if (sub.startsWith('|||||||')) {
-            inCurrent = false;
-          } else {
-            currentLines.push(sub);
-          }
-        } else if (inIncoming) {
-          incomingLines.push(sub);
-        }
-        i++;
-      }
-
-      sections.push({
-        type: 'conflict',
-        conflict: {
-          id: conflictId,
-          startLine,
-          endLine,
-          currentLabel,
-          currentLines,
-          incomingLabel,
-          incomingLines
-        }
-      });
-    } else {
-      currentTextLines.push(line);
-    }
-    i++;
-  }
-
-  if (currentTextLines.length > 0) {
-    sections.push({ type: 'text', lines: currentTextLines });
-  }
-
-  return {
-    filePath,
-    sections,
-    totalConflicts,
-    rawContent
-  };
-}
-
-/** Write resolved content to disk and git add to mark conflict as resolved */
-export async function resolveConflictFile(
-  repoPath: string,
-  filePath: string,
-  content: string
-): Promise<void> {
-  const fullPath = path.resolve(repoPath, filePath);
-  await fs.promises.writeFile(fullPath, content, 'utf8');
-  await execFileP('git', ['add', filePath], { cwd: repoPath });
-}
+export { getConflictFile, resolveConflictFile } from './conflict-files';
 
 /** Abort active merge, rebase, or cherry-pick operation */
 export async function abortOperation(repoPath: string): Promise<void> {
@@ -167,7 +72,7 @@ export async function continueOperation(repoPath: string): Promise<void> {
     const editor = path.join(await rebaseEditorDirectory(repoPath), 'message.cjs');
     await execFileP('git', ['rebase', '--continue'], {
       cwd: repoPath,
-      env: { ...process.env, GIT_EDITOR: fs.existsSync(editor) ? `node ${JSON.stringify(editor)}` : '/bin/true' }
+      env: { ...process.env, GIT_EDITOR: fs.existsSync(editor) ? `node ${JSON.stringify(editor)}` : 'true' }
     });
     if (!(await getRepoOperationState(repoPath)).inRebase) await cleanupRebaseEditor(repoPath);
   } else if (state.inMerge) {
@@ -175,7 +80,7 @@ export async function continueOperation(repoPath: string): Promise<void> {
   } else if (state.inCherryPick) {
     await execFileP('git', ['cherry-pick', '--continue'], {
       cwd: repoPath,
-      env: { ...process.env, GIT_EDITOR: '/bin/true' }
+      env: { ...process.env, GIT_EDITOR: 'true' }
     });
   }
 }

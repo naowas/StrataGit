@@ -319,18 +319,16 @@ const createMockApi = (): Api & StrataGitApi => {
 
     getConflictFile: async (filePath: string) => ({
       filePath,
-      hasConflicts: false,
       totalConflicts: 0,
       rawContent: '// sample file',
-      sections: [{ type: 'common', lines: ['// resolved code'] }]
+      sections: [{ type: 'text', lines: ['// sample file'] }],
+      currentContent: '// sample file', incomingContent: '// incoming file', baseContent: '// base file',
+      currentLabel: 'main', incomingLabel: 'feature/merge-editor', kind: 'text',
+      lineEnding: '\n', snapshot: 'preview-conflict', workingTreeExists: true
     }),
     resolveConflictFile: async () => ({ ok: true }),
     getRepoOperationState: async () => ({
-      inProgress: false,
-      operationType: 'none',
-      conflictedFiles: [],
-      currentStep: 0,
-      totalSteps: 0
+      inMerge: false, inRebase: false, inCherryPick: false, conflictedFiles: []
     }),
     abortOperation: async () => ({ ok: true }),
     continueOperation: async () => ({ ok: true }),

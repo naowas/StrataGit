@@ -130,6 +130,9 @@ export function App() {
   // - Escape: Close command palette, modals, or open diff
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
+      // The merge editor owns shortcuts while a draft is open.
+      if (useApp.getState().conflictedFileToResolve) return;
       const isMod = e.ctrlKey || e.metaKey;
       if (isMod && (e.key === 'k' || e.key === 'p')) {
         e.preventDefault();

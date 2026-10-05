@@ -78,7 +78,7 @@ export type Api = {
   getBlame(filePath: string): Promise<import('../shared/types').BlameLine[]>;
   getFileHistory(filePath: string): Promise<import('../shared/types').FileHistoryEntry[]>;
   getConflictFile(filePath: string): Promise<import('../shared/types').ConflictFileParsed>;
-  resolveConflictFile(filePath: string, content: string): Promise<{ ok: boolean; error?: string }>;
+  resolveConflictFile(filePath: string, content: string, options?: import('../shared/types').ConflictResolutionOptions): Promise<{ ok: boolean; error?: string }>;
   getRepoOperationState(): Promise<import('../shared/types').RepoOperationState>;
   abortOperation(): Promise<{ ok: boolean; error?: string }>;
   continueOperation(): Promise<{ ok: boolean; error?: string }>;
@@ -204,7 +204,7 @@ const api: Api = {
   getBlame: (filePath) => call('git:get-blame', filePath),
   getFileHistory: (filePath) => call('git:get-file-history', filePath),
   getConflictFile: (filePath) => call('git:get-conflict-file', filePath),
-  resolveConflictFile: (filePath, content) => call('git:resolve-conflict-file', filePath, content),
+  resolveConflictFile: (filePath, content, options) => call('git:resolve-conflict-file', filePath, content, options),
   getRepoOperationState: () => call('git:get-operation-state'),
   abortOperation: () => call('git:abort-operation'),
   continueOperation: () => call('git:continue-operation'),
