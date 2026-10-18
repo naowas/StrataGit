@@ -103,6 +103,7 @@ import { startBisect, stepBisect, resetBisect, getBisectState } from './git/bise
 import { generateChangelog } from './git/changelog';
 import { getReflog, createRecoveryBranch, restoreHeadFromReflog } from './git/reflog';
 import { getPullRequestContext, createHostedPullRequest } from './git/pull-requests';
+import { getPullReview, submitPullReview } from './git/pull-request-review';
 import {
   getPullRequestCredential,
   getPullRequestCredentialStatus,
@@ -657,6 +658,8 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
   });
 
   // Hosted pull request / merge request providers
+  handle('git:pull-review:get', async (target: import('../shared/types').PullReviewTarget) => getPullReview(requireRepo(), target, getPullRequestCredential));
+  handle('git:pull-review:submit', async (params: import('../shared/types').PullReviewSubmission) => submitPullReview(requireRepo(), params, getPullRequestCredential));
   handle('git:pull-requests:credentials', async () => getPullRequestCredentialStatus());
 
   handle('git:pull-requests:save-credential', async (provider: unknown, credential: PullRequestCredential) => {

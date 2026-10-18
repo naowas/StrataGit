@@ -72,6 +72,8 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 - Restore the current branch to a selected entry after confirming; StrataGit first creates a safety branch at the current tip and requires a clean working tree.
 
 ### 🔀 Pull Request Context
+- Select a request and choose **Review changes, conversation & CI** to read provider diffs, post line comments/replies, approve, request changes, and inspect checks for the reviewed revision. Submission rejects a changed source revision and keeps your message.
+- GitHub CI may additionally require **Checks: read** and **Commit statuses: read** token permissions. GitLab uses native GraphQL change requests where supported; older hosts explicitly offer a discussion and approval withdrawal instead. Provider permission errors, missing patches, and pagination limits are shown in the workspace.
 - Open **Actions → Pull Requests / Merge Requests** to see open requests for a repository remote, including source/target branches, author, draft state, and links to the provider.
 - Create a request from the checked-out branch. StrataGit pushes that branch using the repository's configured Git authentication, then creates a GitHub pull request, GitLab merge request, or Bitbucket Cloud pull request through the provider API.
 - GitHub.com, GitLab.com, self-managed GitLab (choose GitLab for an unrecognized remote), and Bitbucket Cloud are supported. Bitbucket Data Center and GitHub Enterprise are not supported yet.

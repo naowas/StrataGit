@@ -72,7 +72,7 @@ function apiConfig(repository: HostedRepository): PullRequestApiConfig {
   }
 }
 
-function apiPath(config: PullRequestApiConfig): string {
+export function apiPath(config: PullRequestApiConfig): string {
   if (config.provider === 'github') return `/repos/${config.path.split('/').map(encodeURIComponent).join('/')}`;
   if (config.provider === 'gitlab') return `/projects/${encodeURIComponent(config.path)}`;
   const [workspace, repository] = config.path.split('/');
@@ -110,26 +110,38 @@ function providerLabel(provider: PullRequestProvider): string {
   return provider === 'github' ? 'GitHub' : provider === 'gitlab' ? 'GitLab' : 'Bitbucket';
 }
 
-async function requestJson<T>(
+export async function requestJson<T>(
   config: PullRequestApiConfig,
   credential: PullRequestCredential,
   path: string,
   method: 'GET' | 'POST',
-  payload?: unknown
+  payload?: unknown,
+  asText = false
 ): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20_000);
   try {
-    const response = await fetch(`${config.apiBase}${path}`, {
-      method,
-      headers: authHeaders(config.provider, credential),
-      body: payload === undefined ? undefined : JSON.stringify(payload),
-      signal: controller.signal,
-      redirect: 'error'
-    });
+    let url = `${config.apiBase}${path}`;
+    let response: Response;
+    for (let redirects = 0; ; redirects++) {
+      response = await fetch(url, {
+        method, headers: authHeaders(config.provider, credential),
+        body: payload === undefined ? undefined : JSON.stringify(payload),
+        signal: controller.signal, redirect: 'manual'
+      });
+      if (![301, 302, 307, 308].includes(response.status)) break;
+      const location = response.headers.get('location');
+      const next = location && new URL(location, url);
+      if (method !== 'GET' || redirects >= 3 || !next || next.origin !== new URL(config.apiBase).origin || !next.pathname.startsWith(new URL(config.apiBase).pathname + apiPath(config) + '/')) {
+        throw new Error('The provider returned an unsupported redirect. Open the request on the provider.');
+      }
+      await response.body?.cancel();
+      url = next.href;
+    }
     const body = await response.text();
     if (!response.ok) throw errorForResponse(config.provider, response.status, body);
-    return (body ? JSON.parse(body) : null) as T;
+    if (body.length > 12_000_000) throw new Error('The provider response is too large. Review this request on the provider.');
+    return (asText ? body : body ? JSON.parse(body) : null) as T;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') throw new Error('The provider API did not respond within 20 seconds. Check your connection and try again.');
     if (error instanceof TypeError) throw new Error('Could not connect to the provider API. Check your internet connection and try again.');
@@ -137,6 +149,17 @@ async function requestJson<T>(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Resolve credentials only against a configured remote, never a renderer-provided API URL. */
+export async function hostedReviewClient(repoPath: string, remoteName: string, provider: PullRequestProvider,
+  getCredential: (provider: PullRequestProvider) => PullRequestCredential | null) {
+  const remote = (await getRemotes(repoPath)).find(item => item.name === remoteName);
+  const hosted = remote && parseHostedRepository(remote, provider);
+  if (!hosted) throw new Error('Select a supported remote for this review.');
+  const credential = getCredential(provider);
+  if (!credential?.token) throw new Error('Connect this provider in Settings → Pull Request Providers.');
+  return { config: apiConfig(hosted), credential };
 }
 
 function mapPullRequests(provider: PullRequestProvider, payload: unknown): HostedPullRequest[] {

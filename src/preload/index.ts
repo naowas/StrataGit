@@ -8,7 +8,7 @@ const call = <T>(channel: string, ...args: unknown[]): Promise<T> =>
     return result as T;
   });
 
-export type Api = {
+export type Api = import('../shared/types').AdvancedGitApi & {
   getAppUpdateState(): Promise<import('../shared/types').AppUpdateState>;
   checkForAppUpdates(): Promise<import('../shared/types').AppUpdateState>;
   downloadAppUpdate(): Promise<import('../shared/types').AppUpdateState>;
@@ -135,6 +135,8 @@ export type Api = {
 };
 
 const api: Api = {
+  getPullReview: (target) => call('git:pull-review:get', target),
+  submitPullReview: (params) => call('git:pull-review:submit', params),
   getAppUpdateState: () => call('app-update:get-state'),
   checkForAppUpdates: () => call('app-update:check'),
   downloadAppUpdate: () => call('app-update:download'),

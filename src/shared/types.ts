@@ -126,6 +126,58 @@ export interface PullRequestContext {
   error?: string;
 }
 
+export interface PullReviewTarget {
+  remoteName: string;
+  provider: PullRequestProvider;
+  requestId: string;
+}
+export interface PullReviewFile {
+  path: string;
+  oldPath: string;
+  status: string;
+  patch: string;
+  unavailable?: boolean;
+}
+export interface PullReviewComment {
+  id: string;
+  threadId?: string;
+  author: string;
+  body: string;
+  path?: string;
+  line?: number;
+  side?: 'old' | 'new';
+  state?: string;
+  resolved?: boolean;
+  createdAt?: string;
+}
+export interface PullReviewCheck {
+  name: string;
+  state: string;
+  url?: string;
+}
+export interface PullReviewDetail {
+  head: string;
+  base: string;
+  start: string;
+  description: string;
+  files: PullReviewFile[];
+  comments: PullReviewComment[];
+  checks: PullReviewCheck[];
+  warnings: string[];
+  changeRequestMode: 'native' | 'discussion';
+}
+export interface PullReviewSubmission extends PullReviewTarget {
+  head: string;
+  action: 'comment' | 'approve' | 'request-changes';
+  body: string;
+  inline?: { path: string; line: number; side: 'old' | 'new' };
+  replyTo?: { id: string; threadId?: string };
+}
+export interface AdvancedGitApi {
+  getPullReview(target: PullReviewTarget): Promise<PullReviewDetail>;
+  submitPullReview(params: PullReviewSubmission): Promise<{ ok: boolean; message: string }>;
+}
+
 export interface SubmoduleInfo {
   name: string;
   path: string;
@@ -426,7 +478,7 @@ export interface AppUpdateState {
 }
 
 // IPC API exposed via contextBridge
-export interface StrataGitApi {
+export interface StrataGitApi extends AdvancedGitApi {
   getAppUpdateState(): Promise<AppUpdateState>;
   checkForAppUpdates(): Promise<AppUpdateState>;
   downloadAppUpdate(): Promise<AppUpdateState>;

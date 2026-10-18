@@ -21,6 +21,7 @@ import type {
 import { useApp } from '../../store';
 import { useSettings } from '../../store/settings';
 import { api } from '../../lib/api';
+import { PullRequestReview } from './PullRequestReview';
 
 const providerInfo: Record<PullRequestProvider, { label: string }> = {
   github: { label: 'GitHub' },
@@ -39,6 +40,8 @@ function branchTitle(branch: string): string {
 }
 
 export function PullRequestsModal() {
+  const [reviewRequest, setReviewRequest] = useState<HostedPullRequest | null>(null);
+  const repoPath = useApp(s => s.activeTab);
   const isOpen = useApp((state) => state.pullRequestsModalOpen);
   const close = useApp((state) => state.closePullRequestsModal);
   const notify = useApp((state) => state.notify);
@@ -93,6 +96,7 @@ export function PullRequestsModal() {
     if (!isOpen) return;
     let current = true;
     setContext(null);
+    setReviewRequest(null);
     setTitle('');
     setDescription('');
     setTargetBranch('');
@@ -138,6 +142,7 @@ export function PullRequestsModal() {
   }, [selectedRequest?.id]);
 
   if (!isOpen) return null;
+  if (reviewRequest && context?.provider && context.remoteName) return <PullRequestReview key={`${repoPath}:${context.remoteName}:${reviewRequest.id}`} request={reviewRequest} target={{ provider: context.provider, remoteName: context.remoteName, requestId: reviewRequest.id }} onClose={() => setReviewRequest(null)} />;
 
   const selectRemote = (remoteName: string) => {
     setSelectedRemote(remoteName);
@@ -291,7 +296,7 @@ export function PullRequestsModal() {
               />)}
             </div>
 
-            {selectedRequest ? <RequestDetails request={selectedRequest} /> : null}
+            {selectedRequest ? <RequestDetails request={selectedRequest} onReview={() => setReviewRequest(selectedRequest)} /> : null}
           </section>
 
           <section className="min-h-0 overflow-y-auto p-5 space-y-5">
@@ -414,7 +419,7 @@ function PullRequestRow({
   );
 }
 
-function RequestDetails({ request }: { request: HostedPullRequest }) {
+function RequestDetails({ request, onReview }: { request: HostedPullRequest; onReview: () => void }) {
   return (
     <div className="shrink-0 border-t border-edge bg-panel2/30 px-4 py-3">
       <div className="flex items-center gap-2 text-[10px] text-dim">
@@ -425,6 +430,7 @@ function RequestDetails({ request }: { request: HostedPullRequest }) {
       <a href={request.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-accent hover:underline">
         Open on provider <ExternalLink size={11} />
       </a>
+      <button className="btn-primary mt-3 text-xs" onClick={onReview}>Review changes, conversation &amp; CI</button>
     </div>
   );
 }

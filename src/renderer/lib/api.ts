@@ -132,6 +132,8 @@ const createMockApi = (): Api & StrataGitApi => {
       hasUncommittedChanges: true
     }),
 
+    getPullReview: async () => { throw new Error('Hosted reviews require the desktop app and a configured provider.'); },
+    submitPullReview: async () => { throw new Error('Hosted reviews require the desktop app and a configured provider.'); },
     getReflog: async () => mockCommits.map((commit, index) => ({
       hash: commit.hash,
       shortHash: commit.shortHash,
