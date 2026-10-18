@@ -104,6 +104,7 @@ import { generateChangelog } from './git/changelog';
 import { getReflog, createRecoveryBranch, restoreHeadFromReflog } from './git/reflog';
 import { getPullRequestContext, createHostedPullRequest } from './git/pull-requests';
 import { getPullReview, submitPullReview } from './git/pull-request-review';
+import { pinnedRepositories, pinRepository, repositoryOverview } from './git/repository-dashboard';
 import { createRestorePoint, listRestorePoints, restorePoint, deleteRestorePoint } from './git/restore-points';
 import { resolutionMemoryState, setResolutionMemory, captureResolutionMemory } from './git/resolution-memory';
 import { beginRewrite, finishRewrite, rewriteActions, listRewriteSessions, compareCommitRanges, deleteRewriteSession } from './git/rewrite-comparison';
@@ -335,6 +336,20 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
   }
 
   handle('repo:recent', async () => readRecent());
+  const dashboardDirectory = () => path.join(app.getPath('userData'), 'dashboard');
+  const knownRepository = async (repo: string) => {
+    if (typeof repo !== 'string' || ![...readRecent(), ...await pinnedRepositories(dashboardDirectory())].includes(repo)) throw new Error('Open this repository once before adding it to the dashboard.');
+    return repo;
+  };
+  let pinWrite: Promise<unknown> = Promise.resolve();
+  handle('dashboard:pins', async () => pinnedRepositories(dashboardDirectory()));
+  handle('dashboard:pin', async (repo: string, pinned: boolean) => {
+    await knownRepository(repo);
+    const next = pinWrite.catch(() => {}).then(() => pinRepository(dashboardDirectory(), repo, !!pinned));
+    pinWrite = next;
+    return next;
+  });
+  handle('dashboard:overview', async (repo: string, hosted?: boolean) => repositoryOverview(await knownRepository(repo), !!hosted, getPullRequestCredential));
   handle('repo:remove-recent', async (p: string) => {
     writeRecent(readRecent().filter((r) => r !== p));
   });

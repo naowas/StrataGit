@@ -10,6 +10,7 @@ import { CommitDetailPanel } from './components/CommitDetailPanel/CommitDetailPa
 import { DiffViewer } from './components/DiffViewer/DiffViewer';
 import { StatusBar } from './components/StatusBar/StatusBar';
 import { Launchpad } from './components/Launchpad/Launchpad';
+import { RepositoryDashboard } from './components/Repository/RepositoryDashboard';
 import { SettingsPage } from './components/Settings/SettingsPage';
 import { AppLoadingScreen } from './components/Loading/AppLoadingScreen';
 import { RepoOpeningAnimation } from './components/Loading/RepoOpeningAnimation';
@@ -37,6 +38,7 @@ import { ToastContainer } from './components/Common/ToastContainer';
 
 export function App() {
   const activeTab = useApp((s) => s.activeTab);
+  const dashboardOpen = useApp(s => s.dashboardOpen);
   const init = useApp((s) => s.init);
   const usageGuideOpen = useApp((s) => s.usageGuideOpen);
   const gitFlowModalOpen = useApp((s) => s.gitFlowModalOpen);
@@ -183,6 +185,8 @@ export function App() {
       <TabBar />
       {isSettingsOpen ? (
         <SettingsPage />
+      ) : dashboardOpen ? (
+        <RepositoryDashboard />
       ) : activeTab ? (
         <div key={activeTab} className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-300">
           <Toolbar />

@@ -45,3 +45,9 @@ To repeat a conflict in the demo, enable memory in `merge-standard`, resolve and
 Requires Git 2.19+. The comparison uses Git range-diff; patch matching is heuristic and merges are excluded. Squashing or a large rewrite can show removed/added commits instead of a one-to-one match. Each range is capped at 500 non-merge commits, execution at 30 seconds, and rendered previews are explicitly bounded. Root commit rewrites use an empty baseline so the original root is included. Saved refs are kept out of the main graph.
 
 Use the clean `history-playground` demo for reword/drop/squash operations. Restore points created before those operations provide a separate recovery path.
+
+## 5. Monitor pinned repositories
+
+Open the **Dashboard** tab, then pin a recently opened repository. Pin choices persist locally (up to 50); they do not alter Git remotes. Local refresh reads each workspace independently with at most three concurrent scans. It shows branch, unique changed files, staged files, conflicts, and ahead/behind against the last fetched upstream. It never changes the active repository or runs fetch.
+
+**Refresh PRs / MRs** explicitly contacts the configured hosting provider and shows up to 100 loaded open requests. Configure credentials in Settings first. Provider errors are displayed per repository; PR information stays cached only while the dashboard is open and is not refreshed by a local scan. Click a repository name to open it. Missing folders remain pinned so you can unpin or reconnect them.

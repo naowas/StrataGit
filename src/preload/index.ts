@@ -135,6 +135,9 @@ export type Api = import('../shared/types').AdvancedGitApi & {
 };
 
 const api: Api = {
+  listPinnedRepos: () => call('dashboard:pins'),
+  pinRepository: (repo, pinned) => call('dashboard:pin', repo, pinned),
+  getRepositoryOverview: (repo, hosted) => call('dashboard:overview', repo, hosted),
   listRewriteSessions: () => call('git:rewrite:list'),
   compareCommitRanges: (input) => call('git:rewrite:compare', input),
   deleteRewriteSession: (id) => call('git:rewrite:delete', id),

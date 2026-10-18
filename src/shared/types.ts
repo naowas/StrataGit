@@ -175,6 +175,9 @@ export interface PullReviewSubmission extends PullReviewTarget {
   replyTo?: { id: string; threadId?: string };
 }
 export interface AdvancedGitApi {
+  listPinnedRepos(): Promise<string[]>;
+  pinRepository(repoPath: string, pinned: boolean): Promise<string[]>;
+  getRepositoryOverview(repoPath: string, hosted?: boolean): Promise<RepositoryOverview>;
   listRewriteSessions(): Promise<RewriteSession[]>;
   compareCommitRanges(input: RangeComparisonInput): Promise<RangeComparison>;
   deleteRewriteSession(id: string): Promise<{ ok: boolean }>;
@@ -188,6 +191,13 @@ export interface AdvancedGitApi {
   deleteRestorePoint(id: string): Promise<{ ok: boolean }>;
   getPullReview(target: PullReviewTarget): Promise<PullReviewDetail>;
   submitPullReview(params: PullReviewSubmission): Promise<{ ok: boolean; message: string }>;
+}
+
+export interface RepositoryOverview {
+  path: string; branch: string; changed: number; staged: number; conflicts: number;
+  ahead: number; behind: number; checkedAt: string;
+  requests?: { id: string; title: string; url: string }[];
+  hostedMessage?: string; error?: string;
 }
 
 export interface ResolutionMemoryState { enabled: boolean; gitAutomatic: boolean; remembered: number }

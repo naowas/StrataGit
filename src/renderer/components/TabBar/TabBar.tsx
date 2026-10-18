@@ -7,7 +7,8 @@ import {
   Minus,
   Square,
   Copy,
-  Settings
+  Settings,
+  LayoutDashboard
 } from 'lucide-react';
 import { useApp } from '../../store';
 import { useSettings } from '../../store/settings';
@@ -15,7 +16,7 @@ import { api } from '../../lib/api';
 import { StrataLogo } from '../Common/StrataLogo';
 
 export function TabBar() {
-  const { tabs, activeTab, setActiveTab, closeTab } = useApp();
+  const { tabs, activeTab, setActiveTab, closeTab, dashboardOpen } = useApp();
   const openSettings = useSettings((s) => s.openSettings);
   const closeSettings = useSettings((s) => s.closeSettings);
   const isSettingsOpen = useSettings((s) => s.isSettingsOpen);
@@ -62,23 +63,25 @@ export function TabBar() {
         {/* Launchpad Tab */}
         <button
           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            !isSettingsOpen && (activeTab === null || activeTab === '')
+            !isSettingsOpen && !dashboardOpen && (activeTab === null || activeTab === '')
               ? 'bg-panel2 text-accent shadow-sm border border-accent/40 font-semibold'
               : 'text-dim hover:text-fg hover:bg-panel2/60'
           }`}
           onClick={() => {
             closeSettings();
+            useApp.setState({ dashboardOpen: false });
             useApp.getState().setActiveTab('');
           }}
           title="Launchpad"
         >
-          <Home size={12} className={!isSettingsOpen && (activeTab === null || activeTab === '') ? 'text-accent' : 'text-dim'} />
+          <Home size={12} className={!isSettingsOpen && !dashboardOpen && (activeTab === null || activeTab === '') ? 'text-accent' : 'text-dim'} />
           <span>Launchpad</span>
         </button>
 
+        <button className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md ${dashboardOpen && !isSettingsOpen ? 'bg-panel2 text-accent' : 'text-dim hover:text-fg hover:bg-panel2'}`} onClick={() => { closeSettings(); useApp.setState({ dashboardOpen: true }); }} title="Pinned repository dashboard"><LayoutDashboard size={13} />Dashboard</button>
         {/* Repository Tabs */}
         {tabs.map((t) => {
-          const isActive = !isSettingsOpen && activeTab === t.path;
+          const isActive = !isSettingsOpen && !dashboardOpen && activeTab === t.path;
           return (
             <div
               key={t.path}
@@ -89,6 +92,7 @@ export function TabBar() {
               }`}
               onClick={() => {
                 closeSettings();
+            useApp.setState({ dashboardOpen: false });
                 setActiveTab(t.path);
               }}
               title={t.path}
@@ -132,6 +136,7 @@ export function TabBar() {
               onClick={(e) => {
                 e.stopPropagation();
                 closeSettings();
+            useApp.setState({ dashboardOpen: false });
               }}
               title="Close settings (Esc)"
             >
@@ -146,6 +151,7 @@ export function TabBar() {
           className="flex items-center justify-center w-7 h-7 rounded-md text-dim hover:text-fg hover:bg-panel2 transition-colors ml-0.5"
           onClick={() => {
             closeSettings();
+            useApp.setState({ dashboardOpen: false });
             setActiveTab('');
           }}
           title="New Tab (Launchpad)"

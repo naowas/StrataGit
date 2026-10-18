@@ -276,6 +276,7 @@ export function CommandPalette() {
         icon: <History size={14} className="text-amber-400" />,
         action: () => useApp.getState().openReflogModal()
       },
+      { id: 'cmd-dashboard', category: 'Commands', title: 'Repository Dashboard…', subtitle: 'Changes, conflicts, ahead/behind and hosted requests across pinned repositories', icon: <History size={14} />, action: () => { useSettings.getState().closeSettings(); useApp.setState({ dashboardOpen: true }); } },
       { id: 'cmd-restore-points', category: 'Commands', title: 'Restore Points…', subtitle: 'Save and recover HEAD, staged, unstaged, and untracked changes', icon: <History size={14} />, action: () => useApp.setState({ restorePointsOpen: true }) },
       { id: 'cmd-resolution-memory', category: 'Commands', title: 'Conflict Resolution Memory…', subtitle: 'Remember reviewed resolutions and preview suggestions', icon: <GitMerge size={14} />, action: () => useApp.setState({ resolutionMemoryOpen: true }) },
       { id: 'cmd-range-comparison', category: 'Commands', title: 'Rebase & Rewrite Comparison…', subtitle: 'Compare patches before and after a rebase, squash, drop, or reword', icon: <GitCompare size={14} />, action: () => useApp.setState({ rangeComparisonOpen: true, rangeComparisonId: null }) },

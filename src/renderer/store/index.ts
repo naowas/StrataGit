@@ -87,6 +87,7 @@ interface AppState {
   bisectModalOpen: boolean;
   reflogModalOpen: boolean;
   restorePointsOpen: boolean;
+  dashboardOpen: boolean;
   resolutionMemoryOpen: boolean;
   rangeComparisonOpen: boolean;
   rangeComparisonId: string | null;
@@ -245,6 +246,7 @@ export const useApp = create<AppStore>((set, get) => ({
   bisectModalOpen: false,
   reflogModalOpen: false,
   restorePointsOpen: false,
+  dashboardOpen: false,
   resolutionMemoryOpen: false,
   rangeComparisonOpen: false,
   rangeComparisonId: null,
