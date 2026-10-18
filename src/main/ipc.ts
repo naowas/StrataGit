@@ -105,6 +105,7 @@ import { getReflog, createRecoveryBranch, restoreHeadFromReflog } from './git/re
 import { getPullRequestContext, createHostedPullRequest } from './git/pull-requests';
 import { getPullReview, submitPullReview } from './git/pull-request-review';
 import { createRestorePoint, listRestorePoints, restorePoint, deleteRestorePoint } from './git/restore-points';
+import { resolutionMemoryState, setResolutionMemory, captureResolutionMemory } from './git/resolution-memory';
 import {
   getPullRequestCredential,
   getPullRequestCredentialStatus,
@@ -165,7 +166,9 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
           const repo = requestRepo.getStore();
           const run = async () => {
             if (repo && protectedActions[channel]) await createRestorePoint(repo, `${protectedActions[channel]}${typeof args[0] === 'string' ? `: ${args[0]}` : ''}`);
-            return fn(...args);
+            if (repo && writes.has(channel)) await captureResolutionMemory(repo).catch(() => {});
+            try { return await fn(...args); }
+            finally { if (repo && writes.has(channel)) await captureResolutionMemory(repo).catch(() => {}); }
           };
           if (!repo || !(writes.has(channel) || /^git:(restore-points|rerere):/.test(channel))) return run();
           // Snapshot and its action share one write queue, including staging operations.
@@ -355,6 +358,20 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
   });
 
   handle('git:status', async (): Promise<GitStatus> => getStatus(requireRepo()));
+  handle('git:rerere:state', async () => resolutionMemoryState(requireRepo()));
+  handle('git:rerere:configure', async (enabled: boolean) => setResolutionMemory(requireRepo(), enabled));
+  handle('git:rerere:suggestion', async (filePath: string) => {
+    const repo = requireRepo(), before = await getConflictFile(repo, filePath);
+    const state = await resolutionMemoryState(repo);
+    const suggestions = state.enabled && before.kind === 'text' ? await captureResolutionMemory(repo) : new Map<string, string>();
+    if ((await getConflictFile(repo, filePath)).snapshot !== before.snapshot) throw new Error('The conflict changed while preparing the suggestion. Reload the file.');
+    return { enabled: state.enabled, content: suggestions.get(filePath) ?? null, snapshot: before.snapshot };
+  });
+  handle('git:rerere:forget', async (filePath: string) => {
+    await getConflictFile(requireRepo(), filePath);
+    await captureResolutionMemory(requireRepo(), filePath);
+    return { ok: true };
+  });
   handle('git:restore-points:list', async () => listRestorePoints(requireRepo()));
   handle('git:restore-points:create', async (label?: string) => createRestorePoint(requireRepo(), label));
   handle('git:restore-points:restore', async (id: string) => restorePoint(requireRepo(), id));

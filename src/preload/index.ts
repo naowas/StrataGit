@@ -135,6 +135,10 @@ export type Api = import('../shared/types').AdvancedGitApi & {
 };
 
 const api: Api = {
+  getResolutionMemory: () => call('git:rerere:state'),
+  setResolutionMemory: (enabled) => call('git:rerere:configure', enabled),
+  getResolutionSuggestion: (filePath) => call('git:rerere:suggestion', filePath),
+  forgetResolution: (filePath) => call('git:rerere:forget', filePath),
   listRestorePoints: () => call('git:restore-points:list'),
   createRestorePoint: (label) => call('git:restore-points:create', label),
   restorePoint: (id) => call('git:restore-points:restore', id),

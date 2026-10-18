@@ -58,6 +58,8 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 - **Patch Application**: Apply individual commit patches onto your current working branch.
 
 ### 🔀 Three-Pane Merge Editor
+- **Actions → Conflict Resolution Memory** enables repository-local suggestions backed by Git rerere. It disables automatic rerere application for this repository; remembered candidates are generated in a temporary worktree/index and never replace your working file during preview.
+- Repeated text conflicts offer **Preview remembered result** and **Use reviewed result** in the merge editor. Loading a result is undoable; **Apply** explicitly saves/stages it. You can forget a matching resolution, or disable suggestions while keeping the cache. Binary, submodule, and deletion-only conflicts use explicit side choices.
 - Open a conflicted file from the operation banner or its **Resolve** button in the changes list.
 - Compare the complete, read-only **Current** and **Incoming** versions around an editable **Merge result**. Resize the panes, link scrolling, or inspect the common ancestor with **Show base**.
 - Use the gutter arrows or conflict toolbar to accept either side, keep both in either order, or restore a diff3 base block. Non-conflicting changes from Git's working file are retained automatically.

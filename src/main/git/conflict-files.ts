@@ -5,6 +5,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { ConflictFileParsed, ConflictResolutionOptions } from '../../shared/types';
 import { hasConflictMarkers, parseConflictSections } from '../../shared/conflicts';
+import { captureResolutionMemory } from './resolution-memory';
 
 const execFileP = promisify(execFile);
 const maxBuffer = 20 * 1024 * 1024;
@@ -140,5 +141,8 @@ export async function resolveConflictFile(repoPath: string, filePath: string, co
       await fs.promises.unlink(temporary).catch(() => {});
     }
   }
+  // Learn the reviewed result while its index stages still identify the conflict.
+  // Cache failure must not prevent saving an otherwise valid resolution.
+  await captureResolutionMemory(repoPath).catch(error => console.warn('Conflict memory:', error.message));
   await execFileP('git', ['add', '--', literalPath], { cwd: repoPath });
 }

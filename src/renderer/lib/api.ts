@@ -133,6 +133,10 @@ const createMockApi = (): Api & StrataGitApi => {
     }),
 
     getPullReview: async () => { throw new Error('Hosted reviews require the desktop app and a configured provider.'); },
+    getResolutionMemory: async () => ({ enabled: false, gitAutomatic: false, remembered: 0 }),
+    setResolutionMemory: async () => { throw new Error('Conflict memory requires the desktop app.'); },
+    getResolutionSuggestion: async () => ({ enabled: false, content: null, snapshot: '' }),
+    forgetResolution: async () => { throw new Error('Conflict memory requires the desktop app.'); },
     listRestorePoints: async () => [],
     createRestorePoint: async () => { throw new Error('Restore points require a local repository in the desktop app.'); },
     restorePoint: async () => { throw new Error('Restore points require a local repository in the desktop app.'); },

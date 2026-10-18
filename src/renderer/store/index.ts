@@ -87,6 +87,7 @@ interface AppState {
   bisectModalOpen: boolean;
   reflogModalOpen: boolean;
   restorePointsOpen: boolean;
+  resolutionMemoryOpen: boolean;
   pullRequestsModalOpen: boolean;
   changelogModalOpen: boolean;
   simulateMergeBranch: string | null;
@@ -194,7 +195,7 @@ function resetRepositoryView(cancelOpening = true): Partial<AppState> {
     detailLoading: false, diffLoading: false, isLoadingMoreCommits: false, commitLimit: 300,
     isOpeningRepo: false, openingRepoName: null,
     conflictedFileToResolve: null, rebaseModalBaseCommit: null, tagModalCommit: null,
-    bisectModalOpen: false, reflogModalOpen: false, restorePointsOpen: false, pullRequestsModalOpen: false, worktreesModalOpen: false, gitFlowModalOpen: false,
+    bisectModalOpen: false, reflogModalOpen: false, restorePointsOpen: false, resolutionMemoryOpen: false, pullRequestsModalOpen: false, worktreesModalOpen: false, gitFlowModalOpen: false,
     changelogModalOpen: false, simulateMergeBranch: null, addRemoteModalOpen: false
   };
 }
@@ -242,6 +243,7 @@ export const useApp = create<AppStore>((set, get) => ({
   bisectModalOpen: false,
   reflogModalOpen: false,
   restorePointsOpen: false,
+  resolutionMemoryOpen: false,
   pullRequestsModalOpen: false,
   changelogModalOpen: false,
   simulateMergeBranch: null,

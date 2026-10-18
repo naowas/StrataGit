@@ -15,6 +15,7 @@ import { AppLoadingScreen } from './components/Loading/AppLoadingScreen';
 import { RepoOpeningAnimation } from './components/Loading/RepoOpeningAnimation';
 import { ConflictBanner } from './components/ConflictResolver/ConflictBanner';
 import { ConflictResolverModal } from './components/ConflictResolver/ConflictResolverModal';
+import { ResolutionMemoryModal } from './components/ConflictResolver/ResolutionMemoryModal';
 import { InteractiveRebaseModal } from './components/Rebase/InteractiveRebaseModal';
 import { CreateTagModal } from './components/Sidebar/CreateTagModal';
 import { AddRemoteModal } from './components/Sidebar/AddRemoteModal';
@@ -200,6 +201,7 @@ export function App() {
       )}
       <StatusBar />
       <ConflictResolverModal />
+      <ResolutionMemoryModal />
       <InteractiveRebaseModal />
       <CreateTagModal />
       <AddRemoteModal />

@@ -54,6 +54,7 @@ function MergeWorkspace({ data, onReload }: { data: ConflictFileParsed; onReload
   const close = useApp(state => state.closeConflictResolver);
   const openFile = useApp(state => state.openConflictResolver);
   const operation = useApp(state => state.operationState);
+  const memorySettingsOpen = useApp(state => state.resolutionMemoryOpen);
   const notify = useApp(state => state.notify);
   const model = useMemo(() => createMergeModel(data), [data]);
   const initialSourceRegions = useMemo(() => ({
@@ -74,6 +75,10 @@ function MergeWorkspace({ data, onReload }: { data: ConflictFileParsed; onReload
   const [saveError, setSaveError] = useState('');
   const [hasMarkers, setHasMarkers] = useState(hasConflictMarkers(model.result));
   const [widths, setWidths] = useState([31, 38, 31]);
+  const [memoryEnabled, setMemoryEnabled] = useState(false);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [memoryError, setMemoryError] = useState('');
+  const [previewSuggestion, setPreviewSuggestion] = useState(false);
   const paneContainer = useRef<HTMLDivElement>(null);
   const syncFrame = useRef<number | null>(null);
   const syncing = useRef(false);
@@ -87,6 +92,31 @@ function MergeWorkspace({ data, onReload }: { data: ConflictFileParsed; onReload
   const canApply = !saving && (isText ? remaining === 0 && (!hasMarkers || fileAction === 'delete') : !!wholeChoice && data.kind !== 'submodule');
 
   useEffect(() => () => { if (syncFrame.current !== null) cancelAnimationFrame(syncFrame.current); }, []);
+
+  useEffect(() => {
+    if (!isText || memorySettingsOpen) return;
+    let live = true;
+    void api.getResolutionSuggestion(data.filePath).then(result => {
+      if (!live) return;
+      if (result.snapshot !== data.snapshot) { setMemoryError('The conflict changed. Reload before using a remembered result.'); return; }
+      setMemoryEnabled(result.enabled);
+      setSuggestion(result.content);
+    }).catch(error => { if (live) setMemoryError(messageOf(error)); });
+    return () => { live = false; };
+  }, [data, isText, memorySettingsOpen]);
+
+  const useRememberedResult = () => {
+    const view = views.current.result;
+    if (!view || suggestion === null || busy.current) return;
+    if (dirty && !window.confirm('Replace your unapplied result with this reviewed suggestion? You can undo the replacement.')) return;
+    const text = normalizeLines(suggestion);
+    setShowBase(false);
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text },
+      effects: [setMergeRegions.of(model.regions.map((region, i) => ({ ...region, from: i ? text.length : 0, to: text.length, choice: 'manual' as const, edited: false }))), setMergeFileAction.of('result')],
+      annotations: [isolateHistory.of('full'), Transaction.userEvent.of('input.merge')] });
+    setPreviewSuggestion(false);
+    view.focus();
+  };
 
   // Source revisions stay immutable; resolution colors and the active conflict follow the result.
   useEffect(() => {
@@ -361,6 +391,10 @@ function MergeWorkspace({ data, onReload }: { data: ConflictFileParsed; onReload
         </div>
 
         {operation?.inRebase && <div className="shrink-0 border-b border-edge bg-panel2/50 px-4 py-1.5 text-xs text-dim">Rebase: Current is the branch you are replaying onto. Incoming is the commit being replayed.</div>}
+
+        {isText && <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-edge px-3 py-2 text-xs"><span className="text-dim">{suggestion !== null ? 'A remembered resolution matches this conflict.' : memoryEnabled ? 'Conflict memory is on. Reviewed resolutions will be remembered.' : 'Remember text resolutions for repeated conflicts.'}</span>{suggestion !== null && <><button className="btn-secondary text-xs" disabled={saving} onClick={() => setPreviewSuggestion(true)}>Preview remembered result</button><button className="btn text-xs" disabled={saving} onClick={async () => { if (!window.confirm('Forget the saved resolution for this conflict?')) return; try { await api.forgetResolution(data.filePath); setSuggestion(null); } catch (e) { setMemoryError(messageOf(e)); } }}>Forget this resolution</button></>}<button className="btn text-xs ml-auto" disabled={saving} onClick={() => useApp.setState({ resolutionMemoryOpen: true })}>Memory settings</button>{memoryError && <span className="text-warn">{memoryError}</span>}</div>}
+
+        {previewSuggestion && suggestion !== null && <div className="absolute inset-4 z-20 flex min-h-0 flex-col rounded-xl border border-edge bg-panel shadow-2xl" role="dialog" aria-label="Preview remembered resolution" onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setPreviewSuggestion(false); } }}><header className="flex items-center gap-3 border-b border-edge p-3"><h3 className="flex-1 text-sm font-semibold">Remembered resolution · {data.filePath}</h3><button className="btn-icon" title="Close preview" onClick={() => setPreviewSuggestion(false)}><X size={15} /></button></header><p className="p-3 text-xs text-dim">Review the complete suggested result below. Loading it changes only the editor draft; Apply still controls writing and staging.</p><pre className="selectable m-3 min-h-0 flex-1 overflow-auto rounded border border-edge bg-base p-3 text-xs">{suggestion}</pre><footer className="flex justify-end gap-2 border-t border-edge p-3"><button className="btn-secondary text-xs" onClick={() => setPreviewSuggestion(false)}>Cancel</button><button className="btn-primary text-xs" onClick={useRememberedResult}>Use reviewed result</button></footer></div>}
 
         {isText ? <>
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-edge px-3 py-2 text-xs">

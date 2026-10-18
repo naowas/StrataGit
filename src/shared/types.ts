@@ -174,6 +174,10 @@ export interface PullReviewSubmission extends PullReviewTarget {
   replyTo?: { id: string; threadId?: string };
 }
 export interface AdvancedGitApi {
+  getResolutionMemory(): Promise<ResolutionMemoryState>;
+  setResolutionMemory(enabled: boolean): Promise<ResolutionMemoryState>;
+  getResolutionSuggestion(filePath: string): Promise<{ enabled: boolean; content: string | null; snapshot: string }>;
+  forgetResolution(filePath: string): Promise<{ ok: boolean }>;
   listRestorePoints(): Promise<RestorePoint[]>;
   createRestorePoint(label?: string): Promise<RestorePoint>;
   restorePoint(id: string): Promise<{ ok: boolean; branch: string }>;
@@ -181,6 +185,8 @@ export interface AdvancedGitApi {
   getPullReview(target: PullReviewTarget): Promise<PullReviewDetail>;
   submitPullReview(params: PullReviewSubmission): Promise<{ ok: boolean; message: string }>;
 }
+
+export interface ResolutionMemoryState { enabled: boolean; gitAutomatic: boolean; remembered: number }
 
 export interface RestorePoint {
   id: string;
