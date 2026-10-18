@@ -2,13 +2,14 @@ import { simpleGit, SimpleGit, SimpleGitOptions } from 'simple-git';
 import fs from 'node:fs';
 import path from 'node:path';
 
-/** Returns a simple-git instance configured for the repo. */
-export function gitFor(repoPath: string): SimpleGit {
+/** Timeout is an instance option in simple-git, not a chainable method. */
+export function gitFor(repoPath: string, options: Pick<SimpleGitOptions, 'timeout'> = {}): SimpleGit {
   const opts: Partial<SimpleGitOptions> = {
     baseDir: repoPath,
     binary: 'git',
     maxConcurrentProcesses: 6,
-    trimmed: false
+    trimmed: false,
+    ...options
   };
   return simpleGit(opts);
 }
@@ -28,9 +29,9 @@ export function isValidRepo(repoPath: string): boolean {
 }
 
 /** Wraps a git operation, converting errors to a friendly single-line message. */
-export async function withGit<T>(repoPath: string, fn: (git: SimpleGit) => Promise<T>): Promise<T> {
+export async function withGit<T>(repoPath: string, fn: (git: SimpleGit) => Promise<T>, options: Pick<SimpleGitOptions, 'timeout'> = {}): Promise<T> {
   if (!isValidRepo(repoPath)) throw new Error(`Not a git repository: ${repoPath}`);
-  return fn(gitFor(repoPath));
+  return fn(gitFor(repoPath, options));
 }
 
 export function errorMessage(err: unknown): string {

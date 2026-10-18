@@ -28,7 +28,7 @@ export async function pinRepository(configDirectory: string, repo: string, pinne
 export async function repositoryOverview(repo: string, hosted: boolean, getCredential: (provider: PullRequestProvider) => PullRequestCredential | null): Promise<RepositoryOverview> {
   const result: RepositoryOverview = { path: repo, branch: '', changed: 0, staged: 0, conflicts: 0, ahead: 0, behind: 0, checkedAt: new Date().toISOString() };
   try {
-    const status = await withGit(repo, git => git.timeout({ block: 15_000 }).status());
+    const status = await withGit(repo, git => git.status(), { timeout: { block: 15_000 } });
     Object.assign(result, { branch: status.current || 'Detached HEAD', changed: new Set(status.files.map(f => f.path)).size, staged: status.staged.length, conflicts: status.conflicted.length, ahead: status.ahead, behind: status.behind });
     if (hosted) {
       const context = await getPullRequestContext(repo, undefined, undefined, getCredential);

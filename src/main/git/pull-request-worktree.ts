@@ -9,7 +9,7 @@ import { getRemotes } from './objects-navigation';
 
 export async function openPullRequestWorktree(repo: string, input: PullReviewTarget & { head: string; directory: string; branch: string }, credentials: (p: PullRequestProvider) => PullRequestCredential | null) {
   if (!input || !['github', 'gitlab', 'bitbucket'].includes(input.provider) || !/^\d+$/.test(input.requestId) || !/^[a-f0-9]{40,64}$/i.test(input.head)) throw new Error('Load the current PR revision before opening a worktree.');
-  const git = gitFor(repo).timeout({ block: 120_000 }).env({ ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_LFS_SKIP_SMUDGE: '1' });
+  const git = gitFor(repo, { timeout: { block: 120_000 } }).env({ ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_LFS_SKIP_SMUDGE: '1' });
   if (!input.branch || input.branch.startsWith('-')) throw new Error('Enter a new local review branch name.');
   await git.raw(['check-ref-format', `refs/heads/${input.branch}`]);
   if (await git.raw(['show-ref', '--verify', `refs/heads/${input.branch}`]).then(() => true, () => false)) throw new Error('That branch already exists. Choose a new review branch name.');
