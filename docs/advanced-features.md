@@ -4,7 +4,7 @@ Repository workflows are available from **Actions** and the command palette. The
 
 ## 1. Review a hosted pull or merge request
 
-1. Configure the provider token in **Settings → Pull Request Providers**. GitHub requires Pull requests read/write; CI results can additionally require Checks read and Commit statuses read. GitLab uses an `api` token. Bitbucket Cloud uses an Atlassian account email and API token with repository read and pull request read/write permissions.
+1. Connect in **Settings → Pull Request Providers**. For GitHub, choose **Sign in with GitHub**, approve the device code in your browser, then choose repositories on GitHub. A manual token is also supported with Pull requests read/write, Contents read, Checks read and Commit statuses read. GitLab uses an `api` token. Bitbucket Cloud uses an Atlassian account email and API token with repository read and pull request read/write permissions. See [GitHub sign-in](github-sign-in.md).
 2. Open **Actions → Pull Requests / Merge Requests**, select a remote and request, then choose **Review changes, conversation & CI**.
 3. Browse files and select an old/new line number to target a comment. Conversation supports replies to inline GitHub comments and GitLab/Bitbucket discussions. General GitHub conversation items can receive a new top-level review comment.
 4. Choose Comment, Approve, or Request changes and explicitly submit. Messages remain unpublished until submission. If the source revision changes, submission is rejected and the draft is kept.

@@ -4,14 +4,25 @@ import path from 'node:path';
 import type {
   PullRequestCredential,
   PullRequestCredentialStatus,
-  PullRequestProvider
+  PullRequestProvider,
+  GitHubAccount
 } from '../../shared/types';
 
-type CredentialMap = Partial<Record<PullRequestProvider, PullRequestCredential>>;
+export interface StoredProviderCredential extends PullRequestCredential {
+  githubOAuth?: {
+    clientId: string;
+    account: GitHubAccount;
+    refreshToken?: string;
+    expiresAt?: string;
+    refreshExpiresAt?: string;
+    reauthRequired?: boolean;
+  };
+}
+type CredentialMap = Partial<Record<PullRequestProvider, StoredProviderCredential>>;
 
 const credentialFile = () => path.join(app.getPath('userData'), 'hosted-git-credentials.enc');
 
-function assertSecureStorageAvailable() {
+export function assertSecureStorageAvailable() {
   if (!safeStorage.isEncryptionAvailable()) {
     throw new Error('Secure credential storage is unavailable. Enable your operating system keychain or desktop keyring, then try again.');
   }
@@ -52,8 +63,16 @@ export function getPullRequestCredentialStatus(): PullRequestCredentialStatus {
   };
 }
 
-export function getPullRequestCredential(provider: PullRequestProvider): PullRequestCredential | null {
+export function getPullRequestCredential(provider: PullRequestProvider): StoredProviderCredential | null {
   return readCredentials()[provider] ?? null;
+}
+
+/** Only main-process OAuth code can write this metadata; manual tokens replace it. */
+export function saveGitHubOAuthCredential(credential: StoredProviderCredential): void {
+  if (!credential.token || !credential.githubOAuth?.account?.login) throw new Error('GitHub did not return a valid account.');
+  const credentials = readCredentials();
+  credentials.github = credential;
+  writeCredentials(credentials);
 }
 
 export function savePullRequestCredential(provider: PullRequestProvider, credential: PullRequestCredential): void {

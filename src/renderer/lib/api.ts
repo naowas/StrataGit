@@ -134,6 +134,13 @@ const createMockApi = (): Api & StrataGitApi => {
 
     getPullReview: async () => { throw new Error('Hosted reviews require the desktop app and a configured provider.'); },
     listPinnedRepos: async () => [],
+    getGitHubSignInState: async () => ({ configured: false, connected: false, secureStorageAvailable: false, method: null, needsSignIn: false, phase: 'idle', message: 'GitHub sign-in requires the desktop app.' }),
+    startGitHubSignIn: async () => { throw new Error('GitHub sign-in requires the desktop app.'); },
+    cancelGitHubSignIn: async () => { throw new Error('GitHub sign-in requires the desktop app.'); },
+    openGitHubSignInPage: async () => { throw new Error('GitHub sign-in requires the desktop app.'); },
+    copyGitHubSignInCode: async () => { throw new Error('GitHub sign-in requires the desktop app.'); },
+    refreshGitHubAccount: async () => { throw new Error('GitHub sign-in requires the desktop app.'); },
+    onGitHubSignInState: () => () => {},
     getSparseCheckout: async () => { throw new Error('Sparse checkout requires the desktop app.'); },
     getSparseDirectories: async () => { throw new Error('Sparse checkout requires the desktop app.'); },
     previewSparseCheckout: async () => { throw new Error('Sparse checkout requires the desktop app.'); },

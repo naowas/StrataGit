@@ -100,6 +100,30 @@ export interface PullRequestCredential {
 
 export type PullRequestCredentialStatus = Record<PullRequestProvider, boolean>;
 
+export interface GitHubAccount {
+  id: number;
+  login: string;
+  name?: string;
+  avatarUrl?: string;
+  installations?: number;
+}
+
+export interface GitHubSignInState {
+  configured: boolean;
+  connected: boolean;
+  secureStorageAvailable: boolean;
+  method: 'device' | 'token' | null;
+  account?: GitHubAccount;
+  needsSignIn: boolean;
+  installationUrl?: string;
+  phase: 'idle' | 'requesting' | 'waiting' | 'success' | 'error' | 'cancelled' | 'expired';
+  flowId?: string;
+  userCode?: string;
+  verificationUri?: string;
+  expiresAt?: string;
+  message?: string;
+}
+
 export interface HostedPullRequest {
   id: string;
   title: string;
@@ -175,6 +199,13 @@ export interface PullReviewSubmission extends PullReviewTarget {
   replyTo?: { id: string; threadId?: string };
 }
 export interface AdvancedGitApi {
+  getGitHubSignInState(): Promise<GitHubSignInState>;
+  startGitHubSignIn(): Promise<GitHubSignInState>;
+  cancelGitHubSignIn(flowId: string): Promise<GitHubSignInState>;
+  openGitHubSignInPage(flowId: string): Promise<void>;
+  copyGitHubSignInCode(flowId: string): Promise<void>;
+  refreshGitHubAccount(): Promise<GitHubSignInState>;
+  onGitHubSignInState(callback: (state: GitHubSignInState) => void): () => void;
   getSparseCheckout(): Promise<SparseCheckoutState>;
   getSparseDirectories(prefix: string, head: string): Promise<string[]>;
   previewSparseCheckout(input: SparseSelection): Promise<SparsePreview>;

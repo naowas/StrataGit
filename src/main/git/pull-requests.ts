@@ -7,6 +7,7 @@ import type {
 } from '../../shared/types';
 import { gitFor } from './core';
 import { getRemotes } from './objects-navigation';
+import { githubRequestCredential, githubSessionRejected } from './github-auth';
 
 interface HostedRepository {
   provider: PullRequestProvider;
@@ -118,6 +119,7 @@ export async function requestJson<T>(
   payload?: unknown,
   asText = false
 ): Promise<T> {
+  const activeCredential = config.provider === 'github' ? await githubRequestCredential(credential) : credential;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20_000);
   try {
@@ -125,7 +127,7 @@ export async function requestJson<T>(
     let response: Response;
     for (let redirects = 0; ; redirects++) {
       response = await fetch(url, {
-        method, headers: authHeaders(config.provider, credential),
+        method, headers: authHeaders(config.provider, activeCredential),
         body: payload === undefined ? undefined : JSON.stringify(payload),
         signal: controller.signal, redirect: 'manual'
       });
@@ -139,7 +141,14 @@ export async function requestJson<T>(
       url = next.href;
     }
     const body = await response.text();
-    if (!response.ok) throw errorForResponse(config.provider, response.status, body);
+    if (!response.ok) {
+      if (config.provider === 'github' && response.status === 401) {
+        githubSessionRejected(activeCredential);
+        throw new Error('The GitHub session is invalid or expired. Reconnect in Settings → Pull Request Providers.');
+      }
+      if (config.provider === 'github' && response.status === 404) throw new Error('This repository was not found or GitHub cannot grant access. In Settings → Pull Request Providers, choose repositories on GitHub (or check your token permissions), then refresh.');
+      throw errorForResponse(config.provider, response.status, body);
+    }
     if (body.length > 12_000_000) throw new Error('The provider response is too large. Review this request on the provider.');
     return (asText ? body : body ? JSON.parse(body) : null) as T;
   } catch (error) {

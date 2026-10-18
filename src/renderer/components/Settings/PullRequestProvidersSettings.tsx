@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, ExternalLink, Eye, EyeOff, KeyRound, Loader2
 import type { PullRequestCredentialStatus, PullRequestProvider } from '../../../shared/types';
 import { useApp } from '../../store';
 import { api } from '../../lib/api';
+import { GitHubSignInPanel } from './GitHubSignInPanel';
 
 const providers: Array<{
   id: PullRequestProvider;
@@ -134,6 +135,7 @@ export function PullRequestProvidersSettings() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {providers.map((provider) => {
+          if (provider.id === 'github') return <GitHubSignInPanel key={provider.id} />;
           const configured = credentialStatus[provider.id];
           const isEditing = !loading && (editing === provider.id || !configured);
           const busy = saving === provider.id || removing === provider.id;

@@ -110,6 +110,7 @@ import { getCommitSplit, previewCommitSplit, applyCommitSplit, discardCommitSpli
 import { getBranchStack, setStackParent, previewStackRestack, resumeStackRestack, applyStackRestack, discardStackRestack, retargetPullRequest } from './git/branch-stacks';
 import { getLfsState, configureLfs, setLfsTracking, runLfsTransfer, getLfsTransfer, cancelLfsTransfer, stopLfsTransfers } from './git/lfs-manager';
 import { getSparseCheckout, getSparseDirectories, previewSparseCheckout, applySparseCheckout, restoreSparseLayout } from './git/sparse-checkout';
+import { registerGitHubSignIn, getGitHubSignInState, startGitHubSignIn, cancelGitHubSignIn, openGitHubSignInPage, copyGitHubSignInCode, refreshGitHubAccount, githubCredentialsChanged, stopGitHubSignIn } from './git/github-auth';
 import { createRestorePoint, listRestorePoints, restorePoint, deleteRestorePoint } from './git/restore-points';
 import { resolutionMemoryState, setResolutionMemory, captureResolutionMemory } from './git/resolution-memory';
 import { beginRewrite, finishRewrite, rewriteActions, listRewriteSessions, compareCommitRanges, deleteRewriteSession } from './git/rewrite-comparison';
@@ -155,6 +156,8 @@ function writeRecent(list: string[]) {
 
 export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => string | null) {
   app.once('before-quit', stopLfsTransfers);
+  app.once('before-quit', stopGitHubSignIn);
+  registerGitHubSignIn(state => { const win = getWin(); if (win && !win.isDestroyed()) win.webContents.send('github-auth:state', state); });
   const requestRepo = new AsyncLocalStorage<string | null>();
   const protectedActions: Record<string, string> = {
     'git:reset-branch': 'Before reset', 'git:discard': 'Before discarding a file',
@@ -209,6 +212,13 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
     if (!repo || !isValidRepo(repo)) throw new Error('No repository open');
     return repo;
   };
+
+  handle('github-auth:get', async () => getGitHubSignInState());
+  handle('github-auth:start', async () => startGitHubSignIn());
+  handle('github-auth:cancel', async (id: string) => cancelGitHubSignIn(id));
+  handle('github-auth:open', async (id: string) => openGitHubSignInPage(id));
+  handle('github-auth:copy', async (id: string) => copyGitHubSignInCode(id));
+  handle('github-auth:refresh-account', async () => refreshGitHubAccount());
 
   handle('repo:open-dialog', async () => {
     const win = getWin();
@@ -770,13 +780,17 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
 
   handle('git:pull-requests:save-credential', async (provider: unknown, credential: PullRequestCredential) => {
     if (!isPullRequestProvider(provider)) throw new Error('Choose GitHub, GitLab, or Bitbucket.');
+    if (provider === 'github') cancelGitHubSignIn();
     savePullRequestCredential(provider, credential);
+    if (provider === 'github') githubCredentialsChanged();
     return { ok: true };
   });
 
   handle('git:pull-requests:remove-credential', async (provider: unknown) => {
     if (!isPullRequestProvider(provider)) throw new Error('Choose GitHub, GitLab, or Bitbucket.');
+    if (provider === 'github') cancelGitHubSignIn();
     removePullRequestCredential(provider);
+    if (provider === 'github') githubCredentialsChanged();
     return { ok: true };
   });
 

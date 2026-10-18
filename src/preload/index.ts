@@ -135,6 +135,17 @@ export type Api = import('../shared/types').AdvancedGitApi & {
 };
 
 const api: Api = {
+  getGitHubSignInState: () => call('github-auth:get'),
+  startGitHubSignIn: () => call('github-auth:start'),
+  cancelGitHubSignIn: id => call('github-auth:cancel', id),
+  openGitHubSignInPage: id => call('github-auth:open', id),
+  copyGitHubSignInCode: id => call('github-auth:copy', id),
+  refreshGitHubAccount: () => call('github-auth:refresh-account'),
+  onGitHubSignInState: cb => {
+    const listener = (_event: IpcRendererEvent, state: import('../shared/types').GitHubSignInState) => cb(state);
+    ipcRenderer.on('github-auth:state', listener);
+    return () => ipcRenderer.removeListener('github-auth:state', listener);
+  },
   getSparseCheckout: () => call('git:sparse:get'),
   getSparseDirectories: (prefix, head) => call('git:sparse:directories', prefix, head),
   previewSparseCheckout: input => call('git:sparse:preview', input),
