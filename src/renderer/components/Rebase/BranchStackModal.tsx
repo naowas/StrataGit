@@ -9,6 +9,7 @@ export function BranchStackModal() {
   return open && repo ? <BranchStack key={repo} /> : null;
 }
 function BranchStack() {
+  const repository = useApp.getState().activeTab;
   const [data, setData] = useState<BranchStackState>({ links: [], branches: [], sessions: [] });
   const [branch, setBranch] = useState(''), [parent, setParent] = useState(''), [root, setRoot] = useState('');
   const [reset, setReset] = useState(false), [busy, setBusy] = useState(false), [message, setMessage] = useState('');
@@ -44,6 +45,7 @@ function BranchStack() {
         if (!request || !context.provider || !context.remoteName || !window.confirm(`Retarget #${request.id} from ${request.targetBranch} to ${newTarget} on ${context.repository}?`)) return;
         const target = { provider: context.provider, remoteName: context.remoteName, requestId: request.id };
         const detail = await api.getPullReview(target);
+        if (useApp.getState().activeTab !== repository) throw new Error('The active repository changed. Reopen this stack before retargeting.');
         await api.retargetPullRequest({ ...target, head: detail.head, previousTarget: request.targetBranch, newTarget });
         setContext(await api.getPullRequestContext(remote, provider || undefined)); setMessage('Hosted request retargeted. Local parent links are managed separately.');
       })}>Retarget request</button></div></>}

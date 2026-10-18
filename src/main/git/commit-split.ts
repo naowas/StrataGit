@@ -24,7 +24,7 @@ export async function getCommitSplit(repo: string, revision: string): Promise<Co
   const units: CommitSplitPlan['units'] = [];
   let total = 0;
   for (const file of files) {
-    const patch = await gitCommand(repo, ['diff', '--no-ext-diff', '--no-textconv', '--no-color', '--no-renames', '--binary', '--full-index', '--unified=3', base, hash, '--', `:(literal)${file}`]);
+    const patch = await gitCommand(repo, ['diff', '--no-ext-diff', '--no-textconv', '--no-color', '--no-renames', '--src-prefix=a/', '--dst-prefix=b/', '--binary', '--full-index', '--unified=3', base, hash, '--', `:(literal)${file}`]);
     total += patch.length;
     if (total > 8_000_000 || units.length > 1000) throw new Error('This commit is too large for visual splitting (8 MB / 1,000 pieces).');
     const parts = patch.split(/(?=^@@ )/m), header = parts.shift() || '';

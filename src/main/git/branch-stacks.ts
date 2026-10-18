@@ -146,11 +146,13 @@ export async function applyStackRestack(repo: string, id: string) {
     await createRestorePoint(repo, `Before restacking descendants of ${s.root}`);
     // Keep every original tip independently of the working-tree restore point.
     for (const step of s.steps) await gitCommand(repo, ['update-ref', `refs/stratagit/restacks/${s.id}/old-${step.id}`, step.oldHead]);
-    const commands = ['start', `verify refs/heads/${s.root} ${s.rootHead}`];
-    if (current.branch !== s.root) commands.push(`verify refs/heads/${current.branch} ${current.head}`);
+    // update-ref's line protocol uses C-quoted ref names, independently of shell quoting.
+    const quote = (name: string) => JSON.stringify(name);
+    const commands = ['start', `verify ${quote(`refs/heads/${s.root}`)} ${s.rootHead}`];
+    if (current.branch !== s.root) commands.push(`verify ${quote(`refs/heads/${current.branch}`)} ${current.head}`);
     for (const step of s.steps) {
-      commands.push(`update refs/heads/${step.branch} ${step.newHead} ${step.oldHead}`);
-      commands.push(`update ${baseRef(step.id)} ${step.onto} ${step.base}`);
+      commands.push(`update ${quote(`refs/heads/${step.branch}`)} ${step.newHead} ${step.oldHead}`);
+      commands.push(`update ${quote(baseRef(step.id))} ${step.onto} ${step.base}`);
     }
     commands.push('prepare', 'commit');
     await gitCommand(repo, ['update-ref', '-m', 'StrataGit: apply stack restack', '--stdin'], commands.join('\n') + '\n');

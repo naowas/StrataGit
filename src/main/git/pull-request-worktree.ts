@@ -43,7 +43,16 @@ export async function openPullRequestWorktree(repo: string, input: PullReviewTar
     await git.raw(['-c', 'fetch.recurseSubmodules=false', 'fetch', '--no-tags', '--no-recurse-submodules', '--no-write-fetch-head', '--', source, `${ref}:${savedRef}`]);
     const fetched = (await git.raw(['rev-parse', '--verify', `${savedRef}^{commit}`])).trim();
     if (fetched !== input.head) throw new Error('The request changed during fetch. Refresh the review before opening it.');
-    await git.raw(['-c', `core.hooksPath=${noHooks}`, '-c', 'submodule.recurse=false', 'worktree', 'add', '-b', input.branch, '--', destination, fetched]);
+    try {
+      await git.raw(['-c', `core.hooksPath=${noHooks}`, '-c', 'submodule.recurse=false', 'worktree', 'add', '-b', input.branch, '--', destination, fetched]);
+    } catch (error) {
+      // Git can leave a registered worktree or a new branch after a checkout/filter failure.
+      // Never remove partially populated files automatically.
+      const registered = (await git.raw(['worktree', 'list', '--porcelain', '-z']).catch(() => '')).split('\0').some(line => line === `worktree ${destination}`);
+      const exists = await fs.lstat(destination).then(() => true, () => false);
+      if (!registered && !exists) await git.raw(['update-ref', '-d', `refs/heads/${input.branch}`, fetched]).catch(() => {});
+      throw new Error(`${String(error).split('\n').filter(Boolean).slice(-1)[0] || 'Checkout failed.'} ${registered || exists ? `A partial checkout may remain at ${destination}. Inspect it in Actions → Worktrees before retrying; your original checkout is unchanged.` : 'The original checkout is unchanged. Correct the Git error and try again.'}`);
+    }
     return { ok: true, path: destination, branch: input.branch };
   } finally {
     await git.raw(['update-ref', '-d', savedRef]).catch(() => {});
