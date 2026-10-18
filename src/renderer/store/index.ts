@@ -88,6 +88,8 @@ interface AppState {
   reflogModalOpen: boolean;
   restorePointsOpen: boolean;
   resolutionMemoryOpen: boolean;
+  rangeComparisonOpen: boolean;
+  rangeComparisonId: string | null;
   pullRequestsModalOpen: boolean;
   changelogModalOpen: boolean;
   simulateMergeBranch: string | null;
@@ -195,7 +197,7 @@ function resetRepositoryView(cancelOpening = true): Partial<AppState> {
     detailLoading: false, diffLoading: false, isLoadingMoreCommits: false, commitLimit: 300,
     isOpeningRepo: false, openingRepoName: null,
     conflictedFileToResolve: null, rebaseModalBaseCommit: null, tagModalCommit: null,
-    bisectModalOpen: false, reflogModalOpen: false, restorePointsOpen: false, resolutionMemoryOpen: false, pullRequestsModalOpen: false, worktreesModalOpen: false, gitFlowModalOpen: false,
+    bisectModalOpen: false, reflogModalOpen: false, restorePointsOpen: false, resolutionMemoryOpen: false, rangeComparisonOpen: false, rangeComparisonId: null, pullRequestsModalOpen: false, worktreesModalOpen: false, gitFlowModalOpen: false,
     changelogModalOpen: false, simulateMergeBranch: null, addRemoteModalOpen: false
   };
 }
@@ -244,6 +246,8 @@ export const useApp = create<AppStore>((set, get) => ({
   reflogModalOpen: false,
   restorePointsOpen: false,
   resolutionMemoryOpen: false,
+  rangeComparisonOpen: false,
+  rangeComparisonId: null,
   pullRequestsModalOpen: false,
   changelogModalOpen: false,
   simulateMergeBranch: null,
@@ -606,8 +610,9 @@ export const useApp = create<AppStore>((set, get) => ({
 
   async continueRepoOperation() {
     await get().runAndRefresh(async () => {
-      await api.continueOperation();
+      const result = await api.continueOperation();
       set({ conflictedFileToResolve: null });
+      return result;
     }, 'Operation continued');
   },
 
@@ -806,8 +811,10 @@ export const useApp = create<AppStore>((set, get) => ({
   async runAndRefresh(fn, successMsg) {
     const repo = get().activeTab;
     try {
-      await unwrap(fn());
+      const result = await unwrap(fn());
+      if (result && typeof result === 'object' && 'ok' in result && result.ok === false) throw new Error(String((result as { error?: string }).error || 'The Git operation did not complete.'));
       await get().refresh();
+      if (get().activeTab === repo && result && typeof result === 'object' && 'rewriteId' in result && typeof result.rewriteId === 'string') set({ rangeComparisonOpen: true, rangeComparisonId: result.rewriteId });
       if (successMsg) get().notify('success', successMsg);
       return true;
     } catch (err) {

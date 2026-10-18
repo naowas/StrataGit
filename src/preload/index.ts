@@ -135,6 +135,9 @@ export type Api = import('../shared/types').AdvancedGitApi & {
 };
 
 const api: Api = {
+  listRewriteSessions: () => call('git:rewrite:list'),
+  compareCommitRanges: (input) => call('git:rewrite:compare', input),
+  deleteRewriteSession: (id) => call('git:rewrite:delete', id),
   getResolutionMemory: () => call('git:rerere:state'),
   setResolutionMemory: (enabled) => call('git:rerere:configure', enabled),
   getResolutionSuggestion: (filePath) => call('git:rerere:suggestion', filePath),

@@ -106,6 +106,7 @@ import { getPullRequestContext, createHostedPullRequest } from './git/pull-reque
 import { getPullReview, submitPullReview } from './git/pull-request-review';
 import { createRestorePoint, listRestorePoints, restorePoint, deleteRestorePoint } from './git/restore-points';
 import { resolutionMemoryState, setResolutionMemory, captureResolutionMemory } from './git/resolution-memory';
+import { beginRewrite, finishRewrite, rewriteActions, listRewriteSessions, compareCommitRanges, deleteRewriteSession } from './git/rewrite-comparison';
 import {
   getPullRequestCredential,
   getPullRequestCredentialStatus,
@@ -156,7 +157,7 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
     'git:drop-commit': 'Before dropping a commit', 'git:move-commit-down': 'Before reordering a commit',
     'git:edit-commit-message': 'Before rewriting a commit message', 'git:pull': 'Before pull'
   };
-  const writes = new Set(['git:stage', 'git:unstage', 'git:stage-all', 'git:unstage-all', 'git:commit', 'git:merge', 'git:checkout', 'git:checkout-commit', 'git:stash', 'git:stash-pop', 'git:stash-apply', 'git:stage-hunk', 'git:unstage-hunk', 'git:stage-lines', 'git:unstage-lines', 'git:resolve-conflict-file', 'git:abort-operation', 'git:continue-operation', 'git:cherry-pick', 'git:reflog-restore-head', ...Object.keys(protectedActions)]);
+  const writes = new Set(['git:stage', 'git:unstage', 'git:stage-all', 'git:unstage-all', 'git:commit', 'git:merge', 'git:checkout', 'git:checkout-commit', 'git:stash', 'git:stash-pop', 'git:stash-apply', 'git:stage-hunk', 'git:unstage-hunk', 'git:stage-lines', 'git:unstage-lines', 'git:resolve-conflict-file', 'git:abort-operation', 'git:continue-operation', 'git:cherry-pick', 'git:reflog-restore-head', 'git:revert-commit', 'git:apply-patch-commit', 'git:apply-patch', 'git:flow:init', 'git:flow:start', 'git:flow:finish', 'git:branch-create', 'git:branch-delete', 'git:branch-rename', ...Object.keys(protectedActions)]);
   const pendingWrites = new Map<string, Promise<unknown>>();
   type Handler = (...args: any[]) => Promise<unknown>;
   const handle = (channel: string, fn: Handler) => {
@@ -166,17 +167,29 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
           const repo = requestRepo.getStore();
           const run = async () => {
             if (repo && protectedActions[channel]) await createRestorePoint(repo, `${protectedActions[channel]}${typeof args[0] === 'string' ? `: ${args[0]}` : ''}`);
+            const trackRewrite = repo && (rewriteActions.has(channel) || channel === 'git:continue-operation' || channel === 'git:abort-operation');
+            if (repo && rewriteActions.has(channel)) await beginRewrite(repo, channel, args);
             if (repo && writes.has(channel)) await captureResolutionMemory(repo).catch(() => {});
-            try { return await fn(...args); }
+            try {
+              const result = await fn(...args);
+              const failure = result && typeof result === 'object' && 'ok' in result && result.ok === false;
+              const session = trackRewrite && repo ? await finishRewrite(repo, { aborted: channel === 'git:abort-operation', error: failure ? String((result as { error?: string }).error || 'Operation did not complete.') : undefined }).catch(error => { console.warn('Rewrite comparison:', error.message); return null; }) : null;
+              return session?.status === 'completed' && session.oldTip !== session.newTip && result && typeof result === 'object' ? { ...result, rewriteId: session.id } : result;
+            }
+            catch (error) {
+              if (trackRewrite && repo) await finishRewrite(repo, { error: error instanceof Error ? error.message : String(error) }).catch(() => {});
+              throw error;
+            }
             finally { if (repo && writes.has(channel)) await captureResolutionMemory(repo).catch(() => {}); }
           };
-          if (!repo || !(writes.has(channel) || /^git:(restore-points|rerere):/.test(channel))) return run();
+          if (!repo || !(writes.has(channel) || /^git:(restore-points|rerere|rewrite):/.test(channel))) return run();
           // Snapshot and its action share one write queue, including staging operations.
-          const previous = pendingWrites.get(repo) || Promise.resolve();
+          const lockKey = await fs.promises.realpath(repo);
+          const previous = pendingWrites.get(lockKey) || Promise.resolve();
           const current = previous.catch(() => {}).then(run);
-          pendingWrites.set(repo, current);
+          pendingWrites.set(lockKey, current);
           try { return await current; }
-          finally { if (pendingWrites.get(repo) === current) pendingWrites.delete(repo); }
+          finally { if (pendingWrites.get(lockKey) === current) pendingWrites.delete(lockKey); }
         });
       } catch (err) {
         return { __error: errorMessage(err) };
@@ -358,6 +371,9 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
   });
 
   handle('git:status', async (): Promise<GitStatus> => getStatus(requireRepo()));
+  handle('git:rewrite:list', async () => listRewriteSessions(requireRepo()));
+  handle('git:rewrite:compare', async (input: import('../shared/types').RangeComparisonInput) => compareCommitRanges(requireRepo(), input));
+  handle('git:rewrite:delete', async (id: string) => { await deleteRewriteSession(requireRepo(), id); return { ok: true }; });
   handle('git:rerere:state', async () => resolutionMemoryState(requireRepo()));
   handle('git:rerere:configure', async (enabled: boolean) => setResolutionMemory(requireRepo(), enabled));
   handle('git:rerere:suggestion', async (filePath: string) => {

@@ -65,7 +65,7 @@ export async function getPullReview(repo: string, target: PullReviewTarget, cred
       })
     ]);
   } else if (target.provider === 'gitlab') {
-    d.head = pr.diff_refs?.head_sha || pr.sha; d.base = pr.diff_refs?.base_sha || ''; d.start = pr.diff_refs?.start_sha || ''; d.description = pr.description || '';
+    d.head = String(pr.diff_refs?.head_sha || pr.sha || ''); d.base = pr.diff_refs?.base_sha || ''; d.start = pr.diff_refs?.start_sha || ''; d.description = pr.description || '';
     await Promise.all([
       optional('GitLab review capabilities', async () => { if (await nativeGitLabChanges(c)) d.changeRequestMode = 'native'; }),
       (async () => { d.files = (await rows(`${c.pr}/diffs`)).map(f => ({ path: f.new_path, oldPath: f.old_path, status: f.deleted_file ? 'deleted' : f.new_file ? 'added' : f.renamed_file ? 'renamed' : 'modified', patch: f.diff || '', unavailable: !f.diff || f.too_large || f.collapsed })); })(),
@@ -84,7 +84,7 @@ export async function getPullReview(repo: string, target: PullReviewTarget, cred
         d.checks.push(...(await rows(`${c.root}/pipelines/${latest.id}/jobs`)).map(n => ({ name: n.name, state: n.status, url: n.web_url })));
       })
     ]);
-    if (d.changeRequestMode === 'discussion') d.warnings.push('This GitLab host does not expose native change requests. Request changes posts a discussion and removes your approval; it does not set a review-blocking state.');
+    if (d.changeRequestMode === 'discussion') d.warnings.push('This GitLab host did not advertise native change requests. Request changes posts a discussion and removes your approval; it does not set a review-blocking state.');
   } else {
     d.head = pr.source.commit.hash; d.base = pr.destination.commit.hash; d.start = d.base; d.description = pr.description || '';
     await Promise.all([
@@ -147,9 +147,10 @@ export async function submitPullReview(repo: string, p: PullReviewSubmission, cr
         catch { return { ok: true, message: 'Approval submitted, but the accompanying comment failed. Refresh before retrying the comment.' }; }
       }
       return { ok: true, message: 'Approval submitted.' };
-    } else if (p.action === 'request-changes' && await nativeGitLabChanges(c).catch(() => false)) {
+    } else if (p.action === 'request-changes' && p.changeRequestMode !== 'discussion') {
       const remote = await hostedReviewClient(repo, p.remoteName, p.provider, credentials);
       const result = await c.graph('mutation($input: MergeRequestRequestChangesInput!) { mergeRequestRequestChanges(input: $input) { errors } }', { input: { projectPath: remote.config.path, iid: p.requestId } });
+      if (!result?.mergeRequestRequestChanges) throw new Error('GitLab did not confirm the change request. Refresh before trying again.');
       if (result.mergeRequestRequestChanges?.errors?.length) throw new Error(result.mergeRequestRequestChanges.errors.join('; '));
       try { await c.post(`${c.pr}/discussions`, { body }); }
       catch { return { ok: true, message: 'Change request submitted, but the accompanying comment failed. Refresh before retrying the comment.' }; }

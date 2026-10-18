@@ -410,6 +410,7 @@ export function Toolbar() {
               />
               <MenuItem icon={<Undo2 size={14} />} label="Restore Points…" disabled={!hasRepo} onClick={() => { close(); useApp.setState({ restorePointsOpen: true }); }} />
               <MenuItem icon={<GitMerge size={14} />} label="Conflict Resolution Memory…" disabled={!hasRepo} onClick={() => { close(); useApp.setState({ resolutionMemoryOpen: true }); }} />
+              <MenuItem icon={<History size={14} />} label="Rebase & Rewrite Comparison…" disabled={!hasRepo} onClick={() => { close(); useApp.setState({ rangeComparisonOpen: true, rangeComparisonId: null }); }} />
               <MenuItem
                 icon={<History size={14} />}
                 label="Refresh"

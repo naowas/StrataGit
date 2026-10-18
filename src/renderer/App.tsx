@@ -17,6 +17,7 @@ import { ConflictBanner } from './components/ConflictResolver/ConflictBanner';
 import { ConflictResolverModal } from './components/ConflictResolver/ConflictResolverModal';
 import { ResolutionMemoryModal } from './components/ConflictResolver/ResolutionMemoryModal';
 import { InteractiveRebaseModal } from './components/Rebase/InteractiveRebaseModal';
+import { RangeComparisonModal } from './components/Rebase/RangeComparisonModal';
 import { CreateTagModal } from './components/Sidebar/CreateTagModal';
 import { AddRemoteModal } from './components/Sidebar/AddRemoteModal';
 import { CreateRepoModal } from './components/Repository/CreateRepoModal';
@@ -203,6 +204,7 @@ export function App() {
       <ConflictResolverModal />
       <ResolutionMemoryModal />
       <InteractiveRebaseModal />
+      <RangeComparisonModal />
       <CreateTagModal />
       <AddRemoteModal />
       <CreateRepoModal />

@@ -25,6 +25,7 @@ export async function createRestorePoint(repo: string, label = 'Manual restore p
   const temp = gitFor(repo).env({ ...identity, GIT_INDEX_FILE: path.join(folder, 'index') });
   try {
     let head = (await git.raw(['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
+    const originalHead = head;
     const unborn = !head;
     const indexTree = (await git.raw(['write-tree'])).trim();
     if (!head) {
@@ -50,6 +51,7 @@ export async function createRestorePoint(repo: string, label = 'Manual restore p
     const point: RestorePoint = { id, label: String(label).trim().slice(0, 180) || 'Manual restore point', createdAt: new Date().toISOString(),
       branch: (await git.raw(['branch', '--show-current'])).trim() || '(detached HEAD)', head, unborn, worktree,
       untrackedCount: untracked.length, status: (await git.raw(['status', '--short', '--untracked-files=all'])).slice(0, 100_000) };
+    if ((await git.raw(['write-tree'])).trim() !== indexTree || (await git.raw(['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim() !== originalHead) throw new Error('HEAD or the index changed while preparing the restore point. Retry the operation.');
     const hash = await treeCommit(workTree, parents, prefix + JSON.stringify(point));
     // Never use refs/stash: creating a point leaves the working tree and stash list alone.
     await git.raw(['update-ref', refFor(id), hash, '']);
@@ -90,10 +92,11 @@ export async function restorePoint(repo: string, id: string) {
   const hash = (await git.raw(['rev-parse', '--verify', ref])).trim();
   const untracked = await git.raw(['ls-tree', '-r', '--name-only', '-z', `${hash}^3`]).catch(() => '');
   for (const file of untracked.split('\0').filter(Boolean)) {
-    if (await fs.lstat(path.join(repo, file)).then(() => true, () => false)) throw new Error(`The saved untracked file ${file} already exists. Move it aside before restoring.`);
+    const currentlyTracked = await git.raw(['ls-files', '--error-unmatch', '--', `:(literal)${file}`]).then(() => true, () => false);
+    if (!currentlyTracked && await fs.lstat(path.join(repo, file)).then(() => true, () => false)) throw new Error(`The saved untracked file ${file} already exists. Move it aside before restoring.`);
   }
   const branch = `recovered/restore-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}-${id.slice(0, 8)}`;
-  await git.raw(['checkout', '--no-overwrite-ignore', '-b', branch, point.head]);
+  await git.raw(['-c', 'submodule.recurse=false', 'checkout', '--no-overwrite-ignore', '-b', branch, point.head]);
   try { await git.raw(['-c', 'submodule.recurse=false', 'stash', 'apply', '--index', hash]); }
   catch { throw new Error(`Recovery stopped on ${branch}. The restore point is retained. Review the working tree and any conflicts before continuing.`); }
   return { ok: true, branch };

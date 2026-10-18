@@ -53,6 +53,8 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 - **Full Stash Suite**: Stash staged/unstaged changes with optional descriptions; inspect, pop, apply, or drop stashes on demand.
 
 ### 🛠️ Commit History Actions
+- **Actions → Rebase & Rewrite Comparison** compares two commit ranges using `git range-diff`, with filters for unchanged, changed, removed, and added commits, patch details, old/new commit inspection, and raw output copying.
+- In-app branch/interactive rebases, reword/drop/reorder actions, and pulls configured to rebase retain their before/after revisions. Completed rewrites open the comparison automatically; conflict-paused sessions are completed after Continue. Records survive app restarts and can be deleted explicitly. Custom base/tip ranges are supported. Requires Git 2.19+; matching is heuristic, merge commits are excluded, and each range is limited to 500 non-merge commits.
 - **Interactive Mutations**: Soft, mixed, or hard reset to any historical commit.
 - **Rebase Helpers**: Revert commits, drop commits, and edit commit messages without writing complex rebase scripts by hand.
 - **Patch Application**: Apply individual commit patches onto your current working branch.
@@ -163,6 +165,8 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 ---
 
 ## 🧪 Manual Testing Playground
+
+See [Advanced Git workflows](docs/advanced-features.md) for hosted reviews, restore points, conflict memory, and before/after rewrite comparisons.
 
 Create disposable repositories with realistic history, staged and unstaged edits, stashes, tags, local remotes, submodules, a linked worktree, and ready-to-resolve merge/rebase/cherry-pick conflicts:
 

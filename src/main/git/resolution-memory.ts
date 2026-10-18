@@ -15,7 +15,7 @@ export async function resolutionMemoryState(repo: string): Promise<ResolutionMem
   const entries = await fs.readdir(cache).catch(() => []);
   let remembered = 0;
   for (const entry of entries.filter(e => /^[a-f0-9]{40,64}$/.test(e))) {
-    if ((await fs.readdir(path.join(cache, entry))).some(f => /^postimage(?:\.\d+)?$/.test(f))) remembered++;
+    if ((await fs.readdir(path.join(cache, entry)).catch(() => [])).some(f => /^postimage(?:\.\d+)?$/.test(f))) remembered++;
   }
   return { enabled: enabled.trim() === 'true', gitAutomatic: automatic.trim() === 'true', remembered };
 }

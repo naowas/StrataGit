@@ -120,7 +120,7 @@ export function PullRequestsModal() {
       current = false;
       loadId.current++;
     };
-  }, [isOpen, branches.local, loadContext]);
+  }, [isOpen, repoPath, loadContext]);
 
   useEffect(() => {
     if (!context) return;

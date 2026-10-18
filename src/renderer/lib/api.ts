@@ -134,6 +134,9 @@ const createMockApi = (): Api & StrataGitApi => {
 
     getPullReview: async () => { throw new Error('Hosted reviews require the desktop app and a configured provider.'); },
     getResolutionMemory: async () => ({ enabled: false, gitAutomatic: false, remembered: 0 }),
+    listRewriteSessions: async () => [],
+    compareCommitRanges: async () => { throw new Error('Range comparisons require Git in the desktop app.'); },
+    deleteRewriteSession: async () => { throw new Error('Rewrite records require the desktop app.'); },
     setResolutionMemory: async () => { throw new Error('Conflict memory requires the desktop app.'); },
     getResolutionSuggestion: async () => ({ enabled: false, content: null, snapshot: '' }),
     forgetResolution: async () => { throw new Error('Conflict memory requires the desktop app.'); },

@@ -170,10 +170,14 @@ export interface PullReviewSubmission extends PullReviewTarget {
   head: string;
   action: 'comment' | 'approve' | 'request-changes';
   body: string;
+  changeRequestMode?: 'native' | 'discussion';
   inline?: { path: string; line: number; side: 'old' | 'new' };
   replyTo?: { id: string; threadId?: string };
 }
 export interface AdvancedGitApi {
+  listRewriteSessions(): Promise<RewriteSession[]>;
+  compareCommitRanges(input: RangeComparisonInput): Promise<RangeComparison>;
+  deleteRewriteSession(id: string): Promise<{ ok: boolean }>;
   getResolutionMemory(): Promise<ResolutionMemoryState>;
   setResolutionMemory(enabled: boolean): Promise<ResolutionMemoryState>;
   getResolutionSuggestion(filePath: string): Promise<{ enabled: boolean; content: string | null; snapshot: string }>;
@@ -187,6 +191,17 @@ export interface AdvancedGitApi {
 }
 
 export interface ResolutionMemoryState { enabled: boolean; gitAutomatic: boolean; remembered: number }
+
+export interface RangeComparisonInput { oldBase: string; oldTip: string; newBase: string; newTip: string }
+export interface RewriteSession extends Omit<RangeComparisonInput, 'newTip'> {
+  id: string; worktree: string; branch: string; operation: string; createdAt: string;
+  status: 'running' | 'paused' | 'completed' | 'aborted' | 'failed' | 'ended';
+  newTip?: string; newBaseRef?: string; finishedAt?: string; error?: string;
+}
+export interface RangeComparison extends RangeComparisonInput {
+  entries: { before: number | null; after: number | null; oldHash?: string; newHash?: string; kind: 'unchanged' | 'changed' | 'added' | 'removed'; subject: string; patch: string }[];
+  raw: string; warning: string; beforeCount: number; afterCount: number;
+}
 
 export interface RestorePoint {
   id: string;

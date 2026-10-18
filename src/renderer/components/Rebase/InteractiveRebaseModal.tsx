@@ -80,11 +80,12 @@ export function InteractiveRebaseModal() {
     try {
       const res = await api.executeInteractiveRebase(baseCommit, steps);
       setExecuting(false);
+      await useApp.getState().refresh();
       if (res.ok) {
         notify('success', 'Interactive rebase completed successfully');
         close();
-        // Refresh git graph
-        window.location.reload();
+        const rewriteId = (res as { rewriteId?: string }).rewriteId;
+        if (rewriteId) useApp.setState({ rangeComparisonOpen: true, rangeComparisonId: rewriteId });
       } else {
         if (res.hasConflicts) {
           const op = await api.getRepoOperationState();

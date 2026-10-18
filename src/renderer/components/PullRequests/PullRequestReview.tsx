@@ -33,6 +33,15 @@ export function PullRequestReview({ request, target, onClose }: { request: Hoste
     finally { if (mounted.current && generation.current === id) setLoading(false); }
   };
   useEffect(() => { mounted.current = true; void load(); return () => { mounted.current = false; generation.current++; }; }, []);
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (!saving && (!body.trim() || window.confirm('Discard your unpublished review message?'))) onClose();
+    };
+    window.addEventListener('keydown', handleEscape, true);
+    return () => window.removeEventListener('keydown', handleEscape, true);
+  }, [saving, body, onClose]);
   const file = data?.files.find(f => f.path === filePath);
   const lines = file ? reviewDiffLines(file.patch) : [];
   const submit = async (event: React.FormEvent) => {
@@ -40,7 +49,7 @@ export function PullRequestReview({ request, target, onClose }: { request: Hoste
     if (!data || saving) return;
     setSaving(true); setMessage('');
     try {
-      const result = await api.submitPullReview({ ...target, head: data.head, action, body, inline, replyTo });
+      const result = await api.submitPullReview({ ...target, head: data.head, action, body, inline, replyTo, changeRequestMode: data.changeRequestMode });
       if (!mounted.current) return;
       setMessage(result.message); setBody(''); setInline(undefined); setReplyTo(undefined); setAction('comment');
       await load();
@@ -50,7 +59,7 @@ export function PullRequestReview({ request, target, onClose }: { request: Hoste
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
     <div role="dialog" aria-modal="true" aria-label="Review pull request" className="flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-xl border border-edge bg-panel shadow-2xl">
       <header className="flex items-center gap-3 border-b border-edge p-4">
-        <button className="btn-secondary text-xs" onClick={onClose} disabled={saving}><ArrowLeft size={13} /> Requests</button>
+        <button className="btn-secondary text-xs" onClick={() => { if (!body.trim() || window.confirm('Discard your unpublished review message?')) onClose(); }} disabled={saving}><ArrowLeft size={13} /> Requests</button>
         <div className="min-w-0 flex-1"><h2 className="truncate text-sm font-semibold">#{request.id} {request.title}</h2><p className="text-xs text-dim">{request.sourceBranch} → {request.targetBranch} · {data?.head.slice(0, 8) || 'Loading…'}</p></div>
         <a className="btn-secondary text-xs" href={safeUrl(request.url)} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Provider</a>
         <button className="btn-icon" title="Refresh review" disabled={loading || saving} onClick={() => void load()}>{loading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}</button>
