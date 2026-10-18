@@ -1285,8 +1285,8 @@ export function SettingsPage() {
 
                 {/* Test Generation */}
                 <div className="rounded-xl border border-edge bg-panel2/50 p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="min-w-0 flex-1 basis-56">
                       <span className="text-xs font-semibold text-fg block">Test Connection</span>
                       <span className="text-[11px] text-dim">
                         Validate that your model provider is responding properly
@@ -1295,17 +1295,18 @@ export function SettingsPage() {
                     <button
                       type="button"
                       disabled={testGenerating}
+                      aria-busy={testGenerating}
                       onClick={handleTestAi}
-                      className="btn-primary !text-xs !py-1.5 flex items-center gap-2"
+                      className="btn-secondary min-h-8 !px-3.5 !py-2 !text-xs"
                     >
                       {testGenerating ? (
                         <>
-                          <Loader2 size={13} className="animate-spin" />
-                          <span>Generating...</span>
+                          <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+                          <span>Testing...</span>
                         </>
                       ) : (
                         <>
-                          <Sparkles size={13} />
+                          <Sparkles size={13} aria-hidden="true" />
                           <span>Test AI Model</span>
                         </>
                       )}

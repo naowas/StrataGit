@@ -102,7 +102,7 @@ function BranchRow({
       onContextMenu={onContextMenu}
       title={
         current
-          ? `${name} (Active Branch - click for options, right-click for actions)`
+          ? `${name} (Active branch — click to inspect, right-click for actions)`
           : tracking
           ? `${name} → ${tracking} (Double-click to checkout, right-click for actions)`
           : `${name} (Double-click to checkout, right-click for actions)`
@@ -390,6 +390,7 @@ function SidebarFull({
   const [checkoutTarget, setCheckoutTarget] = useState<CheckoutTarget | null>(null);
 
   const currentBranchName = status?.currentBranch || 'HEAD';
+  const isCurrentLocalBranch = (branch: BranchInfo) => branch.isCurrent || branch.name === currentBranchName;
 
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -408,16 +409,15 @@ function SidebarFull({
   const handleLocalBranchContextMenu = (e: React.MouseEvent, b: BranchInfo) => {
     e.preventDefault();
     e.stopPropagation();
-    const isCurrent = b.isCurrent;
+    const isCurrent = isCurrentLocalBranch(b);
 
     const items: ContextMenuItem[] = [
       {
         label: isCurrent ? `Checkout "${b.name}" (Active)` : `Checkout "${b.name}"`,
         icon: <GitBranch size={13} />,
+        disabled: isCurrent,
         onClick: () => {
-          if (isCurrent) {
-            notify('info', `Branch "${b.name}" is already your active branch`);
-          } else {
+          if (!isCurrent) {
             void runAndRefresh(() => api.checkoutBranch(b.fullName), `Checked out ${b.name}`);
           }
         }
@@ -917,13 +917,17 @@ function SidebarFull({
             <BranchRow
               key={`local:${b.fullName}:${i}`}
               name={b.name}
-              current={b.isCurrent}
+              current={isCurrentLocalBranch(b)}
               tracking={b.tracking}
               onClick={() => {
                 const targetCommit = log?.commits?.find((c) =>
                   c.refs?.some((r) => r.label === b.name || r.label === b.fullName)
                 );
                 if (targetCommit) void selectCommit(targetCommit.hash);
+                if (isCurrentLocalBranch(b)) {
+                  setCheckoutTarget(null);
+                  return;
+                }
                 setCheckoutTarget({
                   name: b.name,
                   fullName: b.fullName,
@@ -933,9 +937,8 @@ function SidebarFull({
                 });
               }}
               onDoubleClick={() => {
-                if (b.isCurrent) {
-                  notify('info', `Branch "${b.name}" is already checked out`);
-                } else {
+                setCheckoutTarget(null);
+                if (!isCurrentLocalBranch(b)) {
                   void runAndRefresh(() => api.checkoutBranch(b.fullName), `Checked out ${b.name}`);
                 }
               }}
@@ -981,6 +984,7 @@ function SidebarFull({
                   });
                 }}
                 onDoubleClick={() => {
+                  setCheckoutTarget(null);
                   void runAndRefresh(
                     () => api.checkoutBranch(b.name),
                     `Checked out ${shortName}`

@@ -86,7 +86,7 @@ export function UsageGuideModal({ onClose }: UsageGuideModalProps) {
               <div>
                 <span className="font-semibold text-fg">Single Click to Inspect</span>
                 <p className="text-dim text-[11px]">
-                  Clicking any branch focuses its latest commit in the graph and opens branch options.
+                  Clicking a branch focuses its latest commit. Other branches offer checkout confirmation; the active branch stays in view without a dialog.
                 </p>
               </div>
             </div>
