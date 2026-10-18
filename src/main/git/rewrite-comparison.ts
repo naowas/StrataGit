@@ -112,6 +112,15 @@ export async function listRewriteSessions(repo: string) {
   return records(repo);
 }
 
+export async function recordCompletedRewrite(repo: string, input: { operation: string; branch: string; oldBase?: string; newBase?: string; oldTip: string; newTip: string }) {
+  const oldBase = input.oldBase || await emptyBase(repo);
+  const session: RewriteSession = { ...input, id: randomUUID(), worktree: await fs.realpath(repo), oldBase, newBase: input.newBase || oldBase, createdAt: new Date().toISOString(), finishedAt: new Date().toISOString(), status: 'completed' };
+  const git = gitFor(repo), root = refRoot(session.id);
+  for (const [key, hash] of [['old-base', session.oldBase], ['old-tip', session.oldTip], ['new-base', session.newBase], ['new-tip', session.newTip!]]) await git.raw(['update-ref', `${root}/${key}`, hash, '']);
+  await store(repo, session);
+  return session.id;
+}
+
 export async function deleteRewriteSession(repo: string, id: string) {
   refRoot(id);
   const session = (await records(repo)).find(s => s.id === id);

@@ -915,6 +915,7 @@ export function CommitGraph() {
         onSubmit: (m) => void runAndRefresh(() => api.editCommitMessage(commit.hash, m), 'Commit message updated')
       }
     },
+    { label: 'Split into smaller commits…', icon: <GitBranch size={13} />, onClick: () => { void useApp.getState().selectCommit(commit.hash); useApp.setState({ commitSplitOpen: true }); } },
     {
       label: 'Revert commit',
       icon: <XCircle size={13} />,

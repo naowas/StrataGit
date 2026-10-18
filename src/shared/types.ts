@@ -175,6 +175,11 @@ export interface PullReviewSubmission extends PullReviewTarget {
   replyTo?: { id: string; threadId?: string };
 }
 export interface AdvancedGitApi {
+  getCommitSplit(hash: string): Promise<CommitSplitPlan>;
+  listCommitSplitPreviews(): Promise<CommitSplitPreview[]>;
+  previewCommitSplit(input: CommitSplitInput): Promise<CommitSplitPreview>;
+  applyCommitSplit(id: string): Promise<{ ok: boolean; rewriteId?: string; warning?: string }>;
+  discardCommitSplit(id: string): Promise<{ ok: boolean }>;
   openPullRequestWorktree(input: PullReviewTarget & { head: string; directory: string; branch: string }): Promise<{ ok: boolean; path: string; branch: string }>;
   listPinnedRepos(): Promise<string[]>;
   pinRepository(repoPath: string, pinned: boolean): Promise<string[]>;
@@ -193,6 +198,13 @@ export interface AdvancedGitApi {
   getPullReview(target: PullReviewTarget): Promise<PullReviewDetail>;
   submitPullReview(params: PullReviewSubmission): Promise<{ ok: boolean; message: string }>;
 }
+
+export interface CommitSplitPlan {
+  hash: string; head: string; branch: string; parent: string; message: string; descendantCount: number;
+  units: { id: string; file: string; label: string; patch: string }[];
+}
+export interface CommitSplitInput { hash: string; head: string; groups: { message: string; units: string[] }[] }
+export interface CommitSplitPreview { id: string; oldHead: string; newHead: string; branch: string; descendantCount: number; commits: { hash: string; message: string; files: string[] }[] }
 
 export interface RepositoryOverview {
   path: string; branch: string; changed: number; staged: number; conflicts: number;

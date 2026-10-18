@@ -106,6 +106,7 @@ import { getPullRequestContext, createHostedPullRequest } from './git/pull-reque
 import { getPullReview, submitPullReview } from './git/pull-request-review';
 import { pinnedRepositories, pinRepository, repositoryOverview } from './git/repository-dashboard';
 import { openPullRequestWorktree } from './git/pull-request-worktree';
+import { getCommitSplit, previewCommitSplit, applyCommitSplit, discardCommitSplit, listCommitSplitPreviews } from './git/commit-split';
 import { createRestorePoint, listRestorePoints, restorePoint, deleteRestorePoint } from './git/restore-points';
 import { resolutionMemoryState, setResolutionMemory, captureResolutionMemory } from './git/resolution-memory';
 import { beginRewrite, finishRewrite, rewriteActions, listRewriteSessions, compareCommitRanges, deleteRewriteSession } from './git/rewrite-comparison';
@@ -184,7 +185,7 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
             }
             finally { if (repo && writes.has(channel)) await captureResolutionMemory(repo).catch(() => {}); }
           };
-          if (!repo || !(writes.has(channel) || /^git:(restore-points|rerere|rewrite|pr-worktree):/.test(channel))) return run();
+          if (!repo || !(writes.has(channel) || /^git:(restore-points|rerere|rewrite|pr-worktree|split):/.test(channel))) return run();
           // Snapshot and its action share one write queue, including staging operations.
           const lockKey = await fs.promises.realpath(repo);
           const previous = pendingWrites.get(lockKey) || Promise.resolve();
@@ -737,6 +738,11 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
   // Hosted pull request / merge request providers
   handle('git:pull-review:get', async (target: import('../shared/types').PullReviewTarget) => getPullReview(requireRepo(), target, getPullRequestCredential));
   handle('git:pr-worktree:create', async (input: import('../shared/types').PullReviewTarget & { head: string; directory: string; branch: string }) => openPullRequestWorktree(requireRepo(), input, getPullRequestCredential));
+  handle('git:split:plan', async (hash: string) => getCommitSplit(requireRepo(), hash));
+  handle('git:split:list', async () => listCommitSplitPreviews(requireRepo()));
+  handle('git:split:preview', async (input: import('../shared/types').CommitSplitInput) => previewCommitSplit(requireRepo(), input));
+  handle('git:split:apply', async (id: string) => applyCommitSplit(requireRepo(), id));
+  handle('git:split:discard', async (id: string) => discardCommitSplit(requireRepo(), id));
   handle('git:pull-review:submit', async (params: import('../shared/types').PullReviewSubmission) => submitPullReview(requireRepo(), params, getPullRequestCredential));
   handle('git:pull-requests:credentials', async () => getPullRequestCredentialStatus());
 

@@ -134,6 +134,11 @@ const createMockApi = (): Api & StrataGitApi => {
 
     getPullReview: async () => { throw new Error('Hosted reviews require the desktop app and a configured provider.'); },
     listPinnedRepos: async () => [],
+    getCommitSplit: async () => { throw new Error('Commit splitting requires the desktop app.'); },
+    listCommitSplitPreviews: async () => [],
+    previewCommitSplit: async () => { throw new Error('Commit splitting requires the desktop app.'); },
+    applyCommitSplit: async () => { throw new Error('Commit splitting requires the desktop app.'); },
+    discardCommitSplit: async () => { throw new Error('Commit splitting requires the desktop app.'); },
     openPullRequestWorktree: async () => { throw new Error('PR worktrees require the desktop app.'); },
     pinRepository: async () => { throw new Error('Pinning repositories requires the desktop app.'); },
     getRepositoryOverview: async () => { throw new Error('The repository dashboard requires the desktop app.'); },

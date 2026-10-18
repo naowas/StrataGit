@@ -135,6 +135,11 @@ export type Api = import('../shared/types').AdvancedGitApi & {
 };
 
 const api: Api = {
+  getCommitSplit: hash => call('git:split:plan', hash),
+  listCommitSplitPreviews: () => call('git:split:list'),
+  previewCommitSplit: input => call('git:split:preview', input),
+  applyCommitSplit: id => call('git:split:apply', id),
+  discardCommitSplit: id => call('git:split:discard', id),
   openPullRequestWorktree: input => call('git:pr-worktree:create', input),
   listPinnedRepos: () => call('dashboard:pins'),
   pinRepository: (repo, pinned) => call('dashboard:pin', repo, pinned),
