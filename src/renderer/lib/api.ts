@@ -134,6 +134,11 @@ const createMockApi = (): Api & StrataGitApi => {
 
     getPullReview: async () => { throw new Error('Hosted reviews require the desktop app and a configured provider.'); },
     listPinnedRepos: async () => [],
+    getSparseCheckout: async () => { throw new Error('Sparse checkout requires the desktop app.'); },
+    getSparseDirectories: async () => { throw new Error('Sparse checkout requires the desktop app.'); },
+    previewSparseCheckout: async () => { throw new Error('Sparse checkout requires the desktop app.'); },
+    applySparseCheckout: async () => { throw new Error('Sparse checkout requires the desktop app.'); },
+    restoreSparseLayout: async () => { throw new Error('Sparse checkout requires the desktop app.'); },
     getLfsState: async () => ({ repo: '', installed: false, configured: false, version: '', head: '', remotes: [], patterns: [], files: [], totalFiles: 0, warning: 'Git LFS requires the desktop app.' }),
     configureLfs: async () => { throw new Error('Git LFS requires the desktop app.'); },
     setLfsTracking: async () => { throw new Error('Git LFS requires the desktop app.'); },

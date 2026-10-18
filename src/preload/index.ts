@@ -135,6 +135,11 @@ export type Api = import('../shared/types').AdvancedGitApi & {
 };
 
 const api: Api = {
+  getSparseCheckout: () => call('git:sparse:get'),
+  getSparseDirectories: (prefix, head) => call('git:sparse:directories', prefix, head),
+  previewSparseCheckout: input => call('git:sparse:preview', input),
+  applySparseCheckout: input => call('git:sparse:apply', input),
+  restoreSparseLayout: (id, head, fingerprint) => call('git:sparse:restore', id, head, fingerprint),
   getLfsState: () => call('git:lfs-state'),
   configureLfs: skip => call('git:lfs:configure', skip),
   setLfsTracking: (pattern, tracked, literal) => call('git:lfs:track', pattern, tracked, literal),

@@ -12,6 +12,7 @@ import { StatusBar } from './components/StatusBar/StatusBar';
 import { Launchpad } from './components/Launchpad/Launchpad';
 import { RepositoryDashboard } from './components/Repository/RepositoryDashboard';
 import { LfsManagerModal } from './components/Repository/LfsManagerModal';
+import { SparseCheckoutModal } from './components/Repository/SparseCheckoutModal';
 import { SettingsPage } from './components/Settings/SettingsPage';
 import { AppLoadingScreen } from './components/Loading/AppLoadingScreen';
 import { RepoOpeningAnimation } from './components/Loading/RepoOpeningAnimation';
@@ -215,6 +216,7 @@ export function App() {
       <CommitSplitModal />
       <BranchStackModal />
       <LfsManagerModal />
+      <SparseCheckoutModal />
       <CreateTagModal />
       <AddRemoteModal />
       <CreateRepoModal />

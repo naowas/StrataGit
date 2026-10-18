@@ -37,6 +37,19 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 - **Launchpad Hub**: Clean welcome screen showing recently opened repositories with single-click access and quick removal.
 - **Frameless Window Chrome**: Integrated drag region, custom window controls, and repository switcher.
 
+### Advanced repository workflows
+
+| Feature | Where to open it |
+| --- | --- |
+| Pinned repository dashboard with changes, conflicts, ahead/behind and open requests | **Dashboard** tab |
+| Separate PR/MR review worktrees | Hosted review → **Open in worktree…** |
+| Visual commit splitting by file or hunk, with preview and restore point | Commit context menu or **Actions → Split Commit…** |
+| Stacked branch links, isolated restack previews and request retargeting | **Actions → Stacked Branches & PRs…** |
+| LFS tracking rules, asset inventory and cancellable transfers | **Actions → Git LFS Manager…** |
+| Sparse checkout folder picker, file preview and saved layouts | **Actions → Sparse Checkout…** |
+
+See [Advanced Git workflows](docs/advanced-features.md) for usage, recovery instructions and limits. Stacked restacks require Git 2.38+, sparse editing requires Git 2.37+, and LFS management requires a separately installed recent Git LFS. Rewrites remain local until you explicitly push; rewritten commits do not preserve cryptographic signatures.
+
 ### 🔍 Deep Commit Details & File Hierarchy
 - **Dual File Tree Views**: Toggle between a flat file path list and an expandable folder tree hierarchy.
 - **Change Badges**: Visual indicators for Added (`+`), Modified (`M`), Deleted (`-`), and Renamed (`R`) files with line additions/deletions.

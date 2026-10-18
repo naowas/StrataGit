@@ -109,6 +109,7 @@ import { openPullRequestWorktree } from './git/pull-request-worktree';
 import { getCommitSplit, previewCommitSplit, applyCommitSplit, discardCommitSplit, listCommitSplitPreviews } from './git/commit-split';
 import { getBranchStack, setStackParent, previewStackRestack, resumeStackRestack, applyStackRestack, discardStackRestack, retargetPullRequest } from './git/branch-stacks';
 import { getLfsState, configureLfs, setLfsTracking, runLfsTransfer, getLfsTransfer, cancelLfsTransfer, stopLfsTransfers } from './git/lfs-manager';
+import { getSparseCheckout, getSparseDirectories, previewSparseCheckout, applySparseCheckout, restoreSparseLayout } from './git/sparse-checkout';
 import { createRestorePoint, listRestorePoints, restorePoint, deleteRestorePoint } from './git/restore-points';
 import { resolutionMemoryState, setResolutionMemory, captureResolutionMemory } from './git/resolution-memory';
 import { beginRewrite, finishRewrite, rewriteActions, listRewriteSessions, compareCommitRanges, deleteRewriteSession } from './git/rewrite-comparison';
@@ -188,7 +189,7 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
             }
             finally { if (repo && writes.has(channel)) await captureResolutionMemory(repo).catch(() => {}); }
           };
-          if (!repo || !(writes.has(channel) || /^git:(restore-points|rerere|rewrite|pr-worktree|split|stack|lfs):/.test(channel))) return run();
+          if (!repo || !(writes.has(channel) || /^git:(restore-points|rerere|rewrite|pr-worktree|split|stack|lfs|sparse):/.test(channel))) return run();
           // Snapshot and its action share one write queue, including staging operations.
           const lockKey = await fs.promises.realpath(repo);
           const previous = pendingWrites.get(lockKey) || Promise.resolve();
@@ -744,6 +745,11 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
   handle('git:split:plan', async (hash: string) => getCommitSplit(requireRepo(), hash));
   handle('git:stack:get', async () => getBranchStack(requireRepo()));
   handle('git:lfs-state', async () => getLfsState(requireRepo()));
+  handle('git:sparse:get', async () => getSparseCheckout(requireRepo()));
+  handle('git:sparse:directories', async (prefix: string, head: string) => getSparseDirectories(requireRepo(), prefix, head));
+  handle('git:sparse:preview', async (input: import('../shared/types').SparseSelection) => previewSparseCheckout(requireRepo(), input));
+  handle('git:sparse:apply', async (input: import('../shared/types').SparseSelection) => applySparseCheckout(requireRepo(), input));
+  handle('git:sparse:restore', async (id: string, head: string, fingerprint: string) => restoreSparseLayout(requireRepo(), id, head, fingerprint));
   handle('git:lfs-transfer-state', async () => getLfsTransfer(requireRepo()));
   handle('git:lfs-cancel', async (id: string) => cancelLfsTransfer(requireRepo(), id));
   handle('git:lfs:configure', async (skip: boolean) => configureLfs(requireRepo(), !!skip));

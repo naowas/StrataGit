@@ -1,6 +1,6 @@
 # Advanced Git workflows
 
-All four workflows are available from **Actions**. Restore points, conflict memory, and rewrite comparison are also in the command palette. These are manual usage instructions; implementing these features did not run a test suite or typecheck.
+Repository workflows are available from **Actions** and the command palette. The multi-repository dashboard has its own top tab; PR worktrees are opened from a hosted review. These are manual usage instructions; implementing these features did not run a test suite or typecheck.
 
 ## 1. Review a hosted pull or merge request
 
@@ -93,3 +93,17 @@ Choose a configured remote and an explicit action: **Fetch to cache**, **Pull as
 Progress shows the current file, file count and bytes for that file. **Cancel transfer** terminates the process tree; partially downloaded/uploaded objects are retained for retry. Closing the manager keeps the operation running; reopen it in the same repository to inspect/cancel. Closing the app cancels active transfers. Operations time out after 30 minutes; provider quota/authentication errors are reported. No cache pruning or history migration runs automatically. Sparse/partial checkouts may require the relevant `.gitattributes` files to be present for LFS pulls.
 
 References: [Git LFS commands](https://github.com/git-lfs/git-lfs/tree/main/docs/man), [progress format](https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-config.adoc).
+
+## 10. Choose folders with sparse checkout
+
+Open **Actions → Sparse Checkout…** (also in the command palette). Requires Git 2.37+. Expand the lazy-loaded directory tree and select the folders to keep, or enter a repository-relative directory path. Selecting a parent includes its descendants. Cone mode also includes root files and files immediately inside ancestor folders; no selected directories means root files only. Individual files and submodule initialization are not controlled by this picker.
+
+**Preview selected folders** counts included/excluded index entries and files that will be populated or removed from the worktree; examples show up to 100 paths. Counts respect `core.ignoreCase`. The revision, sparse rules and index flags are fingerprinted; a stale preview is rejected. Apply requires a clean checkout with no active merge/rebase/cherry-pick. Non-ignored untracked files must be moved, committed or stashed first. Ignored files in directories at risk of pruning and existing files at paths that would be populated block Apply. Move the displayed blockers aside and preview again. The app never runs clean or force-overwrites those files.
+
+Apply saves a Git workspace restore point and a separate checkout-layout backup, then invokes Git's worktree-scoped sparse settings with a full index (no sparse-index extension). Excluded tracked files stay in history. LFS automatic downloads and recursive submodule updates are disabled for the layout change. Use the LFS manager afterward if you need full asset content. Sparse checkout reduces populated working files; it does not remove objects already downloaded to the Git database.
+
+**Preview full checkout** disables sparse rules and repopulates tracked files. **Saved layouts** shows the latest 50 backups and restores rules on the current revision, saving the current layout first. It does not switch branches or reset to the saved HEAD. Old cone folder names remain valid saved rules even if absent from the current tree. Backups are scoped to this worktree in `$GIT_DIR/stratagit-sparse-layouts/`; JSON includes the original raw rules for manual recovery. Workspace restore points and checkout layouts are separate because a Git snapshot does not preserve sparse configuration.
+
+Existing non-cone glob layouts are displayed without converting them silently. Restore a full checkout first before selecting folders; original rules are backed up. Restoring non-cone rules requires moving all ignored files aside, since the folder editor cannot predict arbitrary glob removals. Directory names containing control characters or backslashes require Git's command line. No tests, typecheck, or live sparse layout changes were run during this implementation.
+
+Reference: [Git sparse-checkout](https://git-scm.com/docs/git-sparse-checkout).

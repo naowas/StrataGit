@@ -175,6 +175,11 @@ export interface PullReviewSubmission extends PullReviewTarget {
   replyTo?: { id: string; threadId?: string };
 }
 export interface AdvancedGitApi {
+  getSparseCheckout(): Promise<SparseCheckoutState>;
+  getSparseDirectories(prefix: string, head: string): Promise<string[]>;
+  previewSparseCheckout(input: SparseSelection): Promise<SparsePreview>;
+  applySparseCheckout(input: SparseSelection): Promise<SparseCheckoutState>;
+  restoreSparseLayout(id: string, head: string, fingerprint: string): Promise<SparseCheckoutState>;
   getLfsState(): Promise<LfsState>;
   configureLfs(skipSmudge: boolean): Promise<LfsState>;
   setLfsTracking(pattern: string, tracked: boolean, literal?: boolean): Promise<LfsState>;
@@ -212,6 +217,14 @@ export interface AdvancedGitApi {
   getPullReview(target: PullReviewTarget): Promise<PullReviewDetail>;
   submitPullReview(params: PullReviewSubmission): Promise<{ ok: boolean; message: string }>;
 }
+
+export interface SparseLayoutSummary { id: string; createdAt: string; head: string; enabled: boolean; cone: boolean; directories: string[] }
+export interface SparseCheckoutState {
+  repo: string; version: string; supported: boolean; head: string; fingerprint: string; enabled: boolean; cone: boolean; ignoreCase: boolean;
+  directories: string[]; rawPatterns: string; backups: SparseLayoutSummary[]; warning?: string;
+}
+export interface SparseSelection { head: string; fingerprint: string; directories: string[]; disable: boolean }
+export interface SparsePreview extends SparseSelection { total: number; included: number; excluded: number; removed: number; added: number; removedExamples: string[]; addedExamples: string[]; blockers: string[] }
 
 export interface LfsState {
   repo: string; installed: boolean; version: string; configured: boolean; head: string; remotes: string[];
