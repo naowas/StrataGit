@@ -34,14 +34,14 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 
 ### 📑 Multi-Repository Workspace & Tabs
 - **Tabbed Browsing**: Seamlessly open and switch between multiple repositories in parallel tabs.
-- **Launchpad Hub**: Clean welcome screen showing recently opened repositories with single-click access and quick removal.
+- **Unified Home**: One page for opening/creating repositories, pinned status cards, recent projects, search, and provider setup. Pin projects directly from the recent list and resume an open workspace without reopening it.
 - **Frameless Window Chrome**: Integrated drag region, custom window controls, and repository switcher.
 
 ### Advanced repository workflows
 
 | Feature | Where to open it |
 | --- | --- |
-| Pinned repository dashboard with changes, conflicts, ahead/behind and open requests | **Dashboard** tab |
+| Pinned repository dashboard with changes, conflicts, ahead/behind and open requests | **Home → Pinned repositories** |
 | Separate PR/MR review worktrees | Hosted review → **Open in worktree…** |
 | Visual commit splitting by file or hunk, with preview and restore point | Commit context menu or **Actions → Split Commit…** |
 | Stacked branch links, isolated restack previews and request retargeting | **Actions → Stacked Branches & PRs…** |
@@ -131,7 +131,7 @@ See [Advanced Git workflows](docs/advanced-features.md) for usage, recovery inst
                            │
 ┌──────────────────────────▼─────────────────────────────┐
 │                  React 19 Renderer Process             │
-│  - TabBar & Launchpad State (Zustand)                  │
+│  - TabBar & Home State      (Zustand)                  │
 │  - SVG Commit Strata Graph Renderer                   │
 │  - Diff Viewer & File Tree Hierarchy                   │
 │  - Theme & Typography Engine (CSS Vars / Tailwind v4)  │
@@ -249,7 +249,7 @@ npm run build
 | <kbd>Ctrl</kbd> + <kbd>F</kbd> / <kbd>Cmd</kbd> + <kbd>F</kbd> | Filter / Search Commits & Branches |
 | <kbd>Ctrl</kbd> + <kbd>R</kbd> / <kbd>Cmd</kbd> + <kbd>R</kbd> | Refresh Current Repository Status |
 | <kbd>Esc</kbd> | Close Diff Viewer / Dismiss Modals |
-| <kbd>Ctrl</kbd> + <kbd>T</kbd> / <kbd>Cmd</kbd> + <kbd>T</kbd> | Open New Tab / Return to Launchpad |
+| <kbd>Ctrl</kbd> + <kbd>T</kbd> / <kbd>Cmd</kbd> + <kbd>T</kbd> | Open Home (repositories & dashboard) |
 
 ---
 
@@ -273,7 +273,7 @@ stratagit/
 │   │   │   ├── CommitGraph/   # SVG visual commit strata graph
 │   │   │   ├── Common/        # Shared components (StrataLogo)
 │   │   │   ├── DiffViewer/    # Syntax-highlighted file & hunk diffs
-│   │   │   ├── Launchpad/     # Home workspace & recent repositories
+│   │   │   ├── Home/          # Recent repositories, pinned dashboard & quick actions
 │   │   │   ├── Loading/       # Smooth splash & initialization screen
 │   │   │   ├── Settings/      # Preferences & theme customizer
 │   │   │   ├── Sidebar/       # Branch, stash & remote tree navigation

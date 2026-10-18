@@ -32,7 +32,7 @@ export async function repositoryOverview(repo: string, hosted: boolean, getCrede
     Object.assign(result, { branch: status.current || 'Detached HEAD', changed: new Set(status.files.map(f => f.path)).size, staged: status.staged.length, conflicts: status.conflicted.length, ahead: status.ahead, behind: status.behind });
     if (hosted) {
       const context = await getPullRequestContext(repo, undefined, undefined, getCredential);
-      result.requests = context.pullRequests.map(({ id, title, url }) => ({ id, title, url }));
+      if (context.provider && context.credentialConfigured && !context.error) result.requests = context.pullRequests.map(({ id, title, url }) => ({ id, title, url }));
       result.hostedMessage = context.error || (!context.credentialConfigured ? 'Configure a provider account in Settings to load requests.' : 'Loaded requests from the provider (up to 100).');
     }
   } catch (error) { result.error = error instanceof Error ? error.message : String(error); }

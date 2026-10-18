@@ -11,11 +11,12 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     category: 'Navigation & Launchers',
     items: [
+      { keys: ['Ctrl+T', 'Cmd+T'], description: 'Open Home: recent repositories and pinned dashboard' },
       { keys: ['Ctrl+K', 'Cmd+K'], description: 'Open Command Palette' },
       { keys: ['Ctrl+P', 'Cmd+P'], description: 'Quick search / Go to file or commit' },
       { keys: ['Ctrl+`', 'Cmd+`'], description: 'Toggle embedded Terminal drawer' },
       { keys: ['Ctrl+B', 'Cmd+B'], description: 'Toggle left sidebar' },
-      { keys: ['Ctrl+F', 'Cmd+F'], description: 'Focus commit filter bar' },
+      { keys: ['Ctrl+F', 'Cmd+F'], description: 'Search repositories on Home or filter commits in a workspace' },
       { keys: ['Ctrl+,', 'Cmd+,'], description: 'Open Settings modal' },
       { keys: ['?'], description: 'Toggle keyboard shortcuts cheatsheet' }
     ]

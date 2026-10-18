@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GitBranch, ArrowUp, ArrowDown, Archive, Check, ChevronDown, ZoomIn, ZoomOut, Terminal, Search } from 'lucide-react';
+import { GitBranch, ArrowUp, ArrowDown, Archive, Check, ChevronDown, Home, Terminal, Search } from 'lucide-react';
 import { useApp } from '../../store';
 import { api } from '../../lib/api';
 import { Dropdown } from '../ui/Dropdown';
@@ -17,6 +17,9 @@ export function StatusBar() {
   const toggleTerminalDrawer = useApp((s) => s.toggleTerminalDrawer);
   const openCommandPalette = useApp((s) => s.openCommandPalette);
   const activeTab = useApp((s) => s.activeTab);
+  const homeOpen = useApp(s => s.homeOpen);
+  const tabCount = useApp(s => s.tabs.length);
+  const onHome = homeOpen || !activeTab;
   const ahead = status?.ahead ?? 0;
   const behind = status?.behind ?? 0;
   const branch = status?.currentBranch ?? '—';
@@ -32,6 +35,7 @@ export function StatusBar() {
 
   return (
     <div className="flex items-center gap-1 bg-panel border-t border-edge px-2 py-0.5 text-xs text-dim shrink-0">
+      {onHome ? <span className="flex items-center gap-2 px-1.5 py-0.5"><Home size={11} /><span>Home</span><span className="text-faint">· {tabCount} {tabCount === 1 ? 'repository' : 'repositories'} open</span></span> : <>
       <Dropdown
         trigger={
           <button className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-panel3 text-fg/90">
@@ -97,10 +101,11 @@ export function StatusBar() {
           </span>
         </span>
       )}
+      </>}
 
       <span className="flex-1" />
 
-      {activeTab && (
+      {!onHome && (
         <button
           onClick={() => toggleTerminalDrawer()}
           className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-xs select-none transition-colors ${
@@ -113,16 +118,14 @@ export function StatusBar() {
         </button>
       )}
 
-      {activeTab && (
-        <button
-          onClick={() => openCommandPalette()}
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-panel3 text-xs text-dim hover:text-fg select-none transition-colors"
-          title="Command Palette (Ctrl+K)"
-        >
-          <Search size={11} />
-          <span>⌘K</span>
-        </button>
-      )}
+      <button
+        onClick={() => openCommandPalette()}
+        className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-panel3 text-xs text-dim hover:text-fg select-none transition-colors"
+        title="Command Palette (Ctrl+K)"
+      >
+        <Search size={11} />
+        <span>⌘K</span>
+      </button>
 
       <span className="flex items-center gap-1.5 px-1.5 font-mono text-[11px] text-dim hover:text-fg transition-colors">
         <StrataLogo size={12} />

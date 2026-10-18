@@ -7,8 +7,7 @@ import {
   Minus,
   Square,
   Copy,
-  Settings,
-  LayoutDashboard
+  Settings
 } from 'lucide-react';
 import { useApp } from '../../store';
 import { useSettings } from '../../store/settings';
@@ -16,7 +15,7 @@ import { api } from '../../lib/api';
 import { StrataLogo } from '../Common/StrataLogo';
 
 export function TabBar() {
-  const { tabs, activeTab, setActiveTab, closeTab, dashboardOpen } = useApp();
+  const { tabs, activeTab, setActiveTab, closeTab, homeOpen, openHome } = useApp();
   const openSettings = useSettings((s) => s.openSettings);
   const closeSettings = useSettings((s) => s.closeSettings);
   const isSettingsOpen = useSettings((s) => s.isSettingsOpen);
@@ -60,28 +59,27 @@ export function TabBar() {
         className="flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0 py-1"
         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
       >
-        {/* Launchpad Tab */}
+        {/* Home combines recent repositories and the pinned dashboard. */}
         <button
           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            !isSettingsOpen && !dashboardOpen && (activeTab === null || activeTab === '')
+            !isSettingsOpen && (homeOpen || !activeTab)
               ? 'bg-panel2 text-accent shadow-sm border border-accent/40 font-semibold'
               : 'text-dim hover:text-fg hover:bg-panel2/60'
           }`}
           onClick={() => {
             closeSettings();
-            useApp.setState({ dashboardOpen: false });
-            useApp.getState().setActiveTab('');
+            openHome();
           }}
-          title="Launchpad"
+          title="Home — repositories and dashboard"
+          aria-current={!isSettingsOpen && (homeOpen || !activeTab) ? 'page' : undefined}
         >
-          <Home size={12} className={!isSettingsOpen && !dashboardOpen && (activeTab === null || activeTab === '') ? 'text-accent' : 'text-dim'} />
-          <span>Launchpad</span>
+          <Home size={13} />
+          <span>Home</span>
         </button>
 
-        <button className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md ${dashboardOpen && !isSettingsOpen ? 'bg-panel2 text-accent' : 'text-dim hover:text-fg hover:bg-panel2'}`} onClick={() => { closeSettings(); useApp.setState({ dashboardOpen: true }); }} title="Pinned repository dashboard"><LayoutDashboard size={13} />Dashboard</button>
         {/* Repository Tabs */}
         {tabs.map((t) => {
-          const isActive = !isSettingsOpen && !dashboardOpen && activeTab === t.path;
+          const isActive = !isSettingsOpen && !homeOpen && activeTab === t.path;
           return (
             <div
               key={t.path}
@@ -92,7 +90,6 @@ export function TabBar() {
               }`}
               onClick={() => {
                 closeSettings();
-            useApp.setState({ dashboardOpen: false });
                 setActiveTab(t.path);
               }}
               title={t.path}
@@ -136,7 +133,6 @@ export function TabBar() {
               onClick={(e) => {
                 e.stopPropagation();
                 closeSettings();
-            useApp.setState({ dashboardOpen: false });
               }}
               title="Close settings (Esc)"
             >
@@ -146,15 +142,15 @@ export function TabBar() {
           </div>
         )}
 
-        {/* New Tab / Launchpad Button */}
+        {/* Open another repository from Home. */}
         <button
           className="flex items-center justify-center w-7 h-7 rounded-md text-dim hover:text-fg hover:bg-panel2 transition-colors ml-0.5"
           onClick={() => {
             closeSettings();
-            useApp.setState({ dashboardOpen: false });
-            setActiveTab('');
+            openHome();
           }}
-          title="New Tab (Launchpad)"
+          title="Open another repository (Home)"
+          aria-label="Open another repository"
         >
           <Plus size={14} />
         </button>

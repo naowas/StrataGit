@@ -1,6 +1,6 @@
 # Advanced Git workflows
 
-Repository workflows are available from **Actions** and the command palette. The multi-repository dashboard has its own top tab; PR worktrees are opened from a hosted review. These are manual usage instructions; implementing these features did not run a test suite or typecheck.
+Repository workflows are available from **Actions** and the command palette. The multi-repository dashboard and recent repositories share the **Home** tab; PR worktrees are opened from a hosted review. These are manual usage instructions; implementing these features did not run a test suite or typecheck.
 
 ## 1. Review a hosted pull or merge request
 
@@ -48,9 +48,13 @@ Use the clean `history-playground` demo for reword/drop/squash operations. Resto
 
 ## 5. Monitor pinned repositories
 
-Open the **Dashboard** tab, then pin a recently opened repository. Pin choices persist locally (up to 50); they do not alter Git remotes. Local refresh reads each workspace independently with at most three concurrent scans. It shows branch, unique changed files, staged files, conflicts, and ahead/behind against the last fetched upstream. It never changes the active repository or runs fetch.
+Open **Home** to manage recent repositories and the pinned dashboard together. Use the pin button beside a recent repository to give it a status card; pinned entries move out of the recent list so each repository appears once. Unpinning returns it to the recent list if it is still in your history. Pin choices persist locally (up to 50), including existing pins from the former Dashboard page.
 
-**Refresh PRs / MRs** explicitly contacts the configured hosting provider and shows up to 100 loaded open requests. Configure credentials in Settings first. Provider errors are displayed per repository; PR information stays cached only while the dashboard is open and is not refreshed by a local scan. Click a repository name to open it. Missing folders remain pinned so you can unpin or reconnect them.
+Use the shared search to find repositories by name or path. **All pinned**, **With changes**, and **Needs attention** filter status cards; attention means conflicts or an unavailable folder. Cards show branch, changed/staged files, conflicts, and ahead/behind against the last fetched upstream. **Refresh** reads each pinned workspace with at most three concurrent scans. Opening Home and refreshing local status do not fetch or change the active repository. Your existing workspace stays selected in the background; click its tab or **Resume** to return without reopening it.
+
+**Check PRs / MRs** explicitly contacts the configured hosting provider and shows up to 100 loaded open requests per repository. Expand a card's request section for links and provider details. Connection/setup errors are shown separately from a successful empty request list. PR data stays cached while Home is open and local refresh does not replace it. Use **Connect your providers** to open the account settings.
+
+**Open repository**, **Create repository**, preferences and the usage guide are available on Home. Recent entries can be removed from the list without deleting repository files. **Ctrl/Cmd+T** and the command palette's **Go Home** action open the same page; **Ctrl/Cmd+F** focuses repository search there. Home uses a single navigation tab and switches to a stacked layout on smaller windows. Missing pinned folders stay visible so you can reconnect or unpin them.
 
 ## 6. Open a PR or MR in a worktree
 

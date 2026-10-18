@@ -87,7 +87,7 @@ interface AppState {
   bisectModalOpen: boolean;
   reflogModalOpen: boolean;
   restorePointsOpen: boolean;
-  dashboardOpen: boolean;
+  homeOpen: boolean;
   commitSplitOpen: boolean;
   branchStackOpen: boolean;
   lfsManagerOpen: boolean;
@@ -117,6 +117,7 @@ interface AppActions {
   openRepoDialog(): Promise<void>;
   closeTab(path: string): void;
   setActiveTab(path: string): void;
+  openHome(): void;
   refresh(): Promise<void>;
   loadMoreCommits(): Promise<void>;
   selectCommit(hash: string | null): Promise<void>;
@@ -250,7 +251,7 @@ export const useApp = create<AppStore>((set, get) => ({
   bisectModalOpen: false,
   reflogModalOpen: false,
   restorePointsOpen: false,
-  dashboardOpen: false,
+  homeOpen: false,
   commitSplitOpen: false,
   branchStackOpen: false,
   lfsManagerOpen: false,
@@ -300,7 +301,7 @@ export const useApp = create<AppStore>((set, get) => ({
       const repo = res.repo;
       const tabs = [...get().tabs.filter((t) => t.path !== repo.path), { path: repo.path, name: repo.name }];
       const reset = resetRepositoryView(false);
-      set({ ...reset, tabs, activeTab: repo.path, openingRepoName: repo.name, isOpeningRepo: true });
+      set({ ...reset, tabs, activeTab: repo.path, homeOpen: false, openingRepoName: repo.name, isOpeningRepo: true });
       await get().refresh();
       if (request === openingRequest && options?.notifyOnSuccess !== false) {
         pendingNotification = { kind: 'success', message: `Opened ${repo.name}` };
@@ -368,10 +369,14 @@ export const useApp = create<AppStore>((set, get) => ({
   },
 
   setActiveTab(p) {
-    if (get().activeTab === p) return;
-    set({ ...resetRepositoryView(), activeTab: p });
+    if (get().activeTab === p) { set({ homeOpen: !p }); return; }
+    set({ ...resetRepositoryView(), activeTab: p, homeOpen: !p });
     api.setActiveRepo(p);
     void get().refresh();
+  },
+
+  openHome() {
+    set({ homeOpen: true });
   },
 
   async refresh() {

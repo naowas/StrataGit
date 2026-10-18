@@ -9,8 +9,7 @@ import { CommitGraph } from './components/CommitGraph/CommitGraph';
 import { CommitDetailPanel } from './components/CommitDetailPanel/CommitDetailPanel';
 import { DiffViewer } from './components/DiffViewer/DiffViewer';
 import { StatusBar } from './components/StatusBar/StatusBar';
-import { Launchpad } from './components/Launchpad/Launchpad';
-import { RepositoryDashboard } from './components/Repository/RepositoryDashboard';
+import { Home } from './components/Home/Home';
 import { LfsManagerModal } from './components/Repository/LfsManagerModal';
 import { SparseCheckoutModal } from './components/Repository/SparseCheckoutModal';
 import { SettingsPage } from './components/Settings/SettingsPage';
@@ -42,7 +41,7 @@ import { ToastContainer } from './components/Common/ToastContainer';
 
 export function App() {
   const activeTab = useApp((s) => s.activeTab);
-  const dashboardOpen = useApp(s => s.dashboardOpen);
+  const homeOpen = useApp(s => s.homeOpen);
   const init = useApp((s) => s.init);
   const usageGuideOpen = useApp((s) => s.usageGuideOpen);
   const gitFlowModalOpen = useApp((s) => s.gitFlowModalOpen);
@@ -134,6 +133,7 @@ export function App() {
 
   // Global keyboard shortcuts:
   // - Ctrl+K / Cmd+K or Ctrl+P / Cmd+P: Command Palette
+  // - Ctrl+T / Cmd+T: Home
   // - Ctrl+` / Cmd+`: Terminal Drawer
   // - Ctrl+, / Cmd+,: Settings
   // - Escape: Close command palette, modals, or open diff
@@ -143,7 +143,11 @@ export function App() {
       // The merge editor owns shortcuts while a draft is open.
       if (useApp.getState().conflictedFileToResolve) return;
       const isMod = e.ctrlKey || e.metaKey;
-      if (isMod && (e.key === 'k' || e.key === 'p')) {
+      if (isMod && e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        useSettings.getState().closeSettings();
+        useApp.getState().openHome();
+      } else if (isMod && (e.key === 'k' || e.key === 'p')) {
         e.preventDefault();
         useApp.getState().toggleCommandPalette();
       } else if (isMod && (e.key === '`' || e.key === '~')) {
@@ -154,7 +158,9 @@ export function App() {
         useApp.getState().toggleSidebar();
       } else if (isMod && e.key === 'f') {
         e.preventDefault();
-        const searchInput = document.querySelector('input[placeholder*="Filter commits"]') as HTMLInputElement;
+        const state = useApp.getState();
+        const selector = state.homeOpen || !state.activeTab ? 'input[aria-label="Search repositories"]' : 'input[placeholder*="Filter commits"]';
+        const searchInput = document.querySelector<HTMLInputElement>(selector);
         searchInput?.focus();
         searchInput?.select();
       } else if (isMod && e.key === ',') {
@@ -189,9 +195,9 @@ export function App() {
       <TabBar />
       {isSettingsOpen ? (
         <SettingsPage />
-      ) : dashboardOpen ? (
-        <RepositoryDashboard />
-      ) : activeTab ? (
+      ) : homeOpen || !activeTab ? (
+        <Home />
+      ) : (
         <div key={activeTab} className="flex-1 flex flex-col min-h-0 animate-in fade-in duration-300">
           <Toolbar />
           <ConflictBanner />
@@ -205,8 +211,6 @@ export function App() {
           </div>
           <TerminalDrawer />
         </div>
-      ) : (
-        <Launchpad />
       )}
       <StatusBar />
       <ConflictResolverModal />
