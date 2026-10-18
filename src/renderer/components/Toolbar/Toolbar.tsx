@@ -408,6 +408,7 @@ export function Toolbar() {
                   useApp.getState().openReflogModal();
                 }}
               />
+              <MenuItem icon={<Undo2 size={14} />} label="Restore Points…" disabled={!hasRepo} onClick={() => { close(); useApp.setState({ restorePointsOpen: true }); }} />
               <MenuItem
                 icon={<History size={14} />}
                 label="Refresh"

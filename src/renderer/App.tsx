@@ -27,6 +27,7 @@ import { GitFlowModal } from './components/GitFlow/GitFlowModal';
 import { MergeSimulationModal } from './components/ConflictResolver/MergeSimulationModal';
 import { BisectModal } from './components/Bisect/BisectModal';
 import { ReflogModal } from './components/Reflog/ReflogModal';
+import { RestorePointsModal } from './components/Reflog/RestorePointsModal';
 import { ChangelogModal } from './components/Changelog/ChangelogModal';
 import { WorktreesModal } from './components/Worktrees/WorktreesModal';
 import { PullRequestsModal } from './components/PullRequests/PullRequestsModal';
@@ -208,6 +209,7 @@ export function App() {
       <MergeSimulationModal />
       <BisectModal />
       <ReflogModal />
+      <RestorePointsModal />
       <ChangelogModal />
       <WorktreesModal />
       <PullRequestsModal />

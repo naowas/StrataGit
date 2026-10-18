@@ -220,13 +220,13 @@ export async function getLog(repoPath: string, status: GitStatus | null, limit =
   const [logOut, headOut, countOut] = await Promise.all([
     execFileP(
       'git',
-      ['log', `--pretty=tformat:${LOG_FORMAT}${REC_SEP}`, '--all', '-n', String(limit)],
+      ['log', `--pretty=tformat:${LOG_FORMAT}${REC_SEP}`, '--exclude=refs/stratagit/*', '--all', '-n', String(limit)],
       base
     ),
     execFileP('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repoPath }).catch(
       () => ({ stdout: '' })
     ),
-    execFileP('git', ['rev-list', '--count', '--all'], { cwd: repoPath }).catch(
+    execFileP('git', ['rev-list', '--count', '--exclude=refs/stratagit/*', '--all'], { cwd: repoPath }).catch(
       () => ({ stdout: '' })
     )
   ]);
@@ -239,7 +239,7 @@ export async function getLog(repoPath: string, status: GitStatus | null, limit =
   // Decorations (%d) give us branches/tags/HEAD per commit (tab-separated; NUL not allowed in execFile args)
   const dec = await execFileP(
     'git',
-    ['log', '--pretty=format:%H%x09%d', '--all', '-n', String(limit)],
+    ['log', '--pretty=format:%H%x09%d', '--exclude=refs/stratagit/*', '--all', '-n', String(limit)],
     base
   ).catch(() => ({ stdout: '' }));
   const refMap = new Map<string, string>();

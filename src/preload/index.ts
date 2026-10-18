@@ -135,6 +135,10 @@ export type Api = import('../shared/types').AdvancedGitApi & {
 };
 
 const api: Api = {
+  listRestorePoints: () => call('git:restore-points:list'),
+  createRestorePoint: (label) => call('git:restore-points:create', label),
+  restorePoint: (id) => call('git:restore-points:restore', id),
+  deleteRestorePoint: (id) => call('git:restore-points:delete', id),
   getPullReview: (target) => call('git:pull-review:get', target),
   submitPullReview: (params) => call('git:pull-review:submit', params),
   getAppUpdateState: () => call('app-update:get-state'),

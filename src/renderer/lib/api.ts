@@ -133,6 +133,10 @@ const createMockApi = (): Api & StrataGitApi => {
     }),
 
     getPullReview: async () => { throw new Error('Hosted reviews require the desktop app and a configured provider.'); },
+    listRestorePoints: async () => [],
+    createRestorePoint: async () => { throw new Error('Restore points require a local repository in the desktop app.'); },
+    restorePoint: async () => { throw new Error('Restore points require a local repository in the desktop app.'); },
+    deleteRestorePoint: async () => { throw new Error('Restore points require a local repository in the desktop app.'); },
     submitPullReview: async () => { throw new Error('Hosted reviews require the desktop app and a configured provider.'); },
     getReflog: async () => mockCommits.map((commit, index) => ({
       hash: commit.hash,

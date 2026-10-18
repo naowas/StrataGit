@@ -67,6 +67,8 @@ Inspired by modern visual Git workflows, StrataGit combines the responsiveness o
 - Line endings are preserved. Changed files or index entries detected during a save require a reload, and unapplied edits are confirmed before closing or switching files.
 
 ### 🛟 Reflog & Recovery
+- **Actions → Restore Points** saves HEAD, the staged/unstaged split, and non-ignored untracked files. Points are created before reset, discard, pull, and history rewrites; a failed snapshot prevents the destructive action. Manual points work without clearing your working tree or adding stash entries.
+- Inspect the saved status, then restore into a new recovery branch from a clean workspace. Saved points stay available until explicitly deleted. Private Git refs protect their objects from garbage collection and are excluded from the commit graph. Ignored files and submodule working directories are excluded; conflicted indexes cannot be saved.
 - Browse recent local `HEAD` and reference movements to find commits hidden by a reset, rebase, or deleted branch.
 - Create a recovery branch at any reflog entry to keep that commit reachable.
 - Restore the current branch to a selected entry after confirming; StrataGit first creates a safety branch at the current tip and requires a clean working tree.

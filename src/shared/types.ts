@@ -174,8 +174,24 @@ export interface PullReviewSubmission extends PullReviewTarget {
   replyTo?: { id: string; threadId?: string };
 }
 export interface AdvancedGitApi {
+  listRestorePoints(): Promise<RestorePoint[]>;
+  createRestorePoint(label?: string): Promise<RestorePoint>;
+  restorePoint(id: string): Promise<{ ok: boolean; branch: string }>;
+  deleteRestorePoint(id: string): Promise<{ ok: boolean }>;
   getPullReview(target: PullReviewTarget): Promise<PullReviewDetail>;
   submitPullReview(params: PullReviewSubmission): Promise<{ ok: boolean; message: string }>;
+}
+
+export interface RestorePoint {
+  id: string;
+  label: string;
+  createdAt: string;
+  branch: string;
+  head: string;
+  unborn: boolean;
+  worktree: string;
+  untrackedCount: number;
+  status: string;
 }
 
 export interface SubmoduleInfo {

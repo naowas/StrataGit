@@ -104,6 +104,7 @@ import { generateChangelog } from './git/changelog';
 import { getReflog, createRecoveryBranch, restoreHeadFromReflog } from './git/reflog';
 import { getPullRequestContext, createHostedPullRequest } from './git/pull-requests';
 import { getPullReview, submitPullReview } from './git/pull-request-review';
+import { createRestorePoint, listRestorePoints, restorePoint, deleteRestorePoint } from './git/restore-points';
 import {
   getPullRequestCredential,
   getPullRequestCredentialStatus,
@@ -146,11 +147,34 @@ function writeRecent(list: string[]) {
 
 export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => string | null) {
   const requestRepo = new AsyncLocalStorage<string | null>();
+  const protectedActions: Record<string, string> = {
+    'git:reset-branch': 'Before reset', 'git:discard': 'Before discarding a file',
+    'git:discard-hunk': 'Before discarding a hunk', 'git:discard-lines': 'Before discarding lines',
+    'git:revert-hunk': 'Before reverting a hunk', 'git:stash-apply-file': 'Before applying a stashed file',
+    'git:rebase-branch': 'Before branch rebase', 'git:execute-interactive-rebase': 'Before interactive rebase',
+    'git:drop-commit': 'Before dropping a commit', 'git:move-commit-down': 'Before reordering a commit',
+    'git:edit-commit-message': 'Before rewriting a commit message', 'git:pull': 'Before pull'
+  };
+  const writes = new Set(['git:stage', 'git:unstage', 'git:stage-all', 'git:unstage-all', 'git:commit', 'git:merge', 'git:checkout', 'git:checkout-commit', 'git:stash', 'git:stash-pop', 'git:stash-apply', 'git:stage-hunk', 'git:unstage-hunk', 'git:stage-lines', 'git:unstage-lines', 'git:resolve-conflict-file', 'git:abort-operation', 'git:continue-operation', 'git:cherry-pick', 'git:reflog-restore-head', ...Object.keys(protectedActions)]);
+  const pendingWrites = new Map<string, Promise<unknown>>();
   type Handler = (...args: any[]) => Promise<unknown>;
   const handle = (channel: string, fn: Handler) => {
     ipcMain.handle(channel, async (_e, ...args) => {
       try {
-        return await requestRepo.run(getRepo(), () => fn(...args));
+        return await requestRepo.run(getRepo(), async () => {
+          const repo = requestRepo.getStore();
+          const run = async () => {
+            if (repo && protectedActions[channel]) await createRestorePoint(repo, `${protectedActions[channel]}${typeof args[0] === 'string' ? `: ${args[0]}` : ''}`);
+            return fn(...args);
+          };
+          if (!repo || !(writes.has(channel) || /^git:(restore-points|rerere):/.test(channel))) return run();
+          // Snapshot and its action share one write queue, including staging operations.
+          const previous = pendingWrites.get(repo) || Promise.resolve();
+          const current = previous.catch(() => {}).then(run);
+          pendingWrites.set(repo, current);
+          try { return await current; }
+          finally { if (pendingWrites.get(repo) === current) pendingWrites.delete(repo); }
+        });
       } catch (err) {
         return { __error: errorMessage(err) };
       }
@@ -331,6 +355,10 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
   });
 
   handle('git:status', async (): Promise<GitStatus> => getStatus(requireRepo()));
+  handle('git:restore-points:list', async () => listRestorePoints(requireRepo()));
+  handle('git:restore-points:create', async (label?: string) => createRestorePoint(requireRepo(), label));
+  handle('git:restore-points:restore', async (id: string) => restorePoint(requireRepo(), id));
+  handle('git:restore-points:delete', async (id: string) => { await deleteRestorePoint(requireRepo(), id); return { ok: true }; });
   handle('git:log', async (limit?: number): Promise<GraphResult> => {
     const repo = requireRepo();
     const st = await getStatus(repo).catch(() => null);
