@@ -11,6 +11,7 @@ import { DiffViewer } from './components/DiffViewer/DiffViewer';
 import { StatusBar } from './components/StatusBar/StatusBar';
 import { Launchpad } from './components/Launchpad/Launchpad';
 import { RepositoryDashboard } from './components/Repository/RepositoryDashboard';
+import { LfsManagerModal } from './components/Repository/LfsManagerModal';
 import { SettingsPage } from './components/Settings/SettingsPage';
 import { AppLoadingScreen } from './components/Loading/AppLoadingScreen';
 import { RepoOpeningAnimation } from './components/Loading/RepoOpeningAnimation';
@@ -213,6 +214,7 @@ export function App() {
       <RangeComparisonModal />
       <CommitSplitModal />
       <BranchStackModal />
+      <LfsManagerModal />
       <CreateTagModal />
       <AddRemoteModal />
       <CreateRepoModal />

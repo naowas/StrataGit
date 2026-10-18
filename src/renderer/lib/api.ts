@@ -134,6 +134,13 @@ const createMockApi = (): Api & StrataGitApi => {
 
     getPullReview: async () => { throw new Error('Hosted reviews require the desktop app and a configured provider.'); },
     listPinnedRepos: async () => [],
+    getLfsState: async () => ({ repo: '', installed: false, configured: false, version: '', head: '', remotes: [], patterns: [], files: [], totalFiles: 0, warning: 'Git LFS requires the desktop app.' }),
+    configureLfs: async () => { throw new Error('Git LFS requires the desktop app.'); },
+    setLfsTracking: async () => { throw new Error('Git LFS requires the desktop app.'); },
+    runLfsTransfer: async () => { throw new Error('Git LFS requires the desktop app.'); },
+    getLfsTransfer: async () => null,
+    cancelLfsTransfer: async () => { throw new Error('Git LFS requires the desktop app.'); },
+    onLfsTransfer: () => () => {},
     getBranchStack: async () => ({ links: [], branches: [], sessions: [] }),
     setStackParent: async () => { throw new Error('Branch stacks require the desktop app.'); },
     previewStackRestack: async () => { throw new Error('Branch stacks require the desktop app.'); },

@@ -108,6 +108,7 @@ import { pinnedRepositories, pinRepository, repositoryOverview } from './git/rep
 import { openPullRequestWorktree } from './git/pull-request-worktree';
 import { getCommitSplit, previewCommitSplit, applyCommitSplit, discardCommitSplit, listCommitSplitPreviews } from './git/commit-split';
 import { getBranchStack, setStackParent, previewStackRestack, resumeStackRestack, applyStackRestack, discardStackRestack, retargetPullRequest } from './git/branch-stacks';
+import { getLfsState, configureLfs, setLfsTracking, runLfsTransfer, getLfsTransfer, cancelLfsTransfer, stopLfsTransfers } from './git/lfs-manager';
 import { createRestorePoint, listRestorePoints, restorePoint, deleteRestorePoint } from './git/restore-points';
 import { resolutionMemoryState, setResolutionMemory, captureResolutionMemory } from './git/resolution-memory';
 import { beginRewrite, finishRewrite, rewriteActions, listRewriteSessions, compareCommitRanges, deleteRewriteSession } from './git/rewrite-comparison';
@@ -152,6 +153,7 @@ function writeRecent(list: string[]) {
 }
 
 export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => string | null) {
+  app.once('before-quit', stopLfsTransfers);
   const requestRepo = new AsyncLocalStorage<string | null>();
   const protectedActions: Record<string, string> = {
     'git:reset-branch': 'Before reset', 'git:discard': 'Before discarding a file',
@@ -186,7 +188,7 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
             }
             finally { if (repo && writes.has(channel)) await captureResolutionMemory(repo).catch(() => {}); }
           };
-          if (!repo || !(writes.has(channel) || /^git:(restore-points|rerere|rewrite|pr-worktree|split|stack):/.test(channel))) return run();
+          if (!repo || !(writes.has(channel) || /^git:(restore-points|rerere|rewrite|pr-worktree|split|stack|lfs):/.test(channel))) return run();
           // Snapshot and its action share one write queue, including staging operations.
           const lockKey = await fs.promises.realpath(repo);
           const previous = pendingWrites.get(lockKey) || Promise.resolve();
@@ -741,6 +743,12 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
   handle('git:pr-worktree:create', async (input: import('../shared/types').PullReviewTarget & { head: string; directory: string; branch: string }) => openPullRequestWorktree(requireRepo(), input, getPullRequestCredential));
   handle('git:split:plan', async (hash: string) => getCommitSplit(requireRepo(), hash));
   handle('git:stack:get', async () => getBranchStack(requireRepo()));
+  handle('git:lfs-state', async () => getLfsState(requireRepo()));
+  handle('git:lfs-transfer-state', async () => getLfsTransfer(requireRepo()));
+  handle('git:lfs-cancel', async (id: string) => cancelLfsTransfer(requireRepo(), id));
+  handle('git:lfs:configure', async (skip: boolean) => configureLfs(requireRepo(), !!skip));
+  handle('git:lfs:track', async (pattern: string, tracked: boolean, literal?: boolean) => setLfsTracking(requireRepo(), pattern, !!tracked, !!literal));
+  handle('git:lfs:transfer', async (input: { kind: import('../shared/types').LfsTransfer['kind']; remote: string; head: string }) => runLfsTransfer(requireRepo(), input, state => { const win = getWin(); if (win && !win.isDestroyed()) win.webContents.send('git:lfs-progress', state); }));
   handle('git:stack:parent', async (branch: string, parent: string | null, reset?: boolean) => setStackParent(requireRepo(), branch, parent, reset));
   handle('git:stack:preview', async (root: string) => previewStackRestack(requireRepo(), root));
   handle('git:stack:resume', async (id: string) => resumeStackRestack(requireRepo(), id));

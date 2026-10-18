@@ -175,6 +175,13 @@ export interface PullReviewSubmission extends PullReviewTarget {
   replyTo?: { id: string; threadId?: string };
 }
 export interface AdvancedGitApi {
+  getLfsState(): Promise<LfsState>;
+  configureLfs(skipSmudge: boolean): Promise<LfsState>;
+  setLfsTracking(pattern: string, tracked: boolean, literal?: boolean): Promise<LfsState>;
+  runLfsTransfer(input: { kind: LfsTransfer['kind']; remote: string; head: string }): Promise<LfsTransfer>;
+  getLfsTransfer(): Promise<LfsTransfer | null>;
+  cancelLfsTransfer(id: string): Promise<{ ok: boolean }>;
+  onLfsTransfer(callback: (state: LfsTransfer) => void): () => void;
   getBranchStack(): Promise<BranchStackState>;
   setStackParent(branch: string, parent: string | null, resetBoundary?: boolean): Promise<BranchStackState>;
   previewStackRestack(root: string): Promise<StackRestackSession>;
@@ -204,6 +211,16 @@ export interface AdvancedGitApi {
   deleteRestorePoint(id: string): Promise<{ ok: boolean }>;
   getPullReview(target: PullReviewTarget): Promise<PullReviewDetail>;
   submitPullReview(params: PullReviewSubmission): Promise<{ ok: boolean; message: string }>;
+}
+
+export interface LfsState {
+  repo: string; installed: boolean; version: string; configured: boolean; head: string; remotes: string[];
+  patterns: { pattern: string; source: string; lockable: boolean; tracked: boolean }[];
+  files: { name: string; oid: string; size: number; downloaded: boolean; checkout: boolean }[]; totalFiles: number; warning?: string;
+}
+export interface LfsTransfer {
+  id: string; repo: string; kind: 'fetch' | 'pull' | 'push' | 'checkout'; state: 'running' | 'completed' | 'cancelled' | 'failed';
+  current: number; totalFiles: number; bytes: number; totalBytes: number; file: string; message: string;
 }
 
 export interface BranchStackLink { id: string; branch: string; parent: string; base: string; head?: string; parentHead?: string; commits?: number; error?: string }

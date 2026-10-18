@@ -135,6 +135,17 @@ export type Api = import('../shared/types').AdvancedGitApi & {
 };
 
 const api: Api = {
+  getLfsState: () => call('git:lfs-state'),
+  configureLfs: skip => call('git:lfs:configure', skip),
+  setLfsTracking: (pattern, tracked, literal) => call('git:lfs:track', pattern, tracked, literal),
+  runLfsTransfer: input => call('git:lfs:transfer', input),
+  getLfsTransfer: () => call('git:lfs-transfer-state'),
+  cancelLfsTransfer: id => call('git:lfs-cancel', id),
+  onLfsTransfer: cb => {
+    const listener = (_event: IpcRendererEvent, state: import('../shared/types').LfsTransfer) => cb(state);
+    ipcRenderer.on('git:lfs-progress', listener);
+    return () => ipcRenderer.removeListener('git:lfs-progress', listener);
+  },
   getBranchStack: () => call('git:stack:get'),
   setStackParent: (branch, parent, reset) => call('git:stack:parent', branch, parent, reset),
   previewStackRestack: root => call('git:stack:preview', root),
