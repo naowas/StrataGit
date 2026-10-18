@@ -134,6 +134,13 @@ const createMockApi = (): Api & StrataGitApi => {
 
     getPullReview: async () => { throw new Error('Hosted reviews require the desktop app and a configured provider.'); },
     listPinnedRepos: async () => [],
+    getBranchStack: async () => ({ links: [], branches: [], sessions: [] }),
+    setStackParent: async () => { throw new Error('Branch stacks require the desktop app.'); },
+    previewStackRestack: async () => { throw new Error('Branch stacks require the desktop app.'); },
+    resumeStackRestack: async () => { throw new Error('Branch stacks require the desktop app.'); },
+    applyStackRestack: async () => { throw new Error('Branch stacks require the desktop app.'); },
+    discardStackRestack: async () => { throw new Error('Branch stacks require the desktop app.'); },
+    retargetPullRequest: async () => { throw new Error('Hosted request retargeting requires the desktop app.'); },
     getCommitSplit: async () => { throw new Error('Commit splitting requires the desktop app.'); },
     listCommitSplitPreviews: async () => [],
     previewCommitSplit: async () => { throw new Error('Commit splitting requires the desktop app.'); },

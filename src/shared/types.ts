@@ -175,6 +175,13 @@ export interface PullReviewSubmission extends PullReviewTarget {
   replyTo?: { id: string; threadId?: string };
 }
 export interface AdvancedGitApi {
+  getBranchStack(): Promise<BranchStackState>;
+  setStackParent(branch: string, parent: string | null, resetBoundary?: boolean): Promise<BranchStackState>;
+  previewStackRestack(root: string): Promise<StackRestackSession>;
+  resumeStackRestack(id: string): Promise<StackRestackSession>;
+  applyStackRestack(id: string): Promise<{ ok: boolean; warning?: string }>;
+  discardStackRestack(id: string): Promise<{ ok: boolean }>;
+  retargetPullRequest(input: PullReviewTarget & { head: string; previousTarget: string; newTarget: string }): Promise<{ ok: boolean }>;
   getCommitSplit(hash: string): Promise<CommitSplitPlan>;
   listCommitSplitPreviews(): Promise<CommitSplitPreview[]>;
   previewCommitSplit(input: CommitSplitInput): Promise<CommitSplitPreview>;
@@ -198,6 +205,13 @@ export interface AdvancedGitApi {
   getPullReview(target: PullReviewTarget): Promise<PullReviewDetail>;
   submitPullReview(params: PullReviewSubmission): Promise<{ ok: boolean; message: string }>;
 }
+
+export interface BranchStackLink { id: string; branch: string; parent: string; base: string; head?: string; parentHead?: string; commits?: number; error?: string }
+export interface StackRestackSession {
+  id: string; root: string; rootHead: string; path: string; state: 'building' | 'paused' | 'ready' | 'applied'; index: number; error?: string;
+  steps: { id: string; branch: string; parent: string; base: string; oldHead: string; newHead?: string; onto?: string; commits: number }[];
+}
+export interface BranchStackState { links: BranchStackLink[]; branches: string[]; sessions: StackRestackSession[] }
 
 export interface CommitSplitPlan {
   hash: string; head: string; branch: string; parent: string; message: string; descendantCount: number;

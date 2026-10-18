@@ -135,6 +135,13 @@ export type Api = import('../shared/types').AdvancedGitApi & {
 };
 
 const api: Api = {
+  getBranchStack: () => call('git:stack:get'),
+  setStackParent: (branch, parent, reset) => call('git:stack:parent', branch, parent, reset),
+  previewStackRestack: root => call('git:stack:preview', root),
+  resumeStackRestack: id => call('git:stack:resume', id),
+  applyStackRestack: id => call('git:stack:apply', id),
+  discardStackRestack: id => call('git:stack:discard', id),
+  retargetPullRequest: input => call('git:stack:retarget', input),
   getCommitSplit: hash => call('git:split:plan', hash),
   listCommitSplitPreviews: () => call('git:split:list'),
   previewCommitSplit: input => call('git:split:preview', input),

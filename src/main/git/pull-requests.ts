@@ -114,7 +114,7 @@ export async function requestJson<T>(
   config: PullRequestApiConfig,
   credential: PullRequestCredential,
   path: string,
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT',
   payload?: unknown,
   asText = false
 ): Promise<T> {
