@@ -134,6 +134,7 @@ const createMockApi = (): Api & StrataGitApi => {
 
     getPullReview: async () => { throw new Error('Hosted reviews require the desktop app and a configured provider.'); },
     listPinnedRepos: async () => [],
+    openPullRequestWorktree: async () => { throw new Error('PR worktrees require the desktop app.'); },
     pinRepository: async () => { throw new Error('Pinning repositories requires the desktop app.'); },
     getRepositoryOverview: async () => { throw new Error('The repository dashboard requires the desktop app.'); },
     getResolutionMemory: async () => ({ enabled: false, gitAutomatic: false, remembered: 0 }),

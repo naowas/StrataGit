@@ -175,6 +175,7 @@ export interface PullReviewSubmission extends PullReviewTarget {
   replyTo?: { id: string; threadId?: string };
 }
 export interface AdvancedGitApi {
+  openPullRequestWorktree(input: PullReviewTarget & { head: string; directory: string; branch: string }): Promise<{ ok: boolean; path: string; branch: string }>;
   listPinnedRepos(): Promise<string[]>;
   pinRepository(repoPath: string, pinned: boolean): Promise<string[]>;
   getRepositoryOverview(repoPath: string, hosted?: boolean): Promise<RepositoryOverview>;

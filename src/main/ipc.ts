@@ -105,6 +105,7 @@ import { getReflog, createRecoveryBranch, restoreHeadFromReflog } from './git/re
 import { getPullRequestContext, createHostedPullRequest } from './git/pull-requests';
 import { getPullReview, submitPullReview } from './git/pull-request-review';
 import { pinnedRepositories, pinRepository, repositoryOverview } from './git/repository-dashboard';
+import { openPullRequestWorktree } from './git/pull-request-worktree';
 import { createRestorePoint, listRestorePoints, restorePoint, deleteRestorePoint } from './git/restore-points';
 import { resolutionMemoryState, setResolutionMemory, captureResolutionMemory } from './git/resolution-memory';
 import { beginRewrite, finishRewrite, rewriteActions, listRewriteSessions, compareCommitRanges, deleteRewriteSession } from './git/rewrite-comparison';
@@ -183,7 +184,7 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
             }
             finally { if (repo && writes.has(channel)) await captureResolutionMemory(repo).catch(() => {}); }
           };
-          if (!repo || !(writes.has(channel) || /^git:(restore-points|rerere|rewrite):/.test(channel))) return run();
+          if (!repo || !(writes.has(channel) || /^git:(restore-points|rerere|rewrite|pr-worktree):/.test(channel))) return run();
           // Snapshot and its action share one write queue, including staging operations.
           const lockKey = await fs.promises.realpath(repo);
           const previous = pendingWrites.get(lockKey) || Promise.resolve();
@@ -735,6 +736,7 @@ export function registerIpc(getWin: () => BrowserWindow | null, getRepo: () => s
 
   // Hosted pull request / merge request providers
   handle('git:pull-review:get', async (target: import('../shared/types').PullReviewTarget) => getPullReview(requireRepo(), target, getPullRequestCredential));
+  handle('git:pr-worktree:create', async (input: import('../shared/types').PullReviewTarget & { head: string; directory: string; branch: string }) => openPullRequestWorktree(requireRepo(), input, getPullRequestCredential));
   handle('git:pull-review:submit', async (params: import('../shared/types').PullReviewSubmission) => submitPullReview(requireRepo(), params, getPullRequestCredential));
   handle('git:pull-requests:credentials', async () => getPullRequestCredentialStatus());
 

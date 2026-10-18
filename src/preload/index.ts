@@ -135,6 +135,7 @@ export type Api = import('../shared/types').AdvancedGitApi & {
 };
 
 const api: Api = {
+  openPullRequestWorktree: input => call('git:pr-worktree:create', input),
   listPinnedRepos: () => call('dashboard:pins'),
   pinRepository: (repo, pinned) => call('dashboard:pin', repo, pinned),
   getRepositoryOverview: (repo, hosted) => call('dashboard:overview', repo, hosted),
