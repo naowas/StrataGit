@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import './global.css';
+import './components/Common/content-typography.css';
 
 const root = createRoot(document.getElementById('root')!);
 root.render(

@@ -1,0 +1,15 @@
+/* Home and help are reading surfaces; the repository UI uses a denser 13px base.
+   Keep these sizes readable even when the user selects a smaller UI font. */
+.home-page,
+.explore-dialog {
+  --content-text-caption: max(12px, calc(var(--font-size-ui, 13px) - 1px));
+  --content-text-small: max(13px, var(--font-size-ui, 13px));
+  --content-text-body: max(14px, calc(var(--font-size-ui, 13px) + 1px));
+  --content-text-reading: max(15px, calc(var(--font-size-ui, 13px) + 2px));
+  --content-text-subheading: max(16px, calc(var(--font-size-ui, 13px) + 3px));
+  --content-text-heading: max(20px, calc(var(--font-size-ui, 13px) + 7px));
+  --content-text-title: max(28px, calc(var(--font-size-ui, 13px) + 15px));
+  --content-text-metric: max(22px, calc(var(--font-size-ui, 13px) + 9px));
+  font-size: var(--content-text-body);
+  line-height: 1.5;
+}
