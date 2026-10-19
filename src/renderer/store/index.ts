@@ -688,7 +688,7 @@ export const useApp = create<AppStore>((set, get) => ({
   },
 
   openUsageGuide() {
-    set({ usageGuideOpen: true });
+    set({ usageGuideOpen: true, commandPaletteOpen: false, shortcutsModalOpen: false });
   },
 
   closeUsageGuide() {

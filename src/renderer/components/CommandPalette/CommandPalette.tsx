@@ -255,8 +255,8 @@ export function CommandPalette() {
       {
         id: 'cmd-usage-guide',
         category: 'Commands',
-        title: 'Quick Tour & Usage Guide…',
-        subtitle: 'Open the visual walkthrough and onboarding guide for StrataGit',
+        title: 'Explore StrataGit…',
+        subtitle: 'Search in-depth guides for Git workflows, recovery, reviews, and workspace tools',
         icon: <Sparkles size={14} className="text-accent" />,
         action: () => useApp.getState().openUsageGuide()
       },

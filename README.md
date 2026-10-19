@@ -114,6 +114,17 @@ See [Advanced Git workflows](docs/advanced-features.md) for usage, recovery inst
 - **Custom Typography**: Select from Google Fonts presets (Inter, Roboto, Outfit, JetBrains Mono, Fira Code) or specify your own installed system fonts.
 - **Adjustable Graph Density**: Tailor graph row height to your preferred information density.
 
+### Explore StrataGit
+
+Open **Home → Explore StrataGit**, the toolbar’s Actions menu, the command palette, or About to browse the built-in guide. It includes 28 detailed topics across getting started, daily Git, collaboration, history and recovery, repository tools, and preferences.
+
+- Search feature names and the full instructions, or browse by workflow.
+- Follow a four-guide starting path, then open related topics for more detail.
+- Read prerequisites, step-by-step instructions, useful details, and operation-specific caveats.
+- Open the relevant settings page or tool from a guide. Repository tools are available after opening a project; changes still require actions in those tools.
+- Mark topics as explored and resume your last topic. Reading progress stays on this device, separately from the startup display preference.
+- Use **Ctrl/Cmd+F** to search within the guide, **Tab** to navigate controls, and **Escape** to close it. The startup checkbox can disable or reenable automatic opening.
+
 ---
 
 ## 🏗️ Architecture

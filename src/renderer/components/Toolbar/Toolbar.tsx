@@ -443,7 +443,7 @@ export function Toolbar() {
               />
               <MenuItem
                 icon={<HelpCircle size={14} className="text-accent" />}
-                label="Quick Tour & Usage Guide…"
+                label="Explore StrataGit…"
                 onClick={() => {
                   close();
                   useApp.getState().openUsageGuide();

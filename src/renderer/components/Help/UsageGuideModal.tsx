@@ -1,381 +1,170 @@
-import React, { useState, useEffect } from 'react';
-import {
-  X,
-  ChevronRight,
-  ChevronLeft,
-  GitBranch,
-  GitGraph,
-  Sparkles,
-  GitMerge,
-  Terminal,
-  Zap,
-  CheckCircle2,
-  Layers,
-  ArrowRight
-} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, BookOpen, Check, CheckCircle2, ChevronRight, Clock3, Compass, FolderOpen, GitBranch, HelpCircle, Layers, Lightbulb, MapPin, Search, Settings2, ShieldCheck, Terminal, X, AlertTriangle } from 'lucide-react';
+import { useApp } from '../../store';
+import { useSettings } from '../../store/settings';
 import { StrataLogo } from '../Common/StrataLogo';
+import { guideCategories, guideTopics } from './usageGuideContent';
+import type { GuideActionId, GuideCategoryId, GuideTopic } from './usageGuideContent';
+import './usage-guide.css';
 
-interface UsageGuideModalProps {
-  onClose: () => void;
+const progressKey = 'stratagit:explore-progress:v1', startupKey = 'stratagit:guide_completed';
+const categoryIcons = { start: Compass, daily: Layers, collaboration: GitBranch, history: ShieldCheck, tools: Terminal, preferences: Settings2 };
+const quickStartIds = ['getting-started', 'commit-graph', 'staging-commits', 'sync-remotes'];
+const repositoryActions = new Set<GuideActionId>(['terminal', 'pull-requests', 'restore-points', 'resolution-memory', 'range-comparison', 'branch-stacks', 'lfs', 'sparse', 'reflog', 'worktrees', 'git-flow', 'bisect', 'changelog']);
+
+function readProgress(): { completed: string[]; lastTopic: string | null } {
+  try {
+    const saved = JSON.parse(localStorage.getItem(progressKey) || '{}');
+    const known = new Set(guideTopics.map(topic => topic.id));
+    return { completed: Array.isArray(saved?.completed) ? [...new Set<string>(saved.completed.filter((id: unknown): id is string => typeof id === 'string' && known.has(id)))] : [], lastTopic: typeof saved?.lastTopic === 'string' && known.has(saved.lastTopic) ? saved.lastTopic : null };
+  } catch { return { completed: [], lastTopic: null }; }
+}
+function searchableText(topic: GuideTopic) {
+  return [topic.title, topic.summary, topic.location, topic.level, ...topic.keywords, ...(topic.prerequisites || []), ...topic.steps.flatMap(step => [step.title, step.description]), ...(topic.tips || []), topic.caution || ''].join(' ').toLocaleLowerCase();
 }
 
-interface GuideStep {
-  id: string;
-  badge: string;
-  title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  content: React.ReactNode;
-}
+export function UsageGuideModal({ onClose }: { onClose: () => void }) {
+  const [saved] = useState(readProgress);
+  const [completed, setCompleted] = useState(saved.completed), [lastTopic, setLastTopic] = useState(saved.lastTopic);
+  const [selectedId, setSelectedId] = useState<string | null>(null), [category, setCategory] = useState<GuideCategoryId | 'all'>('all');
+  const [query, setQuery] = useState(''), [unreadOnly, setUnreadOnly] = useState(false);
+  const [quickStartMode, setQuickStartMode] = useState(false);
+  const [browseNavigation, setBrowseNavigation] = useState(0);
+  const [hideOnStartup, setHideOnStartup] = useState(() => { try { return localStorage.getItem(startupKey) !== 'false'; } catch { return true; } });
+  const dialogRef = useRef<HTMLDivElement>(null), contentRef = useRef<HTMLDivElement>(null), searchRef = useRef<HTMLInputElement>(null), articleTitleRef = useRef<HTMLHeadingElement>(null);
+  const overviewTitleRef = useRef<HTMLHeadingElement>(null), focusOverview = useRef(false), openingTool = useRef(false);
+  const activeRepo = useApp(state => state.activeTab), openingRepo = useApp(state => state.isOpeningRepo);
+  const repositoryName = activeRepo?.split(/[/\\]/).filter(Boolean).pop();
+  const selected = guideTopics.find(topic => topic.id === selectedId);
+  const completedSet = useMemo(() => new Set(completed), [completed]);
+  const searchIndex = useMemo(() => new Map(guideTopics.map(topic => [topic.id, searchableText(topic)])), []);
+  const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const visibleTopics = guideTopics.filter(topic => (category === 'all' || topic.category === category) && (!unreadOnly || !completedSet.has(topic.id)) && terms.every(term => searchIndex.get(topic.id)?.includes(term)));
+  const currentCategory = guideCategories.find(item => item.id === (selected?.category || category));
+  const resumeTopic = guideTopics.find(topic => topic.id === lastTopic);
+  const quickStart = quickStartIds.map(id => guideTopics.find(topic => topic.id === id)).filter((topic): topic is GuideTopic => !!topic);
+  // Keep navigation within the selected workflow or search, including a topic just marked read.
+  const visibleIds = new Set(visibleTopics.map(topic => topic.id));
+  const sequence = quickStartMode ? quickStart : guideTopics.filter(topic => visibleIds.has(topic.id) || topic.id === selectedId);
+  const topicIndex = sequence.findIndex(topic => topic.id === selectedId);
+  const previous = sequence[topicIndex - 1], next = topicIndex >= 0 ? sequence[topicIndex + 1] : undefined;
+  const browsing = !!query.trim() || category !== 'all' || unreadOnly;
 
-export function UsageGuideModal({ onClose }: UsageGuideModalProps) {
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [dontShowAgain, setDontShowAgain] = useState(true);
-
-  const guideSteps: GuideStep[] = [
-    {
-      id: 'welcome',
-      badge: 'First Boot Tour',
-      title: 'Welcome to StrataGit',
-      subtitle: 'A high-performance visual Git client built for modern workflows',
-      icon: <StrataLogo size={36} animated />,
-      content: (
-        <div className="space-y-3.5 text-xs">
-          <p className="text-fg/90 leading-relaxed">
-            StrataGit combines the power of raw Git with a lightning-fast visual strata graph, multi-repository tabs, and intuitive branching workflows.
-          </p>
-          <div className="grid grid-cols-2 gap-2.5 pt-1">
-            <div className="p-3 rounded-lg bg-panel2/60 border border-edge/80 space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-fg">
-                <Layers size={14} className="text-cyan-400" />
-                <span>Multi-Repo Tabs</span>
-              </div>
-              <p className="text-dim text-[11px]">
-                Work across multiple repositories seamlessly with persistent tabs, launchpad, and instant repo switching.
-              </p>
-            </div>
-            <div className="p-3 rounded-lg bg-panel2/60 border border-edge/80 space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-fg">
-                <Zap size={14} className="text-amber-400" />
-                <span>Zero Latency</span>
-              </div>
-              <p className="text-dim text-[11px]">
-                Fast git operations powered by native background IPC and intelligent memory caching.
-              </p>
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      id: 'sidebar',
-      badge: 'Navigation & Branches',
-      title: 'Sidebar & Branch Management',
-      subtitle: 'Effortless branch switching, tags, stashes, and worktrees',
-      icon: <GitBranch size={32} className="text-accent" />,
-      content: (
-        <div className="space-y-3 text-xs">
-          <p className="text-fg/90 leading-relaxed">
-            The left sidebar organizes your local and remote branches, tags, stashes, and worktrees with fast filtering and context menus.
-          </p>
-          <div className="space-y-2 pt-0.5">
-            <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-panel2/50 border border-edge/60">
-              <span className="w-5 h-5 rounded-full bg-accent/20 text-accent font-semibold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                1
-              </span>
-              <div>
-                <span className="font-semibold text-fg">Single Click to Inspect</span>
-                <p className="text-dim text-[11px]">
-                  Clicking a branch focuses its latest commit. Other branches offer checkout confirmation; the active branch stays in view without a dialog.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-panel2/50 border border-edge/60">
-              <span className="w-5 h-5 rounded-full bg-accent/20 text-accent font-semibold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                2
-              </span>
-              <div>
-                <span className="font-semibold text-fg">Double Click to Checkout</span>
-                <p className="text-dim text-[11px]">
-                  Double-clicking any local or remote branch immediately checks it out without modal interruptions.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-panel2/50 border border-edge/60">
-              <span className="w-5 h-5 rounded-full bg-accent/20 text-accent font-semibold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
-                3
-              </span>
-              <div>
-                <span className="font-semibold text-fg">Right Click for Actions</span>
-                <p className="text-dim text-[11px]">
-                  Merge, Rebase, Rename, Push, and Delete branches directly from context menus.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      id: 'commit-graph',
-      badge: 'Visual Commit Strata',
-      title: 'Interactive Commit Graph',
-      subtitle: 'Inspect histories, uncommitted WIP changes, and branch lanes',
-      icon: <GitGraph size={32} className="text-indigo-400" />,
-      content: (
-        <div className="space-y-3 text-xs">
-          <p className="text-fg/90 leading-relaxed">
-            The center strata graph renders branch divergence, merge bubbles, commit authors, relative timestamps, and live working tree changes.
-          </p>
-          <div className="space-y-2 pt-0.5">
-            <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-panel2/50 border border-edge/60">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0 mt-1" />
-              <div>
-                <span className="font-semibold text-fg">WIP (Uncommitted Changes)</span>
-                <p className="text-dim text-[11px]">
-                  The top WIP row tracks your working tree state. Click it anytime to review and stage pending diffs.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-panel2/50 border border-edge/60">
-              <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 shrink-0 mt-1" />
-              <div>
-                <span className="font-semibold text-fg">Interactive Rebase &amp; Cherry-Pick</span>
-                <p className="text-dim text-[11px]">
-                  Right-click any commit to start visual rebase (pick/squash/drop), cherry-pick, revert, or create new branches.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      id: 'staging-and-ai',
-      badge: 'Smart Commit Workflow',
-      title: 'Staging & Commit Generator',
-      subtitle: 'Instant conventional commit messages with offline rule-based or AI models',
-      icon: <Sparkles size={32} className="text-amber-400" />,
-      content: (
-        <div className="space-y-3 text-xs">
-          <p className="text-fg/90 leading-relaxed">
-            Review side-by-side or unified diffs, stage individual hunks or lines, and let StrataGit craft your commit messages.
-          </p>
-          <div className="space-y-2 pt-0.5">
-            <div className="p-2.5 rounded-lg bg-panel2/50 border border-edge/60 space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-fg">
-                <Zap size={13} className="text-warn" />
-                <span>Smart Rule-Based Generator (No AI / Offline)</span>
-              </div>
-              <p className="text-dim text-[11px]">
-                Analyzes modified files and git diffs to generate standard Conventional Commit messages locally and instantly with zero network requests.
-              </p>
-            </div>
-            <div className="p-2.5 rounded-lg bg-panel2/50 border border-edge/60 space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-fg">
-                <Sparkles size={13} className="text-accent" />
-                <span>AI Commit Assistant (Optional)</span>
-              </div>
-              <p className="text-dim text-[11px]">
-                Optionally connect OpenRouter, Groq, Gemini, or local Ollama models in Settings for deep semantic commit summaries.
-              </p>
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      id: 'git-flow-and-tools',
-      badge: 'Power Tools',
-      title: 'Git Flow & Developer Drawer',
-      subtitle: 'Standardized branching lifecycle, embedded terminal, and command palette',
-      icon: <GitMerge size={32} className="text-emerald-400" />,
-      content: (
-        <div className="space-y-3 text-xs">
-          <p className="text-fg/90 leading-relaxed">
-            Everything you need for an efficient development flow is built right in without switching windows.
-          </p>
-          <div className="grid grid-cols-2 gap-2 pt-0.5">
-            <div className="p-2.5 rounded-lg bg-panel2/50 border border-edge/60 space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-fg">
-                <GitMerge size={13} className="text-emerald-400" />
-                <span>Git Flow Workflow</span>
-              </div>
-              <p className="text-dim text-[11px]">
-                Start and finish features, releases, and hotfixes with automated branch creation, tagging, and merges.
-              </p>
-            </div>
-            <div className="p-2.5 rounded-lg bg-panel2/50 border border-edge/60 space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-fg">
-                <Terminal size={13} className="text-accent" />
-                <span>Embedded Terminal</span>
-              </div>
-              <p className="text-dim text-[11px]">
-                Press <code className="px-1 py-0.5 rounded bg-panel3 font-mono text-[10px]">Ctrl+`</code> anytime to slide up a terminal running directly in the repository directory.
-              </p>
-            </div>
-          </div>
-          <div className="p-2.5 rounded-lg bg-panel2/50 border border-edge/60 flex items-center justify-between text-[11px]">
-            <span className="text-dim">Command Palette: <span className="font-mono text-fg font-medium">Ctrl+K</span></span>
-            <span className="text-dim">Settings &amp; Profiles: <span className="font-mono text-fg font-medium">Ctrl+,</span></span>
-          </div>
-        </div>
-      )
-    }
-  ];
-
-  const totalSteps = guideSteps.length;
-  const currentStep = guideSteps[currentStepIndex];
-  const isFirst = currentStepIndex === 0;
-  const isLast = currentStepIndex === totalSteps - 1;
-
-  const handleFinish = () => {
-    if (dontShowAgain) {
-      try {
-        localStorage.setItem('stratagit:guide_completed', 'true');
-      } catch {}
-    }
-    onClose();
-  };
-
-  const handleNext = () => {
-    if (isLast) {
-      handleFinish();
-    } else {
-      setCurrentStepIndex((prev) => Math.min(totalSteps - 1, prev + 1));
-    }
-  };
-
-  const handlePrev = () => {
-    setCurrentStepIndex((prev) => Math.max(0, prev - 1));
-  };
-
-  const handleSkip = () => {
-    if (dontShowAgain) {
-      try {
-        localStorage.setItem('stratagit:guide_completed', 'true');
-      } catch {}
-    }
-    onClose();
-  };
-
+  useEffect(() => { try { localStorage.setItem(progressKey, JSON.stringify({ completed, lastTopic })); } catch {} }, [completed, lastTopic]);
+  const close = useCallback(() => { try { localStorage.setItem(startupKey, String(hideOnStartup)); } catch {} onClose(); }, [hideOnStartup, onClose]);
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleSkip();
-      } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
-        e.preventDefault();
-        handleNext();
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        handlePrev();
+    const previousFocus = document.activeElement as HTMLElement | null;
+    useSettings.getState().closeSettings(); dialogRef.current?.focus();
+    return () => { if (!openingTool.current && previousFocus?.isConnected) previousFocus.focus(); };
+  }, []);
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+    if (selectedId) articleTitleRef.current?.focus({ preventScroll: true });
+    else if (focusOverview.current) { overviewTitleRef.current?.focus({ preventScroll: true }); focusOverview.current = false; }
+  }, [selectedId, category, query, unreadOnly, browseNavigation]);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault(); event.stopImmediatePropagation();
+        if (document.activeElement === searchRef.current && searchRef.current?.value) setQuery(''); else close();
+      } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+        event.preventDefault(); event.stopImmediatePropagation(); searchRef.current?.focus(); searchRef.current?.select();
+      } else if (event.key === 'Tab') {
+        const root = dialogRef.current; if (!root) return;
+        const targets = [...root.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])')].filter(element => element.tabIndex >= 0 && element.getClientRects().length > 0);
+        const first = targets[0], last = targets[targets.length - 1];
+        if (!first) { event.preventDefault(); root.focus(); }
+        else if (event.shiftKey && (document.activeElement === first || !root.contains(document.activeElement) || document.activeElement === root)) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || !root.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentStepIndex, dontShowAgain]);
+    window.addEventListener('keydown', onKey, true); return () => window.removeEventListener('keydown', onKey, true);
+  }, [close]);
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-xs p-4 animate-in fade-in duration-150 select-none"
-      onClick={handleSkip}
-    >
-      <div
-        className="w-full max-w-lg bg-panel border border-edge/90 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Top Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-edge bg-panel2/50">
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-accent/15 text-accent border border-accent/25 tracking-wide uppercase">
-              {currentStep.badge}
-            </span>
-            <span className="text-xs text-dim">
-              Step {currentStepIndex + 1} of {totalSteps}
-            </span>
-          </div>
+  const openTopic = (topic: GuideTopic, essentials = false) => { setSelectedId(topic.id); setLastTopic(topic.id); setQuickStartMode(essentials); };
+  const browseCategory = (id: GuideCategoryId | 'all') => { focusOverview.current = true; setBrowseNavigation(value => value + 1); setCategory(id); setSelectedId(null); setQuickStartMode(false); };
+  const clearFilters = () => { focusOverview.current = true; setBrowseNavigation(value => value + 1); setQuery(''); setCategory('all'); setUnreadOnly(false); setSelectedId(null); setQuickStartMode(false); };
+  const toggleCompleted = (id: string) => setCompleted(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id]);
+  const actionUnavailable = (id: GuideActionId) => repositoryActions.has(id) && (!activeRepo || openingRepo);
+  const launch = (id: GuideActionId) => {
+    if (actionUnavailable(id)) return;
+    openingTool.current = true;
+    close();
+    const app = useApp.getState(), settings = useSettings.getState(); settings.closeSettings();
+    if (repositoryActions.has(id)) useApp.setState({ homeOpen: false });
+    switch (id) {
+      case 'open-repo': void app.openRepoDialog(); break;
+      case 'create-repo': app.openCreateRepoModal(); break;
+      case 'home': app.openHome(); break;
+      case 'providers': settings.openSettings('providers'); break;
+      case 'ai-settings': settings.openSettings('ai'); break;
+      case 'appearance-settings': settings.openSettings('themes'); break;
+      case 'git-settings': settings.openSettings('git'); break;
+      case 'shortcuts': useApp.setState({ shortcutsModalOpen: true }); break;
+      case 'palette': app.openCommandPalette(); break;
+      case 'terminal': useApp.setState({ terminalDrawerOpen: true }); break;
+      case 'pull-requests': app.openPullRequestsModal(); break;
+      case 'restore-points': useApp.setState({ restorePointsOpen: true }); break;
+      case 'resolution-memory': useApp.setState({ resolutionMemoryOpen: true }); break;
+      case 'range-comparison': useApp.setState({ rangeComparisonOpen: true, rangeComparisonId: null }); break;
+      case 'branch-stacks': useApp.setState({ branchStackOpen: true }); break;
+      case 'lfs': useApp.setState({ lfsManagerOpen: true }); break;
+      case 'sparse': useApp.setState({ sparseCheckoutOpen: true }); break;
+      case 'reflog': app.openReflogModal(); break;
+      case 'worktrees': app.openWorktreesModal(); break;
+      case 'git-flow': app.openGitFlowModal(); break;
+      case 'bisect': app.openBisectModal(); break;
+      case 'changelog': app.openChangelogModal(); break;
+    }
+    if (id !== 'open-repo') requestAnimationFrame(() => {
+      // Older tool dialogs do not all have autofocus; hand keyboard focus to the opened UI.
+      const overlay = [...document.querySelectorAll<HTMLElement>('[role="dialog"], .fixed.inset-0')].filter(element => element.getClientRects().length > 0).pop();
+      if (overlay && !overlay.contains(document.activeElement)) overlay.querySelector<HTMLElement>('input:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex="0"]')?.focus();
+    });
+  };
 
-          <button
-            type="button"
-            onClick={handleSkip}
-            className="flex items-center gap-1 text-xs text-dim hover:text-fg px-2 py-1 rounded hover:bg-panel3 transition-colors"
-            title="Skip usage guide (Esc)"
-          >
-            <span>Skip</span>
-            <X size={14} />
-          </button>
-        </div>
-
-        {/* Step Content */}
-        <div className="p-6 space-y-4">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-panel2 border border-edge flex items-center justify-center shrink-0 shadow-inner">
-              {currentStep.icon}
-            </div>
-            <div className="space-y-0.5">
-              <h2 className="text-base font-bold text-fg tracking-tight">{currentStep.title}</h2>
-              <p className="text-xs text-dim leading-snug">{currentStep.subtitle}</p>
-            </div>
-          </div>
-
-          <div className="pt-1">{currentStep.content}</div>
-        </div>
-
-        {/* Footer Navigation */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-t border-edge bg-panel2/50 gap-3">
-          <label className="flex items-center gap-2 cursor-pointer text-xs text-dim hover:text-fg transition-colors select-none">
-            <input
-              type="checkbox"
-              checked={dontShowAgain}
-              onChange={(e) => setDontShowAgain(e.target.checked)}
-              className="rounded border-edge bg-panel3 text-accent focus:ring-0 focus:ring-offset-0 cursor-pointer"
-            />
-            <span className="text-[11px]">Don&apos;t show on startup</span>
-          </label>
-
-          {/* Dots Indicator */}
-          <div className="flex items-center gap-1.5">
-            {guideSteps.map((_, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setCurrentStepIndex(idx)}
-                className={`transition-all rounded-full ${
-                  idx === currentStepIndex
-                    ? 'w-5 h-1.5 bg-accent'
-                    : 'w-1.5 h-1.5 bg-dim/40 hover:bg-dim'
-                }`}
-                title={`Jump to step ${idx + 1}`}
-              />
-            ))}
-          </div>
-
-          {/* Buttons: Back / Next */}
-          <div className="flex items-center gap-2">
-            {!isFirst && (
-              <button
-                type="button"
-                onClick={handlePrev}
-                className="btn text-xs text-dim hover:text-fg hover:bg-panel3 px-2.5 py-1.5 transition-colors flex items-center gap-1"
-              >
-                <ChevronLeft size={13} />
-                <span>Back</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              autoFocus
-              onClick={handleNext}
-              className="btn bg-accent text-white hover:bg-accent-hover text-xs font-semibold px-4 py-1.5 shadow-sm transition-all flex items-center gap-1.5"
-            >
-              <span>{isLast ? 'Get Started' : 'Next'}</span>
-              {isLast ? <CheckCircle2 size={13} strokeWidth={2.5} /> : <ChevronRight size={13} strokeWidth={2.5} />}
-            </button>
+  return <div className="explore-overlay" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
+    <div className="explore-dialog" role="dialog" aria-modal="true" aria-labelledby="explore-title" aria-describedby="explore-description" ref={dialogRef} tabIndex={-1}>
+      <header className="explore-header"><div className="explore-brand"><StrataLogo size={33} /><div><h1 id="explore-title">Explore StrataGit</h1><p id="explore-description">Practical guides, from your first commit to advanced workflows.</p></div></div><button className="explore-icon-button" onClick={close} aria-label="Close Explore StrataGit"><X size={19} /></button></header>
+      <div className="explore-layout">
+        <aside className="explore-sidebar">
+          <div className="explore-reading-progress"><div><span>Your reading progress</span><strong>{completed.length}<span> / {guideTopics.length}</span></strong></div><progress value={completed.length} max={guideTopics.length} aria-label="Topics marked as explored" /><p>Saved on this device. Explore at your own pace.</p></div>
+          <nav className="explore-navigation" aria-label="Guide topics">
+            <button className={`explore-nav-overview ${!selected && category === 'all' ? 'is-active' : ''}`} onClick={clearFilters} aria-current={!selected && !browsing ? 'page' : undefined}><Compass size={16} />Guide overview</button><p className="explore-nav-label">BROWSE BY WORKFLOW</p>
+            {guideCategories.map(item => { const Icon = categoryIcons[item.id], topics = guideTopics.filter(topic => topic.category === item.id), expanded = selected ? selected.category === item.id : category === item.id; return <div className="explore-nav-group" key={item.id}><button className={`explore-nav-category ${expanded ? 'is-active' : ''}`} onClick={() => browseCategory(item.id)} aria-current={!selected && category === item.id ? 'page' : undefined}><Icon size={15} /><span>{item.title}</span><small>{topics.length}</small></button>{expanded ? <div className="explore-nav-topics">{topics.map(topic => <button key={topic.id} onClick={() => openTopic(topic)} className={selectedId === topic.id ? 'is-active' : ''} aria-current={selectedId === topic.id ? 'page' : undefined}><span>{topic.title}</span>{completedSet.has(topic.id) ? <Check size={12} aria-label="Explored" /> : <span className="explore-nav-dot" />}</button>)}</div> : null}</div>; })}
+          </nav>
+          <button className="explore-shortcut-link" onClick={() => launch('shortcuts')}><HelpCircle size={15} /><span>Keyboard shortcuts</span><ArrowRight size={13} /></button>
+        </aside>
+        <div className="explore-main">
+          <div className="explore-search-row"><div className="explore-search"><Search size={16} /><input ref={searchRef} aria-label="Search StrataGit guides" placeholder="Search a feature, workflow, or question…" value={query} onChange={event => { setQuery(event.target.value); setSelectedId(null); }} />{query ? <button className="explore-icon-button" onClick={() => setQuery('')} aria-label="Clear guide search"><X size={13} /></button> : <kbd>Ctrl / ⌘ F</kbd>}</div><button className={`explore-unread-filter ${unreadOnly ? 'is-active' : ''}`} aria-pressed={unreadOnly} onClick={() => { setUnreadOnly(!unreadOnly); setSelectedId(null); }}><BookOpen size={13} />Not explored</button></div>
+          <div className="explore-content" ref={contentRef}>
+            {selected ? <article className="explore-article" key={selected.id}>
+              <div className="explore-breadcrumb"><button onClick={clearFilters}>Explore</button><ChevronRight size={12} /><button onClick={() => browseCategory(selected.category)}>{currentCategory?.title}</button></div>
+              <div className="explore-article-heading"><p className="explore-eyebrow">{selected.level}{quickStartMode ? ` · Essentials ${topicIndex + 1} / ${quickStart.length}` : ''}</p><h2 ref={articleTitleRef} tabIndex={-1}>{selected.title}</h2><p className="explore-article-summary">{selected.summary}</p><div className="explore-article-meta"><span><Clock3 size={13} />About {selected.minutes} min</span><span><MapPin size={13} />{selected.location}</span>{completedSet.has(selected.id) ? <span className="explore-completed-label"><CheckCircle2 size={13} />Explored</span> : null}</div></div>
+              {selected.prerequisites?.length ? <section className="explore-prerequisites"><h3>Before you begin</h3><ul>{selected.prerequisites.map(item => <li key={item}>{item}</li>)}</ul></section> : null}
+              <section className="explore-steps-section" aria-label="Step-by-step instructions"><h3>Step by step</h3><ol className="explore-steps">{selected.steps.map((step, index) => <li key={step.title}><span className="explore-step-number">{index + 1}</span><div><h4>{step.title}</h4><p>{step.description}</p></div></li>)}</ol></section>
+              {selected.caution ? <aside className="explore-note explore-caution"><AlertTriangle size={16} /><div><h3>Keep in mind</h3><p>{selected.caution}</p></div></aside> : null}
+              {selected.tips?.length ? <details className="explore-tips" open><summary><Lightbulb size={16} />Helpful details<ChevronRight size={14} /></summary><ul>{selected.tips.map(tip => <li key={tip}>{tip}</li>)}</ul></details> : null}
+              {selected.actions?.length ? <section className="explore-try"><div><h3>Open it in StrataGit</h3><p>{activeRepo && selected.actions.some(action => repositoryActions.has(action.id)) ? `Opens in ${repositoryName}. Review the tool before making changes.` : 'Continue in the workspace when you’re ready.'}</p></div><div className="explore-action-buttons">{selected.actions.map(action => <button key={`${selected.id}-${action.id}`} className="btn-secondary" disabled={actionUnavailable(action.id)} onClick={() => launch(action.id)}>{action.label}<ArrowRight size={13} /></button>)}</div>{selected.actions.some(action => actionUnavailable(action.id)) ? <p className="explore-repository-hint"><FolderOpen size={13} />{openingRepo ? 'Wait for the repository to finish opening to use these tools.' : 'Open a repository to use these tools.'}{!activeRepo ? <button onClick={() => launch('open-repo')}>Open repository<ArrowRight size={12} /></button> : null}</p> : null}</section> : null}
+              {selected.related?.length ? <section className="explore-related"><h3>Continue exploring</h3><div>{selected.related.map(id => { const topic = guideTopics.find(item => item.id === id); return topic ? <button key={id} onClick={() => { setQuery(''); setUnreadOnly(false); setCategory(topic.category); openTopic(topic); }}><BookOpen size={13} />{topic.title}<ChevronRight size={13} /></button> : null; })}</div></section> : null}
+              <footer className="explore-article-navigation"><button className="btn-secondary" disabled={!previous} onClick={() => previous && openTopic(previous, quickStartMode)}><ArrowLeft size={13} />Previous</button><button className={`explore-mark-read ${completedSet.has(selected.id) ? 'is-completed' : ''}`} onClick={() => toggleCompleted(selected.id)} aria-pressed={completedSet.has(selected.id)}><CheckCircle2 size={15} />{completedSet.has(selected.id) ? 'Marked as explored' : 'Mark as explored'}</button><button className="btn-primary" onClick={() => next ? openTopic(next, quickStartMode) : quickStartMode ? clearFilters() : browseCategory(category)}>{next ? 'Next topic' : quickStartMode ? 'Back to overview' : 'Back to guides'}<ArrowRight size={13} /></button></footer>
+            </article> : <div className="explore-overview">
+              {!browsing ? <>
+                <section className="explore-hero"><div><p className="explore-eyebrow">YOUR WORKSPACE, EXPLAINED</p><h2 ref={overviewTitleRef} tabIndex={-1}>Find your next<br />better Git workflow.</h2><p>Learn the essentials, understand the tools, and know what happens before you click.</p><div className="explore-hero-actions"><button className="btn-primary" onClick={() => quickStart[0] && openTopic(quickStart[0], true)}>Start with the essentials<ArrowRight size={14} /></button>{resumeTopic ? <button className="explore-resume" onClick={() => openTopic(resumeTopic)}>Pick up where you left off<ChevronRight size={13} /></button> : null}</div></div><div className="explore-hero-index" aria-label={`${guideTopics.length} guides across ${guideCategories.length} workflows`}><BookOpen size={24} strokeWidth={1.5} /><strong>{guideTopics.length}</strong><span>practical guides</span><small>{guideCategories.length} workflows · beginner to advanced</small></div></section>
+                <section className="explore-quick-start"><div className="explore-section-heading"><div><h3>Your first complete workflow</h3><p>Four short guides to get from opening a project to sharing a commit.</p></div><span>{quickStart.filter(topic => completedSet.has(topic.id)).length} / {quickStart.length} explored</span></div><div className="explore-path">{quickStart.map((topic, index) => <button key={topic.id} onClick={() => openTopic(topic, true)}><span className={completedSet.has(topic.id) ? 'is-completed' : ''}>{completedSet.has(topic.id) ? <Check size={14} /> : String(index + 1).padStart(2, '0')}</span><strong>{topic.title}</strong><small>About {topic.minutes} min</small><ChevronRight size={13} /></button>)}</div></section>
+                <section className="explore-categories"><div className="explore-section-heading"><div><h3>Explore by workflow</h3><p>Choose a starting point. Every guide includes concrete steps and useful details.</p></div></div><div className="explore-category-grid">{guideCategories.map(item => { const Icon = categoryIcons[item.id], topics = guideTopics.filter(topic => topic.category === item.id); return <button key={item.id} onClick={() => browseCategory(item.id)}><span className={`explore-category-icon explore-category-${item.id}`}><Icon size={19} strokeWidth={1.7} /></span><div><h4>{item.title}</h4><p>{item.description}</p><small>{topics.length} guides<ArrowRight size={12} /></small></div></button>; })}</div></section>
+              </> : <div className="explore-browse-heading"><button className="explore-back" onClick={clearFilters}><ArrowLeft size={13} />All workflows</button><p className="explore-eyebrow">{query.trim() ? 'SEARCH THE GUIDE' : 'WORKFLOW GUIDES'}</p><h2 ref={overviewTitleRef} tabIndex={-1}>{query.trim() ? `Results for “${query.trim()}”` : currentCategory?.title || 'Not yet explored'}</h2><p>{query.trim() ? 'Matches include instructions, tips, feature names, and keywords.' : currentCategory?.description || 'Choose a topic to continue learning at your own pace.'}</p></div>}
+              <section className="explore-topic-browser"><div className="explore-section-heading"><h3>{browsing ? `${visibleTopics.length} ${visibleTopics.length === 1 ? 'guide' : 'guides'}${unreadOnly ? ' not yet explored' : ''}` : 'All guides'}</h3>{!browsing ? <span>Search above or jump straight in</span> : null}<span role="status" className="sr-only">{visibleTopics.length} guides found</span></div>{visibleTopics.length ? <div className="explore-topic-grid">{visibleTopics.map(topic => <TopicCard key={topic.id} topic={topic} completed={completedSet.has(topic.id)} onOpen={() => openTopic(topic)} />)}</div> : <div className="explore-empty"><Search size={27} strokeWidth={1.5} /><h3>{unreadOnly && !query.trim() ? 'You’ve explored these guides' : 'No guides found'}</h3><p>Try a broader search, another workflow, or show all guides.</p><button className="btn-secondary" onClick={clearFilters}>Show all guides<ArrowRight size={13} /></button></div>}</section>
+            </div>}
           </div>
         </div>
       </div>
+      <footer className="explore-footer"><label><input type="checkbox" checked={hideOnStartup} onChange={event => { setHideOnStartup(event.target.checked); try { localStorage.setItem(startupKey, String(event.target.checked)); } catch {} }} />Don’t open automatically at startup</label><span>Reopen anytime from Home → Explore StrataGit</span><button className="explore-close-link" onClick={close}>Back to workspace<ArrowRight size={13} /></button></footer>
     </div>
-  );
+  </div>;
+}
+
+function TopicCard({ topic, completed, onOpen }: { topic: GuideTopic; completed: boolean; onOpen: () => void }) {
+  const Icon = categoryIcons[topic.category];
+  return <button className="explore-topic-card" onClick={onOpen}><div className="explore-topic-top"><span><Icon size={13} />{guideCategories.find(category => category.id === topic.category)?.title}</span>{completed ? <CheckCircle2 size={14} className="explore-completed-label" aria-label="Explored" /> : <span className="explore-topic-level">{topic.level}</span>}</div><h4>{topic.title}</h4><p>{topic.summary}</p><div className="explore-topic-bottom"><span><Clock3 size={12} />{topic.minutes} min</span><span>Read guide<ArrowRight size={12} /></span></div></button>;
 }

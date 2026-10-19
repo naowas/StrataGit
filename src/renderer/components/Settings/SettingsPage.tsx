@@ -1471,7 +1471,7 @@ export function SettingsPage() {
                   </div>
 
                   <div className="pt-3 border-t border-edge/60 flex items-center justify-between">
-                    <span className="text-xs text-dim">Need an interactive tour of the app features?</span>
+                    <span className="text-xs text-dim">Learn the essentials and explore advanced Git workflows.</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -1481,7 +1481,7 @@ export function SettingsPage() {
                       className="btn btn-primary text-xs font-medium px-4 py-1.5 shadow-xs flex items-center gap-2 transition-all rounded-lg"
                     >
                       <Sparkles size={14} />
-                      <span>Start Interactive Usage Tour</span>
+                      <span>Explore StrataGit</span>
                     </button>
                   </div>
                 </div>

@@ -66,13 +66,26 @@ export function App() {
     });
   }, [init]);
 
-  // First-boot onboarding tour check
+  // Show the guide on first launch, without covering an active workflow.
   useEffect(() => {
     if (isReady) {
       try {
         const completed = localStorage.getItem('stratagit:guide_completed') === 'true';
         if (!completed) {
           const timer = setTimeout(() => {
+            const state = useApp.getState();
+            const activeDialogs = [
+              state.usageGuideOpen, state.conflictedFileToResolve, state.rebaseModalBaseCommit,
+              state.createRepoModalOpen, state.commandPaletteOpen, state.pullRequestsModalOpen,
+              state.commitSplitOpen, state.branchStackOpen, state.restorePointsOpen,
+              state.resolutionMemoryOpen, state.rangeComparisonOpen, state.lfsManagerOpen,
+              state.sparseCheckoutOpen, state.gitFlowModalOpen, state.bisectModalOpen,
+              state.reflogModalOpen, state.changelogModalOpen, state.worktreesModalOpen,
+              state.simulateMergeBranch, state.tagModalCommit, state.addRemoteModalOpen,
+              state.shortcutsModalOpen
+            ];
+            if (useSettings.getState().isSettingsOpen || state.isOpeningRepo || activeDialogs.some(Boolean)) return;
+            try { if (localStorage.getItem('stratagit:guide_completed') === 'true') return; } catch {}
             openUsageGuide();
           }, 450);
           return () => clearTimeout(timer);
@@ -140,6 +153,7 @@ export function App() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
+      if (useApp.getState().usageGuideOpen) return;
       // The merge editor owns shortcuts while a draft is open.
       if (useApp.getState().conflictedFileToResolve) return;
       const isMod = e.ctrlKey || e.metaKey;
