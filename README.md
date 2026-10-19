@@ -228,6 +228,8 @@ npm run dist:win
 ```
 This creates a Windows installer (`.exe`) and `latest.yml` updater metadata in `dist/`. Build on Windows for the most reliable release and smoke-test the installer there. Linux can cross-build it when Wine is available.
 
+Windows installer names are explicitly hyphenated (`StrataGit-Setup-<version>.exe`) so the uploaded installer and blockmap match `latest.yml`. Before publishing, verify every `url` and `path` in the updater metadata matches an attached asset exactly.
+
 ### Build for macOS (manual download)
 ```bash
 npm run dist:mac
