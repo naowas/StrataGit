@@ -7,6 +7,8 @@ export function AppLoadingScreen({ isReady }: { isReady: boolean }) {
   const [progress, setProgress] = useState(15);
 
   useEffect(() => {
+    if (isReady) return;
+
     const timer1 = setTimeout(() => {
       setStatusText('Loading repositories and branch hierarchy…');
       setProgress(35);
@@ -33,7 +35,7 @@ export function AppLoadingScreen({ isReady }: { isReady: boolean }) {
       clearTimeout(timer3);
       clearTimeout(timer4);
     };
-  }, []);
+  }, [isReady]);
 
   useEffect(() => {
     if (isReady) {

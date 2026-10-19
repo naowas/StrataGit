@@ -3,6 +3,7 @@ import { getDiffSummary } from './diff-summary';
 import { BranchInfo, StashInfo, StashDetail, FileDiff, FileChange } from '../../shared/types';
 import { withGit, errorMessage } from './core';
 import { parseUnifiedDiff } from './status-diff';
+import { gitCommand } from './advanced-process';
 
 export async function getBranches(repoPath: string): Promise<{ local: BranchInfo[]; remote: BranchInfo[] }> {
   try {
@@ -91,11 +92,13 @@ export async function stash(repoPath: string, message?: string): Promise<void> {
 }
 
 export async function stashPop(repoPath: string, index?: number): Promise<void> {
-  await withGit(repoPath, (git) => git.stash(['pop', `stash@{${index ?? 0}}`]));
+  // Git writes stash conflicts to stdout; simple-git's error detection can miss
+  // their nonzero exit status when stderr is empty.
+  await withGit(repoPath, () => gitCommand(repoPath, ['stash', 'pop', `stash@{${index ?? 0}}`]));
 }
 
 export async function stashApply(repoPath: string, index?: number): Promise<void> {
-  await withGit(repoPath, (git) => git.stash(['apply', `stash@{${index ?? 0}}`]));
+  await withGit(repoPath, () => gitCommand(repoPath, ['stash', 'apply', `stash@{${index ?? 0}}`]));
 }
 
 export async function stashDrop(repoPath: string, index?: number): Promise<void> {

@@ -1,4 +1,5 @@
-const { test } = require('node:test');
+const { test, after } = require('node:test');
+after(require('./test-git-environment.cjs').isolateGitEnvironment());
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -187,6 +188,7 @@ test('desktop registers unique IPC handlers and routes both patch APIs correctly
   const calls = [];
   let exposedApi;
   const electron = {
+    app: { once() {} },
     ipcMain: {
       handle(channel, callback) {
         assert.equal(handlers.has(channel), false, `Duplicate IPC handler: ${channel}`);

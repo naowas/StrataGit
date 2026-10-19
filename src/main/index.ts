@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { registerIpc } from './ipc';
@@ -55,7 +55,6 @@ app.whenReady().then(() => {
   registerUpdater(() => mainWindow);
 
   // Track the active repo path (sent from renderer when a tab is focused)
-  const { ipcMain } = require('electron') as typeof import('electron');
   ipcMain.on('repo:set-active', (_e, repoPath: string | null) => {
     currentRepo = repoPath;
   });

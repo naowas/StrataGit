@@ -56,14 +56,22 @@ export function App() {
 
   useEffect(() => {
     const startTime = Date.now();
-    void init().finally(() => {
+    let active = true;
+    let readinessTimer: ReturnType<typeof setTimeout> | undefined;
+    // The store reports initialization errors; readiness must still settle.
+    void init().catch(() => {}).finally(() => {
+      if (!active) return;
       // Ensure the opening animation displays smoothly for at least 2400ms
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, 2400 - elapsed);
-      setTimeout(() => {
+      readinessTimer = setTimeout(() => {
         setIsReady(true);
       }, remaining);
     });
+    return () => {
+      active = false;
+      if (readinessTimer !== undefined) clearTimeout(readinessTimer);
+    };
   }, [init]);
 
   // Show the guide on first launch, without covering an active workflow.

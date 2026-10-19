@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { gitFor } from './core';
+import { gitWithEnvironment } from './advanced-process';
 import { hasConflictMarkers } from '../../shared/conflicts';
 import type { ResolutionMemoryState } from '../../shared/types';
 
@@ -64,7 +65,7 @@ export async function captureResolutionMemory(repo: string, forget?: string): Pr
       await fs.writeFile(destination, original);
       originals.set(file, original);
     }
-    const shadow = gitFor(tree).env({ ...process.env, GIT_INDEX_FILE: path.join(temp, 'index') });
+    const shadow = gitWithEnvironment(tree, { GIT_INDEX_FILE: path.join(temp, 'index') });
     const options = ['--git-dir', gitDir, '--work-tree', tree, '-c', 'rerere.enabled=true', '-c', 'rerere.autoupdate=false'];
     await shadow.raw([...options, 'rerere']);
     if (forget) await shadow.raw([...options, 'rerere', 'forget', '--', `:(literal)${forget}`]);

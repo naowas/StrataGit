@@ -7,15 +7,11 @@ import { api } from '../../lib/api';
 interface HunkHeaderProps {
   hunk: DiffHunk;
   hunkIndex: number;
-  selectedLineIndices?: Set<number>;
-  onClearSelection?: () => void;
 }
 
 export function HunkHeader({
   hunk,
-  hunkIndex,
-  selectedLineIndices,
-  onClearSelection
+  hunkIndex
 }: HunkHeaderProps) {
   const openDiff = useApp((s) => s.openDiff);
   const runAndRefresh = useApp((s) => s.runAndRefresh);

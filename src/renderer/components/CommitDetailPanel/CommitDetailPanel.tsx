@@ -119,7 +119,7 @@ function WorkdirPanel() {
   }, [status]);
 
   const doCommit = async () => {
-    if (!msg.trim()) return;
+    if (!msg.trim() || !status?.staged.length) return;
     const authorParam = effectiveAuthorName
       ? { name: effectiveAuthorName, email: effectiveAuthorEmail }
       : undefined;
@@ -150,8 +150,8 @@ function WorkdirPanel() {
       } else {
         setAiError(res.error || 'Failed to generate commit message');
       }
-    } catch (err: any) {
-      setAiError(err.message || 'Generation failed');
+    } catch (err: unknown) {
+      setAiError(err instanceof Error && err.message ? err.message : 'Generation failed');
     } finally {
       setGeneratingAi(false);
     }

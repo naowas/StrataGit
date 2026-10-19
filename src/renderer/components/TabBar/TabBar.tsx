@@ -160,7 +160,6 @@ export function TabBar() {
       <div
         className="flex-1 min-w-[30px] h-full cursor-default"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-        onDoubleClick={() => void api.maximizeWindow?.()}
       />
 
       {/* 4. Action & Window Controls */}

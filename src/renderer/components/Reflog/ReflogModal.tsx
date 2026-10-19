@@ -75,10 +75,10 @@ export function ReflogModal() {
 
   const selected = filteredEntries.find((entry) => entryKey(entry) === selectedKey) ?? filteredEntries[0] ?? null;
   const currentBranch = status?.currentBranch ?? '';
-  const restoreBlockedReason = !currentBranch || currentBranch.includes('detached')
-    ? 'Check out a local branch first.'
-    : !status
-      ? 'Repository status is still loading.'
+  const restoreBlockedReason = !status
+    ? 'Repository status is still loading.'
+    : !currentBranch || currentBranch.includes('detached')
+      ? 'Check out a local branch first.'
       : status.staged.length > 0 || status.unstaged.length > 0
         ? 'Commit or stash working tree changes before restoring.'
         : operationState?.inMerge || operationState?.inRebase || operationState?.inCherryPick
@@ -94,7 +94,7 @@ export function ReflogModal() {
     const priorBranch = movedFrom && !/^[0-9a-f]{7,64}$/i.test(movedFrom) &&
       !branches.local.some((branch) => branch.name === movedFrom) ? movedFrom : '';
     setDesiredBranchName(priorBranch || `recovered/${selected.shortHash}-${selected.date.slice(0, 10) || 'commit'}`);
-  }, [selected?.hash]);
+  }, [selected ? entryKey(selected) : null]);
 
   if (!isOpen) return null;
 

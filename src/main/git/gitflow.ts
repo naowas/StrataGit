@@ -27,7 +27,7 @@ export async function getGitFlowConfig(repoPath: string): Promise<GitFlowConfig>
     const hotfixPrefix = (await git.getConfig('gitflow.prefix.hotfix')).value || 'hotfix/';
     const bugfixPrefix = (await git.getConfig('gitflow.prefix.bugfix')).value || 'bugfix/';
     const supportPrefix = (await git.getConfig('gitflow.prefix.support')).value || 'support/';
-    const versionTagPrefix = (await git.getConfig('gitflow.prefix.versiontag')).value || 'v';
+    const versionTagPrefix = (await git.getConfig('gitflow.prefix.versiontag')).value ?? 'v';
 
     const hasConfiguredMaster = Boolean((await git.getConfig('gitflow.branch.master')).value);
     const hasDevelopBranch = branchList.includes(developBranch);

@@ -527,7 +527,7 @@ function SidebarFull({
     e.preventDefault();
     e.stopPropagation();
 
-    const shortName = b.name.replace(/^origin\//, '');
+    const shortName = b.name.includes('/') ? b.name.split('/').slice(1).join('/') : b.name;
     const remoteName = b.name.split('/')[0] || 'origin';
 
     const items: ContextMenuItem[] = [
@@ -552,7 +552,7 @@ function SidebarFull({
         danger: true,
         onClick: () => {
           void runAndRefresh(
-            () => api.deleteBranch(shortName, { local: false, remote: true, force: true }),
+            () => api.deleteBranch(shortName, { local: false, remote: true, remoteName, force: true }),
             `Deleted remote branch ${b.name}`
           );
         }

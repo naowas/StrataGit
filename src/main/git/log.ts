@@ -165,12 +165,6 @@ export function assignLanes(commits: RawCommit[]): LaneAssignment[] {
           const occupied = laneByHash.get(p);
           if (occupied !== undefined) {
             parentLanes.push(occupied);
-            if (occupied !== lane) {
-              // First parent arrives from another rail: it enters the merge
-              // node and leaves through its own rail; the merge column below
-              // stays in the merge node's lane.
-              pl2 = [{ lane: occupied, bottom: 'curve', returnFrom: lane }];
-            }
           } else {
             laneByHash.set(p, lane);
             parentLanes.push(lane);
@@ -192,20 +186,14 @@ export function assignLanes(commits: RawCommit[]): LaneAssignment[] {
         return { lane: mergeLane, bottom: 'v' as const, returnFrom: mergeLane };
       });
     } else {
-      c.parents.forEach((p, pi) => {
+      c.parents.forEach((p) => {
         const existing = laneByHash.get(p);
         if (existing !== undefined) {
           parentLanes.push(existing);
           return;
         }
-        if (pi === 0) {
-          laneByHash.set(p, lane!);
-          parentLanes.push(lane!);
-        } else {
-          const l = alloc();
-          laneByHash.set(p, l);
-          parentLanes.push(l);
-        }
+        laneByHash.set(p, lane!);
+        parentLanes.push(lane!);
       });
     }
     assignments[i] = { lane: lane!, lanes: parentLanes, pl2 };

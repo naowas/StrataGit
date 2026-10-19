@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { gitFor } from './core';
+import { gitWithEnvironment } from './advanced-process';
 import type { RestorePoint } from '../../shared/types';
 
 const namespace = 'refs/stratagit/restore-points/';
@@ -19,10 +20,10 @@ export async function createRestorePoint(repo: string, label = 'Manual restore p
   const worktree = await fs.realpath(repo);
   const id = randomUUID();
   const folder = await fs.mkdtemp(path.join(gitDir, 'stratagit-snapshot-'));
-  const identity = { ...process.env, GIT_AUTHOR_NAME: 'StrataGit Restore', GIT_AUTHOR_EMAIL: 'restore@stratagit.local', GIT_COMMITTER_NAME: 'StrataGit Restore', GIT_COMMITTER_EMAIL: 'restore@stratagit.local' };
-  const writer = gitFor(repo).env(identity);
+  const identity = { GIT_AUTHOR_NAME: 'StrataGit Restore', GIT_AUTHOR_EMAIL: 'restore@stratagit.local', GIT_COMMITTER_NAME: 'StrataGit Restore', GIT_COMMITTER_EMAIL: 'restore@stratagit.local' };
+  const writer = gitWithEnvironment(repo, identity);
   const treeCommit = async (tree: string, parents: string[], message: string) => (await writer.raw(['-c', 'commit.gpgsign=false', 'commit-tree', tree, ...parents.flatMap(p => ['-p', p]), '-m', message])).trim();
-  const temp = gitFor(repo).env({ ...identity, GIT_INDEX_FILE: path.join(folder, 'index') });
+  const temp = gitWithEnvironment(repo, { ...identity, GIT_INDEX_FILE: path.join(folder, 'index') });
   try {
     let head = (await git.raw(['rev-parse', '--verify', 'HEAD']).catch(() => '')).trim();
     const originalHead = head;
@@ -97,7 +98,7 @@ export async function restorePoint(repo: string, id: string) {
   }
   const branch = `recovered/restore-${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}-${id.slice(0, 8)}`;
   await git.raw(['-c', 'submodule.recurse=false', 'checkout', '--no-overwrite-ignore', '-b', branch, point.head]);
-  try { await git.raw(['-c', 'submodule.recurse=false', 'stash', 'apply', '--index', hash]); }
+  try { await gitWithEnvironment(repo, {}).raw(['-c', 'submodule.recurse=false', 'stash', 'apply', '--index', hash]); }
   catch { throw new Error(`Recovery stopped on ${branch}. The restore point is retained. Review the working tree and any conflicts before continuing.`); }
   return { ok: true, branch };
 }

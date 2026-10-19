@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { gitFor } from './core';
+import { gitWithEnvironment } from './advanced-process';
 import type { RewriteSession, RangeComparison, RangeComparisonInput } from '../../shared/types';
 
 const exec = promisify(execFile);
@@ -45,7 +46,7 @@ async function emptyBase(repo: string) {
   const directory = await folder(repo);
   await fs.mkdir(directory, { recursive: true });
   const temporary = await fs.mkdtemp(path.join(directory, 'baseline-'));
-  const git = gitFor(repo).env({ ...process.env, GIT_INDEX_FILE: path.join(temporary, 'index'), GIT_AUTHOR_NAME: 'StrataGit', GIT_AUTHOR_EMAIL: 'comparison@stratagit.local', GIT_COMMITTER_NAME: 'StrataGit', GIT_COMMITTER_EMAIL: 'comparison@stratagit.local' });
+  const git = gitWithEnvironment(repo, { GIT_INDEX_FILE: path.join(temporary, 'index'), GIT_AUTHOR_NAME: 'StrataGit', GIT_AUTHOR_EMAIL: 'comparison@stratagit.local', GIT_COMMITTER_NAME: 'StrataGit', GIT_COMMITTER_EMAIL: 'comparison@stratagit.local' });
   try {
     await git.raw(['read-tree', '--empty']);
     const tree = (await git.raw(['write-tree'])).trim();

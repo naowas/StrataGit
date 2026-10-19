@@ -38,8 +38,6 @@ export function SplitDiffView({ hunks }: SplitDiffViewProps) {
             <HunkHeader
               hunk={hunk}
               hunkIndex={hunkIdx}
-              selectedLineIndices={new Set<number>()}
-              onClearSelection={() => {}}
             />
 
             <div className="code-surface select-text">

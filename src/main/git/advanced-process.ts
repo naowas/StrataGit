@@ -21,6 +21,11 @@ export function gitCommand(repo: string, args: string[], input?: string, env?: N
   });
 }
 
+/** Internal environment overrides must preserve the host environment. */
+export function gitWithEnvironment(repo: string, env: NodeJS.ProcessEnv, timeout = 30_000) {
+  return { raw: (args: string[]) => gitCommand(repo, args, undefined, env, timeout) };
+}
+
 export async function cleanBranch(repo: string): Promise<{ branch: string; head: string }> {
   const git = gitFor(repo), operation = await getRepoOperationState(repo);
   if (operation.inMerge || operation.inRebase || operation.inCherryPick || operation.conflictedFiles.length) throw new Error('Finish or abort the active Git operation first.');

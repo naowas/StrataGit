@@ -804,18 +804,18 @@ export function CommitGraph() {
               danger: true,
               onClick: () =>
                 void runAndRefresh(
-                  () => api.deleteBranch(remoteShort, { local: false, remote: true, force: true }),
+                  () => api.deleteBranch(remoteShort, { local: false, remote: true, remoteName, force: true }),
                   `Deleted ${name}`
                 )
             }
           ]),
       {
-        label: `Delete ${name} and ${remoteName}/${remoteShort}`,
+        label: `Delete ${remoteShort} and ${remoteName}/${remoteShort}`,
         icon: <Trash2 size={13} />,
         danger: true,
         onClick: () =>
           void runAndRefresh(
-            () => api.deleteBranch(remoteShort, { local: true, remote: true, force: true }),
+            () => api.deleteBranch(remoteShort, { local: true, remote: true, remoteName, force: true }),
             `Deleted ${name} and ${remoteName}/${remoteShort}`
           )
       }

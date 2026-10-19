@@ -43,8 +43,10 @@ interface PaletteItem {
   action: () => void | Promise<unknown>;
 }
 
+const QUERY_SCOPE_PREFIX = /^([>@#]|(cmd|branch|tag|commit|file|c|f):)/i;
+
 function highlightMatch(text: string, query: string) {
-  const cleanQ = query.replace(/^([>@#]|(cmd|branch|tag|commit|file):)/i, '').trim();
+  const cleanQ = query.trim().replace(QUERY_SCOPE_PREFIX, '').trim();
   if (!cleanQ) return <span>{text}</span>;
   try {
     const parts = text.split(new RegExp(`(${cleanQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
@@ -422,7 +424,7 @@ export function CommandPalette() {
   }, [query, activeCategory]);
 
   const cleanQuery = useMemo(() => {
-    return query.replace(/^([>@#]|(cmd|branch|tag|commit|file):)/i, '').trim().toLowerCase();
+    return query.trim().replace(QUERY_SCOPE_PREFIX, '').trim().toLowerCase();
   }, [query]);
 
   const filteredItems = useMemo(() => {

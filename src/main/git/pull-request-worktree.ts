@@ -3,13 +3,13 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import type { PullReviewTarget, PullRequestCredential, PullRequestProvider } from '../../shared/types';
-import { gitFor } from './core';
+import { gitWithEnvironment } from './advanced-process';
 import { apiPath, hostedReviewClient, requestJson } from './pull-requests';
 import { getRemotes } from './objects-navigation';
 
 export async function openPullRequestWorktree(repo: string, input: PullReviewTarget & { head: string; directory: string; branch: string }, credentials: (p: PullRequestProvider) => PullRequestCredential | null) {
   if (!input || !['github', 'gitlab', 'bitbucket'].includes(input.provider) || !/^\d+$/.test(input.requestId) || !/^[a-f0-9]{40,64}$/i.test(input.head)) throw new Error('Load the current PR revision before opening a worktree.');
-  const git = gitFor(repo, { timeout: { block: 120_000 } }).env({ ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_LFS_SKIP_SMUDGE: '1' });
+  const git = gitWithEnvironment(repo, { GIT_LFS_SKIP_SMUDGE: '1' }, 120_000);
   if (!input.branch || input.branch.startsWith('-')) throw new Error('Enter a new local review branch name.');
   await git.raw(['check-ref-format', `refs/heads/${input.branch}`]);
   if (await git.raw(['show-ref', '--verify', `refs/heads/${input.branch}`]).then(() => true, () => false)) throw new Error('That branch already exists. Choose a new review branch name.');
@@ -32,7 +32,7 @@ export async function openPullRequestWorktree(repo: string, input: PullReviewTar
   if (input.provider === 'bitbucket') {
     const fullName = pr.source?.repository?.full_name;
     const branch = pr.source?.branch?.name;
-    if (typeof fullName !== 'string' || !/^[\w.-]+\/[\w.-]+$/.test(fullName) || typeof branch !== 'string') throw new Error('The Bitbucket source repository or branch is unavailable.');
+    if (typeof fullName !== 'string' || !/^[\w.-]+\/[\w.-]+$/.test(fullName) || fullName.split('/').some(part => part === '.' || part === '..') || typeof branch !== 'string') throw new Error('The Bitbucket source repository or branch is unavailable.');
     await git.raw(['check-ref-format', `refs/heads/${branch}`]);
     source = /^(git@|ssh:)/.test(remote.fetchUrl) ? `git@bitbucket.org:${fullName}.git` : `https://bitbucket.org/${fullName}.git`;
     ref = `refs/heads/${branch}`;

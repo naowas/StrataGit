@@ -41,7 +41,12 @@ function parseHostedRepository(remote: RemoteInfo, providerOverride?: PullReques
   const parsed = normalizeRemoteUrl(remote.fetchUrl || remote.pushUrl);
   if (!parsed) return null;
   const host = parsed.hostname.toLowerCase();
-  const repositoryPath = decodeURIComponent(parsed.pathname.replace(/^\/+|\/+$/g, '').replace(/\.git$/i, ''));
+  let repositoryPath: string;
+  try {
+    repositoryPath = decodeURIComponent(parsed.pathname.replace(/^\/+|\/+$/g, '').replace(/\.git$/i, ''));
+  } catch {
+    return null;
+  }
   const parts = repositoryPath.split('/').filter(Boolean);
   if (parts.length < 2) return null;
 
@@ -134,7 +139,7 @@ export async function requestJson<T>(
       if (![301, 302, 307, 308].includes(response.status)) break;
       const location = response.headers.get('location');
       const next = location && new URL(location, url);
-      if (method !== 'GET' || redirects >= 3 || !next || next.origin !== new URL(config.apiBase).origin || !next.pathname.startsWith(new URL(config.apiBase).pathname + apiPath(config) + '/')) {
+      if (method !== 'GET' || redirects >= 3 || !next || next.origin !== new URL(config.apiBase).origin || !next.pathname.startsWith(new URL(config.apiBase).pathname.replace(/\/$/, '') + apiPath(config) + '/')) {
         throw new Error('The provider returned an unsupported redirect. Open the request on the provider.');
       }
       await response.body?.cancel();
@@ -267,7 +272,7 @@ export async function getPullRequestContext(
   const hosted = parseHostedRepository(selected, providerOverride);
   if (!hosted) {
     return {
-      provider: null, remoteName: selected.name, remoteUrl: selected.fetchUrl, currentBranch,
+      provider: null, remoteName: selected.name, remoteUrl: selected.fetchUrl || selected.pushUrl, currentBranch,
       defaultBranch: '', credentialConfigured: false, pullRequests: [],
       error: 'This remote is not a supported GitHub.com, GitLab, or Bitbucket Cloud repository. For a self-managed GitLab host, choose GitLab in the provider selector.'
     };
@@ -277,7 +282,7 @@ export async function getPullRequestContext(
   const context: PullRequestContext = {
     provider: hosted.provider,
     remoteName: selected.name,
-    remoteUrl: selected.fetchUrl,
+    remoteUrl: selected.fetchUrl || selected.pushUrl,
     repository: hosted.path,
     repositoryUrl: hosted.webUrl,
     currentBranch,

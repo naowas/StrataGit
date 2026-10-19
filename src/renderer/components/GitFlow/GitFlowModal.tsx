@@ -181,8 +181,7 @@ export function GitFlowModal({ onClose }: GitFlowModalProps) {
     if (branchType === 'feature') return config.featurePrefix;
     if (branchType === 'release') return config.releasePrefix;
     if (branchType === 'hotfix') return config.hotfixPrefix;
-    if (branchType === 'bugfix') return config.bugfixPrefix;
-    return 'feature/';
+    return config.bugfixPrefix;
   };
 
   const getBaseBranchName = () => {
