@@ -117,6 +117,7 @@ Follow the user's latest validation instructions. Do not add or run tests or typ
 - Use the existing release workflow and [release instructions](README.md#publishing-a-release-and-its-update-files). It builds on native runners and attaches assets to a draft release. Do not publish before the installers and matching updater metadata are present.
 - Preserve Linux AppImage/deb/rpm/pacman, Windows NSIS, and unsigned macOS DMG/ZIP targets. macOS remains a manual release-page download path unless the user explicitly changes that policy.
 - Use the Linux packaging script for Linux releases. Each native package must contain its own matching `package-type`; AppImages must not inherit a native package marker. Keep every built format, including Pacman, in the verified update feed. Do not package several Linux formats against one shared unpacked directory.
+- Arch release assets use real Zstandard compression and `.pkg.tar.zst` filenames derived from `.PKGINFO`. Keep compression, package discovery, updater compatibility, checksums, and upload globs consistent; never relabel an XZ archive as Zstandard.
 - Keep quiet startup checks, useful manual-check results, explicit download, visible progress, and explicit restart/install actions. Do not enable automatic downloading or installation without a requested change.
 - Preserve the GitHub release provider for `naowas/StrataGit`. Updater metadata and blockmaps must come from the same build as their installers; never substitute an older build's files.
 

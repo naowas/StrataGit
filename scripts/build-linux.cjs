@@ -6,9 +6,11 @@ const { createReadStream } = require('node:fs');
 const { createHash } = require('node:crypto');
 const path = require('node:path');
 const yaml = require('js-yaml');
+const { createArchPackage, verifyZstdArchive } = require('./arch-package.cjs');
 
 const TARGETS = ['AppImage', 'deb', 'rpm', 'pacman'];
 const ARCHES = ['x64', 'arm64', 'armv7l', 'ia32'];
+const packageSuffix = target => target === 'pacman' ? '.pkg.tar.zst' : `.${target}`;
 
 async function checksum(file) {
   const hash = createHash('sha512');
@@ -21,12 +23,14 @@ async function verifyLinuxRelease(output, version, arches = ['x64'], targets = T
     const suffix = arch === 'x64' ? '' : `-${arch === 'armv7l' ? 'arm' : arch}`;
     const feed = yaml.load(await fs.readFile(path.join(output, `latest-linux${suffix}.yml`), 'utf8'));
     if (feed?.version !== version || !Array.isArray(feed.files)) throw new Error('Linux update feed has an incorrect version or file list.');
+    if (feed.files.some(file => typeof file?.url !== 'string' || !TARGETS.some(target => file.url.endsWith(packageSuffix(target))))) throw new Error('Linux update feed contains an unsupported installer format. Arch installers must use .pkg.tar.zst.');
     for (const target of targets) {
-      if (feed.files.filter(file => typeof file.url === 'string' && file.url.endsWith(`.${target}`)).length !== 1) throw new Error(`Linux update feed must contain one ${target} installer.`);
+      if (feed.files.filter(file => typeof file.url === 'string' && file.url.endsWith(packageSuffix(target))).length !== 1) throw new Error(`Linux update feed must contain one ${target} installer.`);
     }
     for (const file of feed.files) {
       if (typeof file.url !== 'string' || file.url !== path.basename(file.url) || file.url.includes('\\') || /\s/.test(file.url)) throw new Error('Linux update feed contains an invalid installer filename.');
       const installer = path.join(output, file.url);
+      if (file.url.endsWith('.pkg.tar.zst')) await verifyZstdArchive(installer);
       if ((await fs.stat(installer)).size !== file.size || await checksum(installer) !== file.sha512) throw new Error(`Linux update feed does not match ${file.url}.`);
     }
     if (!feed.files.some(file => file.url === feed.path && file.sha512 === feed.sha512)) throw new Error('Linux update feed fallback path does not match its files.');
@@ -65,6 +69,7 @@ async function buildLinux(args = [], options = {}) {
           publish: 'never',
           config: {
             directories: { output: targetOutput },
+            ...(target === 'pacman' ? { pacman: { compression: 'xz' } } : {}),
             afterPack: async context => {
               packedResources = context.packager.getResourcesDir(context.appOutDir);
               const marker = path.join(packedResources, 'package-type');
@@ -83,9 +88,12 @@ async function buildLinux(args = [], options = {}) {
         const names = await fs.readdir(targetOutput);
         const packages = names.filter(name => name.endsWith(`.${target}`));
         if (packages.length !== 1) throw new Error(`Expected one ${target} installer, found ${packages.length}.`);
-        const name = packages[0];
+        // Builder 25 emits an XZ-compressed .pacman intermediary. Only the
+        // standard Zstandard archive is copied to dist and advertised to clients.
+        let artifact = path.join(targetOutput, packages[0]);
+        if (target === 'pacman') artifact = await (options.packageArch || createArchPackage)(artifact, arch);
+        const name = path.basename(artifact);
         if (/\s/.test(name)) throw new Error(`Installer names must not contain whitespace: ${name}`);
-        const artifact = path.join(targetOutput, name);
         const info = { url: name, sha512: await checksum(artifact), size: (await fs.stat(artifact)).size };
         if (target === 'AppImage') {
           const suffix = arch === 'x64' ? '' : `-${arch === 'armv7l' ? 'arm' : arch}`;

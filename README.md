@@ -220,11 +220,13 @@ StrataGit uses [`electron-builder`](https://www.electron.build/) to package dist
 ```bash
 npm run dist:linux
 ```
-This creates an AppImage, Debian package, RPM package, and Pacman package in `dist/`.
+This creates an AppImage, Debian package, RPM package, and Zstandard-compressed Arch package (`stratagit-<version>-<pkgrel>-x86_64.pkg.tar.zst` for x64) in `dist/`.
 
 Each Linux format is packaged separately in an isolated directory to preserve its updater identity. The build combines all four installer entries, including Pacman, into `latest-linux.yml` and verifies their versions, sizes and SHA-512 checksums. `npm run dist` uses the same Linux pipeline on Linux. Optional architecture flags include `--x64` and `--arm64`.
 
-If an older Linux installation reports an installer or `pkexec` error, use **View releases** and install the package for your distribution manually. In particular, Arch/CachyOS uses the `.pacman` package with `sudo pacman -U ./stratagit-<version>.pacman`; do not install an RPM or Debian package on Arch. Older multi-format builds can contain an incorrect updater package marker, so a manual upgrade may be needed to receive the corrected updater. A failed authorization dialog does not mean an update check or download failed; see the [pkexec return codes](https://www.freedesktop.org/software/polkit/docs/latest/pkexec.1.html).
+Arch packaging requires `bsdtar`, `xz`, and `zstd` on the build machine; GitHub Actions installs them automatically. With the pinned builder, an intermediate XZ package is streamed into Zstandard while preserving its tar contents. The final filename comes from `.PKGINFO`, including the package release and native architecture. Only `.pkg.tar.zst` files are advertised as Arch installers in the update feed and uploaded to releases; existing Pacman updater clients can select them from the Linux feed.
+
+If an older Linux installation reports an installer or `pkexec` error, use **View releases** and install the package for your distribution manually. In particular, Arch/CachyOS uses `sudo pacman -U ./stratagit-<version>-<pkgrel>-x86_64.pkg.tar.zst`; older releases used a `.pacman` filename, also installable with `pacman -U`. Do not install an RPM or Debian package on Arch. Older multi-format builds can contain an incorrect updater package marker, so a manual upgrade may be needed to receive the corrected updater. A failed authorization dialog does not mean an update check or download failed; see the [pkexec return codes](https://www.freedesktop.org/software/polkit/docs/latest/pkexec.1.html).
 
 ### Build for Windows (NSIS installer)
 ```bash

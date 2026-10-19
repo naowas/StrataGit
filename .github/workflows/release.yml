@@ -27,7 +27,7 @@ jobs:
       - name: Install Linux packaging tools
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y libopenjp2-tools libarchive-tools rpm
+          sudo apt-get install --no-install-recommends -y libopenjp2-tools libarchive-tools rpm xz-utils zstd
 
       - name: Verify tag matches app version
         shell: bash
@@ -57,7 +57,7 @@ jobs:
             dist/*.AppImage
             dist/*.deb
             dist/*.rpm
-            dist/*.pacman
+            dist/*.pkg.tar.zst
             dist/latest-linux.yml
             dist/*.blockmap
           if-no-files-found: error
