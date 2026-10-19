@@ -13,7 +13,9 @@ export function StrataLogo({ size = 24, className = '', animated = false }: Stra
       viewBox="0 0 512 512"
       width={size}
       height={size}
-      className={`shrink-0 select-none ${className}`}
+      preserveAspectRatio="xMidYMid meet"
+      style={{ width: size, height: size, aspectRatio: '1 / 1' }}
+      className={`block shrink-0 select-none ${className}`}
       aria-label="StrataGit Logo"
     >
       <defs>

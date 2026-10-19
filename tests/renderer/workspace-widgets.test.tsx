@@ -109,6 +109,17 @@ describe('toast notifications', () => {
 });
 
 describe('startup and repository loading displays', () => {
+  it('uses a compact square logo and one plain progress indicator at startup', () => {
+    vi.useFakeTimers(); const { container, rerender } = render(<AppLoadingScreen isReady={false} />);
+    const logo = screen.getByLabelText('StrataGit Logo'); expect(logo).toHaveAttribute('width', '64'); expect(logo).toHaveAttribute('height', '64'); expect(logo).toHaveStyle({ width: '64px', height: '64px', aspectRatio: '1 / 1' }); expect(logo).toHaveAttribute('preserveAspectRatio', 'xMidYMid meet');
+    expect(container.querySelectorAll('svg')).toHaveLength(1); expect(screen.getAllByRole('progressbar')).toHaveLength(1); expect(screen.getByRole('progressbar', { name: 'Starting StrataGit' })).toHaveAttribute('aria-valuenow', '15');
+    expect(container.querySelector('.animate-branch-draw, .animate-shimmer, .animate-pulse')).toBeNull(); rerender(<AppLoadingScreen isReady />); expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
+  });
+  it('keeps repository opening consistent with a square logo and one indeterminate bar', () => {
+    vi.useFakeTimers(); mocks.app.isOpeningRepo = true; const { container } = render(<RepoOpeningAnimation />);
+    expect(screen.getByLabelText('StrataGit Logo')).toHaveStyle({ width: '48px', height: '48px', aspectRatio: '1 / 1' }); expect(screen.getAllByRole('progressbar')).toHaveLength(1); expect(screen.getByRole('progressbar', { name: 'Opening repository' })).not.toHaveAttribute('aria-valuenow');
+    expect(container.querySelector('.loading-progress-fill.is-indeterminate')).toBeInTheDocument(); expect(container.querySelector('.animate-branch-draw, .animate-shimmer, .animate-pulse')).toBeNull();
+  });
   it('keeps the ready phase complete while the startup timers would still be pending', () => {
     vi.useFakeTimers();
     const { container, rerender } = render(<AppLoadingScreen isReady={false} />);
