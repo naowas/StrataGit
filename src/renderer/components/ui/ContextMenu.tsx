@@ -120,7 +120,7 @@ function ContextMenuPrompt({
         className="w-full text-xs px-2 py-1 bg-base border border-edge rounded"
       />
       <button
-        className="rounded bg-accent hover:bg-accent-hover text-white px-2 py-1 font-medium disabled:opacity-40"
+        className="btn-primary context-menu-prompt-submit w-full"
         disabled={!val.trim()}
         onClick={() => {
           if (val.trim()) {

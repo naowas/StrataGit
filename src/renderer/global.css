@@ -239,6 +239,13 @@ code {
 }
 .light .btn-primary:hover { background-color: var(--color-accent); }
 
+/* Inline menu forms need readable labels without inheriting nested em sizing. */
+.context-menu-prompt-submit {
+  min-height: 30px;
+  font-size: var(--font-size-sm, 12px);
+  font-weight: 600;
+}
+
 .btn-icon {
   display: flex;
   align-items: center;
