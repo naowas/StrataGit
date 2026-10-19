@@ -276,7 +276,7 @@ export function TerminalDrawer() {
           <div key={log.id} className="space-y-1 group">
             <div className="flex items-center gap-2 text-dim text-[11px] select-none">
               <span className="text-emerald-400 font-semibold">$</span>
-              <span className="text-fg font-medium">{log.command}</span>
+              <span className="code-surface text-fg font-medium break-all">{log.command}</span>
               <span className="flex-1" />
               <button
                 onClick={() => copyLog(log)}
@@ -304,8 +304,7 @@ export function TerminalDrawer() {
 
             {log.stdout && (
               <pre
-                className="text-fg/90 whitespace-pre-wrap font-mono pl-3 border-l-2 border-accent/30 overflow-x-auto leading-relaxed"
-                style={{ fontSize: 'var(--font-size-code)' }}
+                className="code-surface text-fg/90 whitespace-pre-wrap pl-3 border-l-2 border-accent/30 overflow-x-auto"
               >
                 {log.stdout}
               </pre>
@@ -313,8 +312,7 @@ export function TerminalDrawer() {
 
             {log.stderr && (
               <pre
-                className="text-red-300 whitespace-pre-wrap font-mono pl-3 border-l-2 border-red-500/50 overflow-x-auto leading-relaxed"
-                style={{ fontSize: 'var(--font-size-code)' }}
+                className="code-surface text-red-300 whitespace-pre-wrap pl-3 border-l-2 border-red-500/50 overflow-x-auto"
               >
                 {log.stderr}
               </pre>
@@ -334,8 +332,7 @@ export function TerminalDrawer() {
           onKeyDown={handleKeyDown}
           disabled={isRunning}
           placeholder="Enter command (e.g. git status, git log -n 5, npm test)…"
-          className="flex-1 bg-transparent text-fg font-mono outline-hidden border-none p-0 focus:ring-0 placeholder:text-dim"
-          style={{ fontSize: 'var(--font-size-code)' }}
+          className="code-surface flex-1 min-w-0 bg-transparent text-fg outline-hidden border-none p-0 focus:ring-0 placeholder:text-dim"
         />
         {isRunning ? (
           <Loader2 size={14} className="animate-spin text-accent shrink-0" />

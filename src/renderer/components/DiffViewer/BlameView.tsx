@@ -154,12 +154,12 @@ export function BlameView({ filePath }: BlameViewProps) {
               </div>
 
               {/* Line number */}
-              <span className="w-11 shrink-0 text-right pr-2 text-faint select-none border-r border-edge/30 text-[11px] py-0.5">
+              <span className="code-surface w-[6ch] shrink-0 text-right pr-[1ch] text-faint select-none border-r border-edge/30 py-0.5">
                 {line.lineNo}
               </span>
 
               {/* Code line content */}
-              <span className="whitespace-pre-wrap break-all px-3 py-0.5 flex-1 min-w-0 text-fg/90">
+              <span className="code-surface whitespace-pre-wrap break-all px-3 py-0.5 flex-1 min-w-0 text-fg/90">
                 {line.content}
               </span>
             </div>

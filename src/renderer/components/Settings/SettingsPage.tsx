@@ -33,6 +33,7 @@ import {
   ThemeId,
   UI_FONT_PRESETS,
   CODE_FONT_PRESETS,
+  FONT_SIZE_LIMITS,
   ToastPosition,
   SettingsSection
 } from '../../store/settings';
@@ -42,6 +43,7 @@ import { AppUpdateState, CommitProfile, AiCommitConfig } from '../../../shared/t
 import { StrataLogo } from '../Common/StrataLogo';
 import { APP_VERSION } from '../../lib/appVersion';
 import { PullRequestProvidersSettings } from './PullRequestProvidersSettings';
+import { TypographySizeControl } from './TypographySizeControl';
 
 type SettingsTab = SettingsSection;
 
@@ -76,6 +78,10 @@ export function SettingsPage() {
     setUiFontSize,
     codeFontSize,
     setCodeFontSize,
+    homeFontSize,
+    setHomeFontSize,
+    guideFontSize,
+    setGuideFontSize,
     uiFontFamily,
     setUiFontFamily,
     customUiFont,
@@ -103,6 +109,7 @@ export function SettingsPage() {
     aiCommit,
     setAiCommit,
     resetDefaults,
+    resetTypography,
     toastPosition,
     setToastPosition
   } = useSettings();
@@ -342,7 +349,7 @@ export function SettingsPage() {
 
   const categories = [
     { id: 'themes' as const, label: 'Appearance & Themes', icon: <Palette size={16} />, desc: 'Color palettes, UI accents & toast position' },
-    { id: 'typography' as const, label: 'Typography & Density', icon: <Type size={16} />, desc: 'Fonts, font scaling & graph row density' },
+    { id: 'typography' as const, label: 'Typography & Density', icon: <Type size={16} />, desc: 'Independent text sizes, fonts & graph row density' },
     { id: 'profiles' as const, label: 'Commit Profiles & GPG', icon: <User size={16} />, desc: 'Git credentials, signing keys & identities' },
     { id: 'ai' as const, label: 'AI Assistant', icon: <Sparkles size={16} />, desc: 'Code reviews, commit messages & providers' },
     { id: 'git' as const, label: 'Git & Synchronization', icon: <RefreshCw size={16} />, desc: 'Auto-fetch, focus sync & remotes' },
@@ -631,19 +638,24 @@ export function SettingsPage() {
             {/* TAB 2: TYPOGRAPHY & DENSITY */}
             {activeTab === 'typography' && (
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-base font-bold text-fg">Typography &amp; Density</h2>
-                  <p className="text-xs text-dim mt-0.5">
-                    Fine-tune font families, font sizes, and commit graph lane height for optimal readability.
-                  </p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-base font-bold text-fg">Typography &amp; Density</h2>
+                    <p className="text-xs text-dim mt-1 leading-relaxed">
+                      Adjust each area independently. Text size changes are saved automatically; panel widths and spacing stay the same.
+                    </p>
+                  </div>
+                  <button type="button" onClick={resetTypography} className="btn-secondary text-xs">
+                    <RotateCcw size={13} aria-hidden="true" /> Reset typography
+                  </button>
                 </div>
 
                 {/* UI Font Family */}
                 <div className="space-y-3 rounded-xl border border-edge bg-panel2/50 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
                       <label className="text-xs font-semibold text-fg block">Interface Font Family</label>
-                      <span className="text-[11px] text-dim">Applied to navigation, labels, tabs, and buttons</span>
+                      <span className="text-xs text-dim">Used by interface, Home, and guide text</span>
                     </div>
                     <select
                       value={(() => {
@@ -676,10 +688,10 @@ export function SettingsPage() {
 
                 {/* Code / Monospace Font Family */}
                 <div className="space-y-3 rounded-xl border border-edge bg-panel2/50 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
                       <label className="text-xs font-semibold text-fg block">Code &amp; Monospace Font</label>
-                      <span className="text-[11px] text-dim">Applied to diff views, commit hashes, branches and logs</span>
+                      <span className="text-xs text-dim">Used by code, output, hashes, and branch labels. Text sizes are separate below.</span>
                     </div>
                     <select
                       value={(() => {
@@ -710,86 +722,92 @@ export function SettingsPage() {
                   )}
                 </div>
 
-                {/* Font Sizes Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                  {/* UI Font Size */}
-                  <div className="rounded-xl border border-edge bg-panel2/50 p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label htmlFor="ui-font-size" className="text-xs font-semibold text-fg">UI Font Size</label>
-                      <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-panel3 text-accent">
-                        {uiFontSize}px
-                      </span>
-                    </div>
-                    <input
-                      id="ui-font-size"
-                      aria-describedby="ui-font-size-description"
-                      type="range"
-                      min={11}
-                      max={16}
-                      step={1}
-                      value={uiFontSize}
-                      onChange={(e) => setUiFontSize(Number(e.target.value))}
-                      className="w-full accent-accent cursor-pointer"
-                    />
-                    <p id="ui-font-size-description" className="text-xs text-dim leading-relaxed">
-                      Applies to the interface, Home, and Explore StrataGit. Changes are saved automatically.
-                    </p>
-                    <div className="flex items-center justify-between gap-1">
-                      {[11, 12, 13, 14, 15, 16].map((sz) => (
-                        <button
-                          key={sz}
-                          onClick={() => setUiFontSize(sz)}
-                          className={`flex-1 py-1 rounded text-[11px] font-mono transition-colors ${
-                            uiFontSize === sz ? 'bg-accent text-white font-bold' : 'bg-panel3 hover:bg-edge text-dim'
-                          }`}
-                        >
-                          {sz}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Code Font Size */}
-                  <div className="rounded-xl border border-edge bg-panel2/50 p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-fg">Diff &amp; Code Font Size</span>
-                      <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-panel3 text-accent">
-                        {codeFontSize}px
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={10}
-                      max={18}
-                      step={1}
-                      value={codeFontSize}
-                      onChange={(e) => setCodeFontSize(Number(e.target.value))}
-                      className="w-full accent-accent cursor-pointer"
-                    />
-                    <div className="flex items-center justify-between gap-1">
-                      {[10, 11, 12, 13, 14, 16].map((sz) => (
-                        <button
-                          key={sz}
-                          onClick={() => setCodeFontSize(sz)}
-                          className={`flex-1 py-1 rounded text-[11px] font-mono transition-colors ${
-                            codeFontSize === sz ? 'bg-accent text-white font-bold' : 'bg-panel3 hover:bg-edge text-dim'
-                          }`}
-                        >
-                          {sz}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  <TypographySizeControl
+                    id="ui-font-size"
+                    label="Interface text"
+                    description="Navigation, buttons, tabs, branch names, and commit labels. This changes text size, not layout zoom."
+                    value={uiFontSize}
+                    onChange={setUiFontSize}
+                    min={FONT_SIZE_LIMITS.ui.min}
+                    max={FONT_SIZE_LIMITS.ui.max}
+                    defaultValue={FONT_SIZE_LIMITS.ui.default}
+                    presets={[11, 12, 13, 14, 15, 16]}
+                    previewFontVariable="--font-size-ui"
+                    preview={(
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                        <span className="font-medium">Changes</span>
+                        <span className="rounded border border-edge bg-panel3 px-2 py-0.5">feature/login</span>
+                        <span className="text-dim">3 files staged</span>
+                      </div>
+                    )}
+                  />
+                  <TypographySizeControl
+                    id="code-font-size"
+                    label="Diff & code text"
+                    description="Diff lines, code editors, terminal output, and file contents. Branch names and commit hashes keep the interface text size."
+                    value={codeFontSize}
+                    onChange={setCodeFontSize}
+                    min={FONT_SIZE_LIMITS.code.min}
+                    max={FONT_SIZE_LIMITS.code.max}
+                    defaultValue={FONT_SIZE_LIMITS.code.default}
+                    presets={[10, 12, 14, 16, 18]}
+                    previewFontVariable="--font-size-code"
+                    monospace
+                    preview={(
+                      <div className="space-y-1 overflow-x-auto whitespace-pre">
+                        <div className="text-dim">@@ -1 +1 @@</div>
+                        <div className="rounded bg-del-bg text-del px-2">- const ready = false;</div>
+                        <div className="rounded bg-add-bg text-add px-2">+ const ready = true;</div>
+                      </div>
+                    )}
+                  />
+                  <TypographySizeControl
+                    id="home-font-size"
+                    label="Home text"
+                    description="Repository cards, recent activity, and actions on Home. Repository workspace text uses the interface setting."
+                    value={homeFontSize}
+                    onChange={setHomeFontSize}
+                    min={FONT_SIZE_LIMITS.home.min}
+                    max={FONT_SIZE_LIMITS.home.max}
+                    defaultValue={FONT_SIZE_LIMITS.home.default}
+                    presets={[11, 13, 14, 16, 18]}
+                    previewFontVariable="--font-size-home"
+                    preview={(
+                      <div>
+                        <div className="font-semibold">Your repositories</div>
+                        <p className="text-dim mt-1">Continue working in StrataGit or open a recent repository.</p>
+                      </div>
+                    )}
+                  />
+                  <TypographySizeControl
+                    id="guide-font-size"
+                    label="Guide text"
+                    description="Explore StrataGit instructions, guide cards, and reading content. Adjust this separately for comfortable reading."
+                    value={guideFontSize}
+                    onChange={setGuideFontSize}
+                    min={FONT_SIZE_LIMITS.guide.min}
+                    max={FONT_SIZE_LIMITS.guide.max}
+                    defaultValue={FONT_SIZE_LIMITS.guide.default}
+                    presets={[11, 13, 14, 16, 18, 20]}
+                    previewFontVariable="--font-size-guide"
+                    preview={(
+                      <div>
+                        <div className="font-semibold">Review your changes</div>
+                        <p className="text-dim mt-1">Select a file to review its diff, then stage the changes you want to commit.</p>
+                      </div>
+                    )}
+                  />
                 </div>
 
                 {/* Graph Row Height Density */}
                 <div className="rounded-xl border border-edge bg-panel2/50 p-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <span className="text-xs font-semibold text-fg block">Commit Graph Row Density</span>
                       <span className="text-[11px] text-dim">Adjust vertical row height for commit graph lines</span>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-panel3 p-1 rounded-lg">
+                    <div className="flex flex-wrap items-center gap-1.5 bg-panel3 p-1 rounded-lg">
                       {[
                         { label: 'Compact (22px)', val: 22 },
                         { label: 'Normal (26px)', val: 26 },
@@ -798,10 +816,11 @@ export function SettingsPage() {
                         <button
                           key={item.val}
                           onClick={() => setGraphRowHeight(item.val)}
-                          className={`px-3 py-1.5 text-xs rounded-md transition-all ${
+                          aria-pressed={graphRowHeight === item.val}
+                          className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
                             graphRowHeight === item.val
-                              ? 'bg-accent text-white font-medium shadow-xs'
-                              : 'text-dim hover:text-fg'
+                              ? 'btn-primary font-medium shadow-xs'
+                              : 'btn text-dim hover:text-fg'
                           }`}
                         >
                           {item.label}
@@ -811,43 +830,8 @@ export function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Live Preview Box */}
-                <div className="rounded-xl border border-edge bg-panel2/80 p-5 space-y-3">
-                  <div className="flex items-center justify-between border-b border-edge/60 pb-2.5">
-                    <span className="text-xs font-semibold text-dim uppercase tracking-wider flex items-center gap-1.5 font-mono">
-                      <Sparkles size={13} className="text-accent" /> Live Typography &amp; Color Preview
-                    </span>
-                    <span className="text-[11px] text-faint">Updates in real-time</span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-semibold text-fg">Interface Elements:</span>
-                    <button className="btn bg-accent text-white hover:bg-accent-hover text-xs px-3 py-1">
-                      Commit Changes
-                    </button>
-                    <span className="rounded bg-panel3 px-2.5 py-1 text-xs text-accent border border-accent/30 font-medium">
-                      feature/login-v2
-                    </span>
-                    <span className="text-xs text-dim">3 files staged</span>
-                  </div>
-
-                  <div className="rounded-lg border border-edge bg-base p-3 font-mono space-y-1 overflow-hidden">
-                    <div className="bg-panel2/60 text-dim text-[11px] px-2 py-0.5 rounded-sm">
-                      @@ -42,6 +42,8 @@ export function App()
-                    </div>
-                    <div className="bg-del-bg text-del px-2 py-0.5 flex gap-2">
-                      <span className="opacity-60 select-none">-</span>
-                      <span>const prevTheme = 'classic-dark';</span>
-                    </div>
-                    <div className="bg-add-bg text-add px-2 py-0.5 flex gap-2">
-                      <span className="opacity-60 select-none">+</span>
-                      <span>const theme = useSettings((s) =&gt; s.theme);</span>
-                    </div>
-                    <div className="bg-add-bg text-add px-2 py-0.5 flex gap-2">
-                      <span className="opacity-60 select-none">+</span>
-                      <span>applySettingsToDOM(theme);</span>
-                    </div>
-                  </div>
+                <div className="rounded-xl border border-edge bg-panel2/50 p-4 text-xs text-dim leading-relaxed">
+                  Each preview uses its selected text size. Reset typography restores text sizes, font families, and graph density. Your theme and repository preferences are kept.
                 </div>
               </div>
             )}

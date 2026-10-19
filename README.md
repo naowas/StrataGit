@@ -113,6 +113,7 @@ See [Advanced Git workflows](docs/advanced-features.md) for usage, recovery inst
   - `Clean Studio Light`
 - **Custom Typography**: Select from Google Fonts presets (Inter, Roboto, Outfit, JetBrains Mono, Fira Code) or specify your own installed system fonts.
 - **Adjustable Graph Density**: Tailor graph row height to your preferred information density.
+- **Independent Text Sizes**: In **Settings → Typography & Density**, set Interface, Diff & Code, Home, and Guide text separately. Each control has a preview and reset. Font changes resize text without zooming panel spacing; see [typography settings](docs/typography.md).
 
 ### Explore StrataGit
 

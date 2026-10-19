@@ -29,7 +29,7 @@ function RenderParts({ parts }: { parts: InlineDiffPart[] }) {
 
 export function SplitDiffView({ hunks }: SplitDiffViewProps) {
   return (
-    <div className="font-mono leading-5" style={{ fontSize: 'var(--font-size-code)' }}>
+    <div>
       {hunks.map((hunk, hunkIdx) => {
         const rows = alignHunkLinesForSplit(hunk);
 
@@ -42,7 +42,7 @@ export function SplitDiffView({ hunks }: SplitDiffViewProps) {
               onClearSelection={() => {}}
             />
 
-            <div className="select-text">
+            <div className="code-surface select-text">
               {rows.map((row, rowIdx) => {
                 const hasLeftChange = row.left?.kind === 'del';
                 const hasRightChange = row.right?.kind === 'add';
@@ -59,12 +59,12 @@ export function SplitDiffView({ hunks }: SplitDiffViewProps) {
                       }`}
                     >
                       {/* Old line number */}
-                      <span className="w-10 shrink-0 text-right pr-2 text-faint/70 select-none border-r border-edge/30 text-[11px]">
+                      <span className="w-[6ch] shrink-0 text-right pr-[1ch] text-faint/70 select-none border-r border-edge/30">
                         {row.left?.lineNo ?? ''}
                       </span>
 
                       {/* Left marker */}
-                      <span className="w-4 shrink-0 text-center select-none opacity-60 font-semibold">
+                      <span className="w-[2ch] shrink-0 text-center select-none opacity-60 font-semibold">
                         {hasLeftChange ? '-' : ' '}
                       </span>
 
@@ -85,12 +85,12 @@ export function SplitDiffView({ hunks }: SplitDiffViewProps) {
                       }`}
                     >
                       {/* New line number */}
-                      <span className="w-10 shrink-0 text-right pr-2 text-faint/70 select-none border-r border-edge/30 text-[11px]">
+                      <span className="w-[6ch] shrink-0 text-right pr-[1ch] text-faint/70 select-none border-r border-edge/30">
                         {row.right?.lineNo ?? ''}
                       </span>
 
                       {/* Right marker */}
-                      <span className="w-4 shrink-0 text-center select-none opacity-60 font-semibold">
+                      <span className="w-[2ch] shrink-0 text-center select-none opacity-60 font-semibold">
                         {hasRightChange ? '+' : ' '}
                       </span>
 

@@ -55,6 +55,18 @@
   --line-height-code: 1.5;
 }
 
+/* Text utilities follow the interface size without changing rem-based layout. */
+@theme inline {
+  --text-xs: var(--font-size-xs);
+  --text-sm: var(--font-size-sm);
+  --text-base: var(--font-size-base);
+  --text-lg: calc(var(--font-size-ui, 13px) * 1.125);
+  --text-xl: calc(var(--font-size-ui, 13px) * 1.25);
+  --text-2xl: calc(var(--font-size-ui, 13px) * 1.5);
+  --text-3xl: calc(var(--font-size-ui, 13px) * 1.875);
+  --text-4xl: calc(var(--font-size-ui, 13px) * 2.25);
+}
+
 /* ─────────────────────────────────────────────
    Sync Tailwind's @theme accent-hover token
    with the camelCase var the JS engine writes.
@@ -81,13 +93,17 @@ body,
   margin: 0;
   overflow: hidden;
   font-family: var(--font-sans);
-  font-size: var(--font-size-base);
   background-color: var(--color-base);
   color: var(--color-fg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   user-select: none;
 }
+
+/* Spacing, panel sizes and icon geometry keep their original 13px rem scale. */
+html { font-size: 13px; }
+body,
+#root { font-size: var(--font-size-ui, 13px); }
 
 button,
 input,
@@ -96,18 +112,17 @@ textarea {
   font-family: inherit;
 }
 
-/* Code and diff blocks use configurable code font */
+/* Monospace labels retain interface sizing; only explicit code surfaces resize. */
 .font-mono,
 pre,
 code {
   font-family: var(--font-mono) !important;
 }
 
-pre,
-code,
-.font-mono.leading-5,
-.font-mono:not(span):not(kbd):not(button) {
-  font-size: var(--font-size-code);
+.code-surface {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-code, 12px);
+  line-height: 1.6;
 }
 
 /* Allow text selection inside diff / commit message areas */

@@ -487,7 +487,7 @@ export const guideTopics: GuideTopic[] = [
     minutes: 4, level: 'Essentials', keywords: ['settings', 'theme', 'appearance', 'font', 'density', 'profile', 'identity', 'gpg', 'signing', 'updates'],
     location: 'Settings · Ctrl/Cmd+,',
     steps: [
-      { title: 'Set a readable workspace', description: 'Use Appearance & Themes for the palette and toast position. Typography & Density controls interface and code fonts, their sizes, and graph row spacing. Check a real diff after changing the code font size.' },
+      { title: 'Set a readable workspace', description: 'Use Appearance & Themes for the palette and toast position. In Typography & Density, set Interface, Diff & Code, Home, and Guide text sizes independently. Each control has its own preview and reset. Choose graph row density separately; changing a font size does not zoom the whole layout.' },
       { title: 'Set your commit identity', description: 'Open Commit Profiles & GPG. Detect the existing Git author or enter the intended name and email. Create profiles if you use different identities, then choose the right profile from the commit editor before committing.' },
       { title: 'Configure signing deliberately', description: 'Set the signing key and profile options appropriate to your Git setup. A key identifier does not create a key or prove that signing works; your computer’s existing Git and signing tools must be configured.' },
       { title: 'Choose synchronization behavior', description: 'Use Git & Synchronization to configure periodic fetch and its interval. Keep hosted-provider accounts in Pull Request Providers and optional model settings in AI Assistant.' },

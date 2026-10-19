@@ -394,12 +394,37 @@ export const DEFAULT_COMMIT_COLUMN_WIDTHS: CommitColumnWidths = {
   sha: 100
 };
 
+export const FONT_SIZE_LIMITS = {
+  ui: { min: 11, max: 16, default: 13 },
+  code: { min: 10, max: 18, default: 12 },
+  home: { min: 11, max: 18, default: 13 },
+  guide: { min: 11, max: 20, default: 13 }
+} as const;
+
+export type FontSizeScope = keyof typeof FONT_SIZE_LIMITS;
+
+/** Keep persisted values and callers inside the same supported range as the controls. */
+export function normalizeFontSize(scope: FontSizeScope, value: unknown): number {
+  const limits = FONT_SIZE_LIMITS[scope];
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(limits.max, Math.max(limits.min, Math.round(value)))
+    : limits.default;
+}
+
+function normalizeGraphRowHeight(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(30, Math.max(22, Math.round(value)))
+    : 26;
+}
+
 export interface SettingsState {
   isSettingsOpen: boolean;
   settingsSection: SettingsSection;
   theme: ThemeId;
   uiFontSize: number;
   codeFontSize: number;
+  homeFontSize: number;
+  guideFontSize: number;
   uiFontFamily: string;
   customUiFont: string;
   codeFontFamily: string;
@@ -426,6 +451,8 @@ export interface SettingsState {
   setTheme: (theme: ThemeId) => void;
   setUiFontSize: (size: number) => void;
   setCodeFontSize: (size: number) => void;
+  setHomeFontSize: (size: number) => void;
+  setGuideFontSize: (size: number) => void;
   setUiFontFamily: (font: string) => void;
   setCustomUiFont: (font: string) => void;
   setCodeFontFamily: (font: string) => void;
@@ -442,6 +469,7 @@ export interface SettingsState {
   setCommitProfiles: (profiles: CommitProfile[]) => void;
   setActiveProfileId: (id: string) => void;
   setAiCommit: (config: Partial<AiCommitConfig>) => void;
+  resetTypography: () => void;
   resetDefaults: () => void;
 }
 
@@ -450,8 +478,10 @@ const LEGACY_STORAGE_KEY = 'graphgit:settings:v1';
 
 const DEFAULT_SETTINGS = {
   theme: 'stratagit-dark' as ThemeId,
-  uiFontSize: 13,
-  codeFontSize: 12,
+  uiFontSize: FONT_SIZE_LIMITS.ui.default as number,
+  codeFontSize: FONT_SIZE_LIMITS.code.default as number,
+  homeFontSize: FONT_SIZE_LIMITS.home.default as number,
+  guideFontSize: FONT_SIZE_LIMITS.guide.default as number,
   uiFontFamily: 'Inter',
   customUiFont: '',
   codeFontFamily: 'JetBrains Mono',
@@ -481,20 +511,57 @@ const DEFAULT_SETTINGS = {
   } as AiCommitConfig
 };
 
-function loadStoredSettings() {
+function isSettingsRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeStoredSettings(value: unknown): typeof DEFAULT_SETTINGS {
+  if (!isSettingsRecord(value)) return DEFAULT_SETTINGS;
+
+  // Persist data fields only: stored JSON must never replace store actions or UI state.
+  const parsed = Object.fromEntries(
+    Object.keys(DEFAULT_SETTINGS)
+      .filter((key) => Object.prototype.hasOwnProperty.call(value, key))
+      .map((key) => [key, value[key]])
+  ) as Partial<typeof DEFAULT_SETTINGS>;
+  const uiFontSize = normalizeFontSize('ui', parsed.uiFontSize);
+  const theme = value.theme === 'graphgit-dark' ? 'stratagit-dark' : parsed.theme;
+  const stringSetting = (key: 'uiFontFamily' | 'customUiFont' | 'codeFontFamily' | 'customCodeFont') =>
+    typeof parsed[key] === 'string' ? parsed[key] : DEFAULT_SETTINGS[key];
+
+  return {
+    ...DEFAULT_SETTINGS,
+    ...parsed,
+    theme: typeof theme === 'string' && Object.prototype.hasOwnProperty.call(THEMES, theme)
+      ? theme as ThemeId
+      : DEFAULT_SETTINGS.theme,
+    uiFontSize,
+    codeFontSize: normalizeFontSize('code', parsed.codeFontSize),
+    // Existing versions used the UI size for both surfaces. Preserve that appearance
+    // once, then keep all four preferences independent after migration.
+    homeFontSize: normalizeFontSize('home', Object.prototype.hasOwnProperty.call(value, 'homeFontSize') ? parsed.homeFontSize : uiFontSize),
+    guideFontSize: normalizeFontSize('guide', Object.prototype.hasOwnProperty.call(value, 'guideFontSize') ? parsed.guideFontSize : uiFontSize),
+    uiFontFamily: stringSetting('uiFontFamily'),
+    customUiFont: stringSetting('customUiFont'),
+    codeFontFamily: stringSetting('codeFontFamily'),
+    customCodeFont: stringSetting('customCodeFont'),
+    graphRowHeight: normalizeGraphRowHeight(parsed.graphRowHeight),
+    commitColumns: {
+      ...DEFAULT_SETTINGS.commitColumns,
+      ...(isSettingsRecord(parsed.commitColumns) ? parsed.commitColumns : {})
+    },
+    commitColumnWidths: {
+      ...DEFAULT_COMMIT_COLUMN_WIDTHS,
+      ...(isSettingsRecord(parsed.commitColumnWidths) ? parsed.commitColumnWidths : {})
+    }
+  };
+}
+
+function loadStoredSettings(): typeof DEFAULT_SETTINGS {
   try {
     const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(raw);
-    if (parsed.theme === 'graphgit-dark') {
-      parsed.theme = 'stratagit-dark';
-    }
-    return {
-      ...DEFAULT_SETTINGS,
-      ...parsed,
-      commitColumns: { ...DEFAULT_SETTINGS.commitColumns, ...parsed.commitColumns },
-      commitColumnWidths: { ...DEFAULT_COMMIT_COLUMN_WIDTHS, ...parsed.commitColumnWidths }
-    };
+    return normalizeStoredSettings(JSON.parse(raw));
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -503,7 +570,7 @@ function loadStoredSettings() {
 function saveSettings(settings: Partial<typeof DEFAULT_SETTINGS>) {
   try {
     const current = loadStoredSettings();
-    const updated = { ...current, ...settings };
+    const updated = normalizeStoredSettings({ ...current, ...settings });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   } catch {
     // Ignore storage quota errors
@@ -514,6 +581,9 @@ export function applySettingsToDOM(settings: {
   theme: ThemeId;
   uiFontSize: number;
   codeFontSize: number;
+  homeFontSize?: number;
+  guideFontSize?: number;
+  graphRowHeight?: number;
   uiFontFamily: string;
   customUiFont: string;
   codeFontFamily: string;
@@ -540,16 +610,21 @@ export function applySettingsToDOM(settings: {
 
   root.setAttribute('data-theme', theme.id);
 
-  // Apply font sizes (both custom variables and root scale)
-  const uiPx = Number(settings.uiFontSize) || 13;
-  const codePx = Number(settings.codeFontSize) || 12;
+  // Typography changes text only. Keep rem-based layout geometry at its CSS base.
+  const uiPx = normalizeFontSize('ui', settings.uiFontSize);
+  const codePx = normalizeFontSize('code', settings.codeFontSize);
+  const homePx = normalizeFontSize('home', settings.homeFontSize ?? uiPx);
+  const guidePx = normalizeFontSize('guide', settings.guideFontSize ?? uiPx);
 
   root.style.setProperty('--font-size-ui', `${uiPx}px`);
   root.style.setProperty('--font-size-base', `${uiPx}px`);
   root.style.setProperty('--font-size-sm', `${Math.max(10, uiPx - 1)}px`);
   root.style.setProperty('--font-size-xs', `${Math.max(9, uiPx - 2)}px`);
   root.style.setProperty('--font-size-code', `${codePx}px`);
-  root.style.fontSize = `${uiPx}px`;
+  root.style.setProperty('--font-size-home', `${homePx}px`);
+  root.style.setProperty('--font-size-guide', `${guidePx}px`);
+  root.style.setProperty('--graph-row-height', `${normalizeGraphRowHeight(settings.graphRowHeight)}px`);
+  root.style.removeProperty('font-size');
 
   // UI Font resolution
   let sansFont = settings.uiFontFamily;
@@ -579,6 +654,8 @@ export function applySettingsToDOM(settings: {
 
 // Initial application on file load
 const initial = loadStoredSettings();
+// Save normalized v1 data, including legacy settings and independent size migration.
+saveSettings(initial);
 if (typeof document !== 'undefined') {
   applySettingsToDOM(initial);
 }
@@ -598,15 +675,31 @@ export const useSettings = create<SettingsState>((set, get) => ({
   },
 
   setUiFontSize: (uiFontSize: number) => {
+    uiFontSize = normalizeFontSize('ui', uiFontSize);
     set({ uiFontSize });
     saveSettings({ uiFontSize });
     applySettingsToDOM({ ...get(), uiFontSize });
   },
 
   setCodeFontSize: (codeFontSize: number) => {
+    codeFontSize = normalizeFontSize('code', codeFontSize);
     set({ codeFontSize });
     saveSettings({ codeFontSize });
     applySettingsToDOM({ ...get(), codeFontSize });
+  },
+
+  setHomeFontSize: (homeFontSize: number) => {
+    homeFontSize = normalizeFontSize('home', homeFontSize);
+    set({ homeFontSize });
+    saveSettings({ homeFontSize });
+    applySettingsToDOM({ ...get(), homeFontSize });
+  },
+
+  setGuideFontSize: (guideFontSize: number) => {
+    guideFontSize = normalizeFontSize('guide', guideFontSize);
+    set({ guideFontSize });
+    saveSettings({ guideFontSize });
+    applySettingsToDOM({ ...get(), guideFontSize });
   },
 
   setUiFontFamily: (uiFontFamily: string) => {
@@ -634,8 +727,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
   },
 
   setGraphRowHeight: (graphRowHeight: number) => {
+    graphRowHeight = normalizeGraphRowHeight(graphRowHeight);
     set({ graphRowHeight });
     saveSettings({ graphRowHeight });
+    applySettingsToDOM({ ...get(), graphRowHeight });
   },
 
   setCommitColumns: (columns: Partial<CommitColumnVisibility>) => {
@@ -694,6 +789,23 @@ export const useSettings = create<SettingsState>((set, get) => ({
     const aiCommit = { ...get().aiCommit, ...patch };
     set({ aiCommit });
     saveSettings({ aiCommit });
+  },
+
+  resetTypography: () => {
+    const typography = {
+      uiFontSize: DEFAULT_SETTINGS.uiFontSize,
+      codeFontSize: DEFAULT_SETTINGS.codeFontSize,
+      homeFontSize: DEFAULT_SETTINGS.homeFontSize,
+      guideFontSize: DEFAULT_SETTINGS.guideFontSize,
+      uiFontFamily: DEFAULT_SETTINGS.uiFontFamily,
+      customUiFont: DEFAULT_SETTINGS.customUiFont,
+      codeFontFamily: DEFAULT_SETTINGS.codeFontFamily,
+      customCodeFont: DEFAULT_SETTINGS.customCodeFont,
+      graphRowHeight: DEFAULT_SETTINGS.graphRowHeight
+    };
+    set(typography);
+    saveSettings(typography);
+    applySettingsToDOM(get());
   },
 
   resetDefaults: () => {
