@@ -222,6 +222,10 @@ npm run dist:linux
 ```
 This creates an AppImage, Debian package, RPM package, and Pacman package in `dist/`.
 
+Each Linux format is packaged separately in an isolated directory to preserve its updater identity. The build combines all four installer entries, including Pacman, into `latest-linux.yml` and verifies their versions, sizes and SHA-512 checksums. `npm run dist` uses the same Linux pipeline on Linux. Optional architecture flags include `--x64` and `--arm64`.
+
+If an older Linux installation reports an installer or `pkexec` error, use **View releases** and install the package for your distribution manually. In particular, Arch/CachyOS uses the `.pacman` package with `sudo pacman -U ./stratagit-<version>.pacman`; do not install an RPM or Debian package on Arch. Older multi-format builds can contain an incorrect updater package marker, so a manual upgrade may be needed to receive the corrected updater. A failed authorization dialog does not mean an update check or download failed; see the [pkexec return codes](https://www.freedesktop.org/software/polkit/docs/latest/pkexec.1.html).
+
 ### Build for Windows (NSIS installer)
 ```bash
 npm run dist:win

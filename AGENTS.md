@@ -37,6 +37,7 @@ StrataGit is an Electron desktop Git client for Linux, macOS, and Windows. The r
 | `src/renderer/components/` | Feature components and reusable UI |
 | `src/renderer/global.css` | Tailwind v4 theme variables and common styles |
 | `tests/` | Unit, main process, renderer and real Git integration suites |
+| `scripts/build-linux.cjs` | Isolated Linux packaging, package identities and verified update feeds |
 | `.github/workflows/` | Cross-platform validation and release packaging |
 
 ## TypeScript, state and IPC
@@ -115,6 +116,7 @@ Follow the user's latest validation instructions. Do not add or run tests or typ
 - When a release bump is requested, update the package and lockfile together. The tag must exactly match `v` plus the package version.
 - Use the existing release workflow and [release instructions](README.md#publishing-a-release-and-its-update-files). It builds on native runners and attaches assets to a draft release. Do not publish before the installers and matching updater metadata are present.
 - Preserve Linux AppImage/deb/rpm/pacman, Windows NSIS, and unsigned macOS DMG/ZIP targets. macOS remains a manual release-page download path unless the user explicitly changes that policy.
+- Use the Linux packaging script for Linux releases. Each native package must contain its own matching `package-type`; AppImages must not inherit a native package marker. Keep every built format, including Pacman, in the verified update feed. Do not package several Linux formats against one shared unpacked directory.
 - Keep quiet startup checks, useful manual-check results, explicit download, visible progress, and explicit restart/install actions. Do not enable automatic downloading or installation without a requested change.
 - Preserve the GitHub release provider for `naowas/StrataGit`. Updater metadata and blockmaps must come from the same build as their installers; never substitute an older build's files.
 
