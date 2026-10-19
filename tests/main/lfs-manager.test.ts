@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -26,7 +26,7 @@ describe('Git LFS subprocess adapter', () => {
   let child: TransferProcess;
   const head = 'a'.repeat(40);
   beforeEach(async () => {
-    repo = await mkdtemp(path.join(os.tmpdir(), 'stratagit-lfs-test-'));
+    repo = await realpath(await mkdtemp(path.join(os.tmpdir(), 'stratagit-lfs-test-')));
     child = new TransferProcess();
     mocks.spawn.mockReturnValue(child);
     mocks.resolveCommit.mockResolvedValue(head);

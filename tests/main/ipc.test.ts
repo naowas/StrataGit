@@ -24,7 +24,7 @@ const git = (repo: string, ...args: string[]) => execFileSync('git', args, { cwd
 const recentFile = () => path.join(mock.home, '.config', 'stratagit', 'recent-repos.json');
 let repo: string;
 beforeEach(async () => {
-  mock.home = fs.mkdtempSync(path.join(os.tmpdir(), 'stratagit-ipc-test-'));
+  mock.home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'stratagit-ipc-test-')));
   mock.handlers.clear(); mock.repo = null;
   mock.window = { minimize: vi.fn(), maximize: vi.fn(), unmaximize: vi.fn(), close: vi.fn(), isMaximized: vi.fn(() => false), isDestroyed: () => false, webContents: { send: vi.fn() } };
   mock.openDialog.mockReset(); mock.openPath.mockReset(); mock.reveal.mockReset(); mock.exit.mockReset(); mock.relaunch.mockReset();

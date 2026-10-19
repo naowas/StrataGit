@@ -11,7 +11,7 @@ let root: string, repo: string, directory: string;
 const head = 'a'.repeat(40), credentials = vi.fn(() => null);
 const input = (provider = 'github') => ({ provider: provider as 'github', remoteName: 'origin', requestId: '12', head, branch: 'review/pr-12', directory });
 beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), 'stratagit-review-worktree-test-')); repo = path.join(root, 'repo'); directory = path.join(root, 'review'); await fs.mkdir(repo);
+  root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'stratagit-review-worktree-test-'))); repo = path.join(root, 'repo'); directory = path.join(root, 'review'); await fs.mkdir(repo);
   mock.raw.mockReset().mockImplementation(async (args: string[]) => { if (args[0] === 'show-ref') throw new Error('missing ref'); if (args[0] === 'rev-parse') return head + '\n'; return ''; });
   mock.client.mockReset().mockResolvedValue({ config: {}, credential: {} }); mock.request.mockReset().mockResolvedValue({ head: { sha: head }, diff_refs: { head_sha: head }, source: { commit: { hash: head }, repository: { full_name: 'fork/repo' }, branch: { name: 'feature/nested' } } }); mock.remotes.mockReset().mockResolvedValue([{ name: 'origin', fetchUrl: 'git@github.com:team/repo.git' }]); credentials.mockClear();
 });

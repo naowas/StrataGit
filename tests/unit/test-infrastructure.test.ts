@@ -11,9 +11,19 @@ describe('Git test isolation', () => {
     const dangerous = ['GIT_DIR', 'GIT_COMMON_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_CONFIG_PARAMETERS', 'GIT_NAMESPACE', 'GIT_AUTHOR_NAME', 'GIT_COMMITTER_EMAIL'];
     dangerous.forEach(name => vi.stubEnv(name, 'sentinel-never-opened')); vi.stubEnv('GIT_CONFIG_COUNT', '10'); vi.stubEnv('GIT_CONFIG_KEY_0', 'user.name');
     const cleanup = isolateGitEnvironment(); const hooks = process.env.GIT_CONFIG_VALUE_0!;
-    try { dangerous.forEach(name => expect(process.env[name]).toBeUndefined()); expect(process.env.GIT_CONFIG_GLOBAL).toBe(os.devNull); expect(process.env.GIT_CONFIG_COUNT).toBe('3'); expect(process.env.GIT_CONFIG_KEY_0).toBe('core.hooksPath'); expect(process.env.GIT_CONFIG_VALUE_1).toBe('false'); expect(fs.readdirSync(hooks)).toEqual([]); }
+    const config = process.env.GIT_CONFIG_GLOBAL!;
+    try {
+      dangerous.forEach(name => expect(process.env[name]).toBeUndefined());
+      expect(path.isAbsolute(config)).toBe(true);
+      expect(fs.readFileSync(config, 'utf8')).toBe('');
+      expect(process.env.GIT_CONFIG_COUNT).toBe('3');
+      expect(process.env.GIT_CONFIG_KEY_0).toBe('core.hooksPath');
+      expect(process.env.GIT_CONFIG_VALUE_1).toBe('false');
+      expect(fs.readdirSync(hooks)).toEqual([]);
+    }
     finally { cleanup(); }
     dangerous.forEach(name => expect(process.env[name]).toBe('sentinel-never-opened')); expect(process.env.GIT_CONFIG_COUNT).toBe('10'); expect(process.env.GIT_CONFIG_KEY_0).toBe('user.name'); expect(fs.existsSync(hooks)).toBe(false);
+    expect(fs.existsSync(config)).toBe(false);
   });
   it('restores originally unset environment values without creating empty overrides', () => {
     vi.stubEnv('GIT_INDEX_FILE', undefined); const cleanup = isolateGitEnvironment(); cleanup(); expect(Object.hasOwn(process.env, 'GIT_INDEX_FILE')).toBe(false);

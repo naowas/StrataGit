@@ -4,7 +4,12 @@ const path = require('node:path');
 
 /** Isolate Git in this test process and every subprocess it launches. */
 function isolateGitEnvironment() {
-  const hooks = fs.mkdtempSync(path.join(os.tmpdir(), 'stratagit-test-hooks-'));
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'stratagit-test-hooks-')));
+  const hooks = path.join(root, 'hooks');
+  const config = path.join(root, 'gitconfig');
+  fs.mkdirSync(hooks);
+  // Git for Windows cannot read Node's \\.\nul device path as a config file.
+  fs.writeFileSync(config, '');
   const previous = { ...process.env };
   const scoped = [
     'GIT_DIR', 'GIT_COMMON_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE',
@@ -16,7 +21,7 @@ function isolateGitEnvironment() {
   ];
   for (const name of scoped) delete process.env[name];
   const fixed = {
-    GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0',
+    GIT_CONFIG_GLOBAL: config, GIT_CONFIG_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0',
     GIT_CONFIG_COUNT: '3',
     GIT_CONFIG_KEY_0: 'core.hooksPath', GIT_CONFIG_VALUE_0: hooks,
     GIT_CONFIG_KEY_1: 'commit.gpgSign', GIT_CONFIG_VALUE_1: 'false',
@@ -28,7 +33,7 @@ function isolateGitEnvironment() {
       if (previous[name] === undefined) delete process.env[name];
       else process.env[name] = previous[name];
     }
-    fs.rmSync(hooks, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
   };
 }
 module.exports = { isolateGitEnvironment };

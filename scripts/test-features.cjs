@@ -18,7 +18,7 @@ const { explainCodeChanges } = require('../src/shared/ai.ts');
 const { alignHunkLinesForSplit } = require('../src/renderer/components/DiffViewer/diffUtils.ts');
 const git = (repo, ...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 function fixture(t, content = Array.from({ length: 35 }, (_, i) => `line ${i + 1}`).join('\n') + '\n') {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'stratagit-test-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'stratagit-test-')));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const repo = path.join(dir, 'repo'); fs.mkdirSync(repo);
   git(repo, 'init', '-b', 'main'); git(repo, 'config', 'user.name', 'Test'); git(repo, 'config', 'user.email', 'test@example.invalid');

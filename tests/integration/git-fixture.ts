@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -8,12 +8,14 @@ const execute = promisify(execFile);
 
 /** Every fixture lives outside the checkout and uses only local Git operations. */
 export async function createGitFixture(initialFiles: Record<string, string | Buffer> = { 'readme.txt': 'baseline\n' }, commit = true) {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'stratagit-integration-'));
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'stratagit-integration-')));
   const repo = path.join(root, 'repository');
   const hooks = path.join(root, 'empty-hooks');
+  const config = path.join(root, 'empty.gitconfig');
   await Promise.all([mkdir(repo), mkdir(hooks)]);
+  await writeFile(config, '');
   const git = async (...args: string[]) => (await execute('git', args, { cwd: repo, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: os.devNull,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: config,
       GIT_AUTHOR_NAME: 'StrataGit Test', GIT_AUTHOR_EMAIL: 'tests@stratagit.invalid',
       GIT_COMMITTER_NAME: 'StrataGit Test', GIT_COMMITTER_EMAIL: 'tests@stratagit.invalid' }
   })).stdout;

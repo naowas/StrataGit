@@ -101,7 +101,9 @@ describe('reflog recovery workspace', () => {
     await act(async () => resolve(entries())); expect(screen.queryByText('Reflog & Recovery')).not.toBeInTheDocument();
   });
   it('creates an explicitly named recovery branch and reports provider errors', async () => {
-    render(<ReflogModal />); await screen.findByLabelText('Branch name'); fireEvent.change(screen.getByLabelText('Branch name'), { target: { value: 'saved-work' } });
+    render(<ReflogModal />);
+    await waitFor(() => expect(screen.getByLabelText('Branch name')).toHaveValue('deleted-feature'));
+    fireEvent.change(screen.getByLabelText('Branch name'), { target: { value: 'saved-work' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create recovery branch' })); await waitFor(() => expect(mock.api.createRecoveryBranch).toHaveBeenCalledWith('abc123full', 'saved-work'));
     await waitFor(() => expect(mock.state.notify).toHaveBeenCalledWith('success', 'Saved as recovered/feature'));
     mock.api.createRecoveryBranch.mockResolvedValueOnce({ ok: false }); fireEvent.click(screen.getByRole('button', { name: 'Create recovery branch' })); await waitFor(() => expect(mock.state.notify).toHaveBeenCalledWith('error', expect.stringContaining('Could not create a recovery branch')));
