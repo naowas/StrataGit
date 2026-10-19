@@ -44,6 +44,7 @@ import { StrataLogo } from '../Common/StrataLogo';
 import { APP_VERSION } from '../../lib/appVersion';
 import { PullRequestProvidersSettings } from './PullRequestProvidersSettings';
 import { TypographySizeControl } from './TypographySizeControl';
+import './preferences.css';
 
 type SettingsTab = SettingsSection;
 
@@ -353,9 +354,9 @@ export function SettingsPage() {
     { id: 'profiles' as const, label: 'Commit Profiles & GPG', icon: <User size={16} />, desc: 'Git credentials, signing keys & identities' },
     { id: 'ai' as const, label: 'AI Assistant', icon: <Sparkles size={16} />, desc: 'Code reviews, commit messages & providers' },
     { id: 'git' as const, label: 'Git & Synchronization', icon: <RefreshCw size={16} />, desc: 'Auto-fetch, focus sync & remotes' },
-    { id: 'providers' as const, label: 'Pull Request Providers', icon: <GitPullRequest size={16} />, desc: 'GitHub, GitLab & Bitbucket tokens' },
+    { id: 'providers' as const, label: 'Pull Request Providers', icon: <GitPullRequest size={16} />, desc: 'GitHub, GitLab & Bitbucket accounts' },
     { id: 'shortcuts' as const, label: 'Keyboard Shortcuts', icon: <Command size={16} />, desc: 'Hotkeys, quick actions & navigation' },
-    { id: 'about' as const, label: 'About & Information', icon: <Info size={16} />, desc: 'StrataGit version, build & usage tour' },
+    { id: 'about' as const, label: 'About & Information', icon: <Info size={16} />, desc: 'Version, updates & feature guides' },
   ];
 
   const filteredCategories = useMemo(() => {
@@ -367,10 +368,10 @@ export function SettingsPage() {
   }, [searchQuery]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-base text-fg overflow-hidden animate-in fade-in duration-200">
+    <div className="preferences-page flex-1 flex flex-col min-h-0 min-w-0 bg-base text-fg overflow-hidden animate-in fade-in duration-200">
       {/* 1. Header Toolbar */}
-      <div className="h-13 px-6 border-b border-edge bg-panel2/40 flex items-center justify-between shrink-0 select-none">
-        <div className="flex items-center gap-3">
+      <div className="preferences-header border-b border-edge bg-panel2/40 shrink-0 select-none">
+        <div className="preferences-heading">
           <button
             onClick={closeSettings}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-dim hover:text-fg hover:bg-panel3 transition-colors border border-edge/60"
@@ -383,12 +384,12 @@ export function SettingsPage() {
 
           <div className="h-4 w-[1px] bg-edge mx-1" />
 
-          <div className="flex items-center gap-2">
+          <div className="preferences-breadcrumb flex items-center gap-2 min-w-0">
             <div className="w-7 h-7 rounded-lg bg-accent/15 border border-accent/30 flex items-center justify-center text-accent">
               <SlidersHorizontal size={15} />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-fg leading-none flex items-center gap-1.5">
+              <h1 className="text-sm font-bold text-fg leading-snug flex flex-wrap items-center gap-1.5">
                 Preferences
                 <span className="text-dim font-normal text-xs">/</span>
                 <span className="text-accent text-xs font-semibold">
@@ -400,11 +401,12 @@ export function SettingsPage() {
         </div>
 
         {/* Search Bar */}
-        <div className="relative w-80">
+        <div className="preferences-search">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dim pointer-events-none" />
           <input
             type="text"
             placeholder="Search settings..."
+            aria-label="Search settings categories"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-8 py-1.5 text-xs bg-panel border border-edge rounded-lg text-fg focus:border-accent focus:outline-none transition-colors"
@@ -412,6 +414,7 @@ export function SettingsPage() {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
+              aria-label="Clear settings search"
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-dim hover:text-fg"
             >
               <X size={13} />
@@ -420,7 +423,7 @@ export function SettingsPage() {
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2">
+        <div className="preferences-header-actions flex items-center gap-2">
           <button
             onClick={resetDefaults}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-dim hover:text-del hover:bg-del-bg/20 rounded-lg transition-colors border border-transparent hover:border-del/30"
@@ -433,9 +436,9 @@ export function SettingsPage() {
       </div>
 
       {/* 2. Main Body: Left Sidebar + Right Content */}
-      <div className="flex-1 flex min-h-0">
+      <div className="preferences-layout flex-1 flex min-h-0 min-w-0">
         {/* Navigation Sidebar */}
-        <div className="w-64 border-r border-edge bg-panel2/20 p-3 flex flex-col gap-1.5 shrink-0 overflow-y-auto">
+        <nav aria-label="Preferences categories" className="preferences-sidebar border-r border-edge bg-panel2/20 flex flex-col gap-1.5 overflow-y-auto">
           <div className="text-[11px] font-bold uppercase tracking-wider text-dim px-3 py-1 font-mono">
             Categories
           </div>
@@ -446,7 +449,8 @@ export function SettingsPage() {
               <button
                 key={cat.id}
                 onClick={() => setActiveTab(cat.id)}
-                className={`group flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
+                aria-current={isSelected ? 'page' : undefined}
+                className={`preferences-category group flex items-start gap-3 rounded-xl text-left transition-colors ${
                   isSelected
                     ? 'bg-accent/15 text-accent border border-accent/30 shadow-xs'
                     : 'text-dim hover:text-fg hover:bg-panel2/70 border border-transparent'
@@ -459,16 +463,16 @@ export function SettingsPage() {
                   <div className={`text-xs font-semibold leading-tight ${isSelected ? 'text-accent' : 'text-fg'}`}>
                     {cat.label}
                   </div>
-                  <div className="text-[11px] text-faint line-clamp-1 mt-0.5 leading-tight">
+                  <div className="preferences-category-description text-faint mt-1">
                     {cat.desc}
                   </div>
                 </div>
-                {isSelected && (
-                  <ChevronRight size={13} className="shrink-0 mt-1 text-accent" />
-                )}
+                <ChevronRight size={13} aria-hidden="true" className={`shrink-0 mt-1 text-accent ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
               </button>
             );
           })}
+
+          {!filteredCategories.length && <p className="px-3 py-4 text-xs text-dim leading-relaxed">No matching categories. Try a different search.</p>}
 
           {/* Bottom Info in Sidebar */}
           <div className="mt-auto pt-4 border-t border-edge/60 px-2 space-y-1">
@@ -477,14 +481,14 @@ export function SettingsPage() {
               <span>StrataGit v{installedVersion}</span>
             </div>
             <p className="text-[10px] text-faint leading-relaxed">
-              Settings automatically persist to local storage.
+              Preferences are saved automatically.
             </p>
           </div>
-        </div>
+        </nav>
 
         {/* Content Pane */}
-        <div className="flex-1 overflow-y-auto p-8 min-h-0 bg-base">
-          <div className="max-w-4xl mx-auto space-y-8">
+        <div className="preferences-content flex-1 overflow-y-auto min-w-0 min-h-0 bg-base">
+          <div className="preferences-content-inner space-y-8">
             {/* TAB 1: THEMES & APPEARANCE */}
             {activeTab === 'themes' && (
               <div className="space-y-6">
@@ -504,7 +508,7 @@ export function SettingsPage() {
                     <span className="text-xs text-faint">Instant switch without reloading</span>
                   </div>
 
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="preferences-choice-grid">
                     {(Object.keys(THEMES) as ThemeId[]).map((id) => {
                       const t = THEMES[id];
                       const isSelected = theme === id;
@@ -1043,7 +1047,7 @@ export function SettingsPage() {
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="preferences-choice-grid">
                         <div>
                           <label className="text-[10px] text-dim block mb-1">Profile Name *</label>
                           <input
@@ -1117,7 +1121,7 @@ export function SettingsPage() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="preferences-choice-grid">
                     {[
                       {
                         id: 'local' as const,
@@ -1245,7 +1249,7 @@ export function SettingsPage() {
                 {/* Commit Style */}
                 <div className="rounded-xl border border-edge bg-panel2/50 p-5 space-y-3">
                   <label className="text-xs font-semibold text-fg block">Commit Message Style</label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="preferences-choice-grid">
                     {[
                       { id: 'conventional' as const, label: 'Conventional Commits', example: 'feat(auth): add OAuth2 token refresh' },
                       { id: 'detailed' as const, label: 'Detailed Summary', example: 'Refactor diff parser with comprehensive breakdown' },
