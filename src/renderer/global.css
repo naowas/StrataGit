@@ -241,8 +241,9 @@ code {
 
 /* Inline menu forms need readable labels without inheriting nested em sizing. */
 .context-menu-prompt-submit {
-  min-height: 30px;
-  font-size: var(--font-size-sm, 12px);
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: var(--font-size-xs, 11px);
   font-weight: 600;
 }
 
