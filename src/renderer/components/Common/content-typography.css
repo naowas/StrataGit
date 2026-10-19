@@ -1,15 +1,16 @@
-/* Home and help are reading surfaces; the repository UI uses a denser 13px base.
-   Keep these sizes readable even when the user selects a smaller UI font. */
+/* Follow Settings → Typography & Density → UI Font Size live.
+   Body and guide text use the selected size; other roles keep a relative hierarchy. */
 .home-page,
 .explore-dialog {
-  --content-text-caption: max(12px, calc(var(--font-size-ui, 13px) - 1px));
-  --content-text-small: max(13px, var(--font-size-ui, 13px));
-  --content-text-body: max(14px, calc(var(--font-size-ui, 13px) + 1px));
-  --content-text-reading: max(15px, calc(var(--font-size-ui, 13px) + 2px));
-  --content-text-subheading: max(16px, calc(var(--font-size-ui, 13px) + 3px));
-  --content-text-heading: max(20px, calc(var(--font-size-ui, 13px) + 7px));
-  --content-text-title: max(28px, calc(var(--font-size-ui, 13px) + 15px));
-  --content-text-metric: max(22px, calc(var(--font-size-ui, 13px) + 9px));
+  --content-text-caption: calc(var(--font-size-ui, 13px) - 2px);
+  --content-text-small: calc(var(--font-size-ui, 13px) - 1px);
+  --content-text-body: var(--font-size-ui, 13px);
+  --content-text-reading: var(--font-size-ui, 13px);
+  --content-text-subheading: calc(var(--font-size-ui, 13px) * 1.15);
+  --content-text-heading: calc(var(--font-size-ui, 13px) * 1.4);
+  --content-text-title: calc(var(--font-size-ui, 13px) * 2);
+  --content-text-metric: calc(var(--font-size-ui, 13px) * 1.7);
+  --content-text-display: calc(var(--font-size-ui, 13px) * 3);
   font-size: var(--content-text-body);
   line-height: 1.5;
 }

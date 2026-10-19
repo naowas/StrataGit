@@ -715,12 +715,14 @@ export function SettingsPage() {
                   {/* UI Font Size */}
                   <div className="rounded-xl border border-edge bg-panel2/50 p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-fg">UI Font Size</span>
+                      <label htmlFor="ui-font-size" className="text-xs font-semibold text-fg">UI Font Size</label>
                       <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-panel3 text-accent">
                         {uiFontSize}px
                       </span>
                     </div>
                     <input
+                      id="ui-font-size"
+                      aria-describedby="ui-font-size-description"
                       type="range"
                       min={11}
                       max={16}
@@ -729,6 +731,9 @@ export function SettingsPage() {
                       onChange={(e) => setUiFontSize(Number(e.target.value))}
                       className="w-full accent-accent cursor-pointer"
                     />
+                    <p id="ui-font-size-description" className="text-xs text-dim leading-relaxed">
+                      Applies to the interface, Home, and Explore StrataGit. Changes are saved automatically.
+                    </p>
                     <div className="flex items-center justify-between gap-1">
                       {[11, 12, 13, 14, 15, 16].map((sz) => (
                         <button
