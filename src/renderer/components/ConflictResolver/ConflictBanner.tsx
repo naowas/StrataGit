@@ -59,7 +59,7 @@ export function ConflictBanner() {
       <div className="flex items-center gap-2 shrink-0">
         {!hasConflicts && (
           <button
-            className="flex items-center gap-1 px-2.5 py-1 rounded bg-add hover:bg-add/90 text-white font-medium text-[11px] transition-colors shadow-xs"
+            className="btn-primary !min-h-0 !px-2.5 !py-1 !text-[11px] shadow-xs"
             onClick={continueRepoOperation}
           >
             <span>Continue {opName}</span>
