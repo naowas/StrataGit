@@ -161,8 +161,8 @@ Open **Home → Explore StrataGit**, the toolbar’s Actions menu, the command p
 
 ### Prerequisites
 
-- **Node.js**: v18.0.0 or later (Node 20+ recommended)
-- **npm** or **pnpm**
+- **Node.js**: v22, matching CI
+- **npm**: use the committed `package-lock.json`
 - **Git**: System `git` CLI installed and available in `$PATH`
 
 ### Installation
@@ -170,12 +170,12 @@ Open **Home → Explore StrataGit**, the toolbar’s Actions menu, the command p
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/naowas/StrataGit.git
-   cd stratagit
+   cd StrataGit
    ```
 
 2. **Install dependencies:**
    ```bash
-   npm install
+   npm ci
    ```
 
 3. **Start the development server:**
@@ -318,6 +318,8 @@ stratagit/
 ---
 
 ## 🤝 Contributing
+
+Read [AGENTS.md](AGENTS.md) before using an AI coding agent or making development changes. It defines the repository's architecture, code and UI conventions, Git safety rules, validation policy, and release workflow.
 
 Contributions are welcome! Whether you are reporting a bug, proposing a feature, or submitting a pull request, we appreciate your help in making StrataGit better.
 
