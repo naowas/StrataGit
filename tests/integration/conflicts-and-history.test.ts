@@ -102,6 +102,7 @@ describe('conflict resolution and history editing with isolated Git repositories
 
   it('requires complete-side choices for conflicting symbolic links without reading their targets', async () => {
     const { unlink, readlink } = await import('node:fs/promises');
+    await fixture.git('config', '--local', 'core.symlinks', 'true');
     await unlink(path.join(fixture.repo, 'readme.txt')); await symlink('base-target', path.join(fixture.repo, 'readme.txt')); await fixture.commitAll('Symlink baseline');
     await fixture.git('checkout', '-b', 'incoming'); await unlink(path.join(fixture.repo, 'readme.txt')); await symlink('incoming-target', path.join(fixture.repo, 'readme.txt')); await fixture.commitAll('Incoming link');
     await fixture.git('checkout', 'main'); await unlink(path.join(fixture.repo, 'readme.txt')); await symlink('current-target', path.join(fixture.repo, 'readme.txt')); await fixture.commitAll('Current link');

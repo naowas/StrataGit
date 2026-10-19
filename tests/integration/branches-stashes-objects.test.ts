@@ -143,7 +143,8 @@ describe('branch, stash and repository object workflows', () => {
     await createWorktree(fixture.repo, worktree, fixture.initialHash);
     expect(isValidRepo(worktree)).toBe(true);
     await fixture.git('worktree', 'lock', '--reason', 'test lock', worktree);
-    expect(await getWorktrees(fixture.repo)).toEqual(expect.arrayContaining([
+    const worktrees = (await getWorktrees(fixture.repo)).map(worktree => ({ ...worktree, path: path.normalize(worktree.path) }));
+    expect(worktrees).toEqual(expect.arrayContaining([
       expect.objectContaining({ path: fixture.repo, branch: 'main', isBare: false, isLocked: false }),
       expect.objectContaining({ path: worktree, branch: '(detached)', hash: fixture.initialHash, isLocked: true })
     ]));
