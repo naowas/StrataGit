@@ -30,7 +30,7 @@ beforeEach(() => {
   vi.resetModules(); vi.useFakeTimers();
   mock.handlers.clear(); mock.listeners.clear();
   mock.app.isPackaged = true;
-  mock.check.mockReset(); mock.download.mockReset(); mock.install.mockClear();
+  mock.check.mockReset(); mock.download.mockReset(); mock.install.mockReset();
   mock.send.mockClear(); mock.openExternal.mockReset();
 });
 afterEach(() => {
@@ -81,6 +81,40 @@ describe('desktop update lifecycle', () => {
     expect(call('install')).toBe(false);
     await call('open-release-page');
     expect(mock.openExternal).toHaveBeenCalledWith('https://github.com/naowas/StrataGit/releases');
+  });
+
+  it('preserves an installer failure reported through the error event and retries without downloading again', async () => {
+    await load();
+    emit('update-downloaded', { version: '1.0.0', releaseName: 'First release', releaseNotes: 'Release notes' });
+    mock.install.mockImplementation(() => emit('error', new Error('Command pkexec exited with code 127')));
+    expect(call('install')).toBe(false);
+    expect(call('get-state')).toMatchObject({ status: 'error', errorStage: 'install', availableVersion: '1.0.0', progress: 100, releaseNotes: 'Release notes', error: expect.stringContaining('package matches your distribution') });
+    expect(mock.download).not.toHaveBeenCalled();
+    mock.install.mockImplementation(() => {});
+    expect(call('install')).toBe(true);
+    expect(call('get-state')).toMatchObject({ status: 'installing', error: undefined, errorStage: undefined });
+    expect(call('install')).toBe(false);
+    expect(mock.install).toHaveBeenCalledTimes(2);
+    await call('check');
+    expect(mock.check).not.toHaveBeenCalled();
+  });
+
+  it('keeps a thrown installation error actionable and distinguishes authorization cancellation', async () => {
+    await load();
+    emit('update-downloaded', { version: '1.0.0' });
+    mock.install.mockImplementation(() => { throw new Error('Command pkexec exited with code 126'); });
+    expect(call('install')).toBe(false);
+    expect(call('get-state')).toMatchObject({ status: 'error', errorStage: 'install', error: expect.stringContaining('cancelled in the authorization dialog') });
+  });
+
+  it('does not check again while downloading and identifies download failures separately', async () => {
+    await load();
+    emit('download-progress', { percent: 25 });
+    await call('check');
+    expect(mock.check).not.toHaveBeenCalled();
+    emit('error', new Error('Disk full'));
+    expect(call('get-state')).toMatchObject({ status: 'error', errorStage: 'download', error: 'Disk full' });
+    expect(call('install')).toBe(false);
   });
 
   it('reports unsupported development builds without scheduling a check', async () => {
@@ -140,6 +174,7 @@ describe('useful update errors', () => {
     [Object.assign(new Error('bad feed'), { code: 'ERR_UPDATER_INVALID_RELEASE_FEED' }), /release feed/],
     [new Error('Unable to find latest version on GitHub'), /release feed/],
     [new Error('HttpError: 406'), /release feed/],
+    [new Error('spawn pkexec ENOENT'), /installation helper is unavailable/],
     [new Error('Offline\n Headers: { secret: "hidden" }'), /^Offline$/],
     ['Network unavailable', /^Network unavailable$/],
     [null, /Unknown update error/],

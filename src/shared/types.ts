@@ -597,6 +597,7 @@ export type AppUpdateStatus =
   | 'available'
   | 'downloading'
   | 'downloaded'
+  | 'installing'
   | 'error'
   | 'unsupported';
 
@@ -608,6 +609,8 @@ export interface AppUpdateState {
   releaseNotes?: string;
   progress?: number;
   error?: string;
+  /** Identify the failed update step so installation recovery can keep the download. */
+  errorStage?: 'check' | 'download' | 'install';
   /** Windows and Linux packages support in-app installation; unsigned macOS builds use the release page. */
   canInstallInApp: boolean;
 }

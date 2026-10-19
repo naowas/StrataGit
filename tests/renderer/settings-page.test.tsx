@@ -191,7 +191,8 @@ describe('About update controls', () => {
     [{ status: 'unsupported' }, 'Update checks are available in an installed build.', 'Check for updates'],
     [{ status: 'unsupported', error: 'Use the release page' }, 'Use the release page', 'Check for updates'],
     [{ status: 'available' }, 'Version new is available.', 'Download update'],
-    [{ status: 'downloaded' }, 'Version is ready to install. Restart StrataGit to finish.', 'Restart & install']
+    [{ status: 'downloaded' }, 'Version is ready to install. Restart StrataGit to finish.', 'Restart & install'],
+    [{ status: 'installing' }, 'Installing update… StrataGit will restart when installation succeeds.', 'Installing…']
   ])('renders update status %s', async (state, text, label) => {
     render(<SettingsPage />); await ready(); await emit(state as Partial<AppUpdateState>);
     expect(screen.getByText(text)).toBeVisible();
@@ -201,7 +202,7 @@ describe('About update controls', () => {
     mocks.api.installAppUpdate.mockResolvedValue(false);
     render(<SettingsPage />); await ready(); await emit({ status: 'downloaded' });
     fireEvent.click(screen.getByRole('button', { name: 'Restart & install' }));
-    await screen.findByText('The update could not be started. Please try again.');
+    await screen.findByText('The update could not be started. Retry installation or use View releases to install manually.');
     mocks.api.downloadAppUpdate.mockRejectedValue(new Error('Download failed'));
     await emit({ status: 'available' });
     fireEvent.click(screen.getByRole('button', { name: 'Download update' }));
@@ -212,6 +213,19 @@ describe('About update controls', () => {
     await emit({ status: 'available', canInstallInApp: false });
     fireEvent.click(screen.getByRole('button', { name: 'View release', exact: true }));
     await screen.findByText('The update action failed. Please try again.');
+  });
+  it('preserves the main-process installation error and offers retry instead of downloading again', async () => {
+    render(<SettingsPage />); await ready();
+    await emit({ status: 'downloaded', availableVersion: '1.0.0' });
+    mocks.api.installAppUpdate.mockResolvedValueOnce(false);
+    mocks.api.getAppUpdateState.mockResolvedValue({ ...idle, status: 'error', errorStage: 'install', availableVersion: '1.0.0', error: 'The package installer could not obtain authorization.' });
+    fireEvent.click(screen.getByRole('button', { name: 'Restart & install' }));
+    await screen.findByText('The package installer could not obtain authorization.');
+    expect(screen.getByText('The update was downloaded, but installation could not finish.')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry installation' }));
+    await waitFor(() => expect(mocks.api.installAppUpdate).toHaveBeenCalledTimes(2));
+    expect(mocks.api.downloadAppUpdate).not.toHaveBeenCalled();
+    expect(mocks.api.checkForAppUpdates).not.toHaveBeenCalled();
   });
   it('strips a release containing only unsafe markup and reports release navigation errors', async () => {
     render(<SettingsPage />); await ready();

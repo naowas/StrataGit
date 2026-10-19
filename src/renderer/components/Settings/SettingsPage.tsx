@@ -272,6 +272,7 @@ export function SettingsPage() {
         status: 'error',
         currentVersion: current?.currentVersion || APP_VERSION,
         canInstallInApp: current?.canInstallInApp || false,
+        errorStage: 'check',
         error: err?.message || 'Could not check for updates. Check your internet connection and try again.'
       }));
     } finally {
@@ -283,10 +284,13 @@ export function SettingsPage() {
     if (!updateState) return handleCheckForUpdates();
     setUpdateActionBusy(true);
     try {
-      if (updateState.status === 'downloaded') {
+      if (updateState.status === 'downloaded' || (updateState.status === 'error' && updateState.errorStage === 'install')) {
         const started = await api.installAppUpdate();
         if (!started) {
-          setUpdateState({ ...updateState, status: 'error', error: 'The update could not be started. Please try again.' });
+          const current = await api.getAppUpdateState();
+          setUpdateState(current.status === 'error'
+            ? current
+            : { ...updateState, status: 'error', errorStage: 'install', error: 'The update could not be started. Retry installation or use View releases to install manually.' });
         }
       } else if (updateState.status === 'available' && updateState.canInstallInApp) {
         setUpdateState(await api.downloadAppUpdate());
@@ -299,6 +303,7 @@ export function SettingsPage() {
       setUpdateState({
         ...updateState,
         status: 'error',
+        errorStage: updateState.status === 'downloaded' || updateState.errorStage === 'install' ? 'install' : 'download',
         error: err?.message || 'The update action failed. Please try again.'
       });
     } finally {
@@ -326,23 +331,31 @@ export function SettingsPage() {
             ? `Downloading update${typeof updateState.progress === 'number' ? ` · ${Math.floor(updateState.progress)}%` : '…'}`
             : updateState.status === 'downloaded'
               ? `Version ${updateState.availableVersion || ''} is ready to install. Restart StrataGit to finish.`
-              : updateState.status === 'error'
-                ? 'Couldn’t check or install the update. Try again or open the release page.'
-                : updateState.status === 'unsupported'
-                  ? updateState.error || 'Update checks are available in an installed build.'
-                  : `Current version: v${updateState.currentVersion}`;
+              : updateState.status === 'installing'
+                ? 'Installing update… StrataGit will restart when installation succeeds.'
+                : updateState.status === 'error'
+                  ? updateState.errorStage === 'install'
+                    ? 'The update was downloaded, but installation could not finish.'
+                    : 'Couldn’t check or download the update. Try again or open the release page.'
+                  : updateState.status === 'unsupported'
+                    ? updateState.error || 'Update checks are available in an installed build.'
+                    : `Current version: v${updateState.currentVersion}`;
 
   const updateButtonLabel = updateState?.status === 'checking'
     ? 'Checking…'
     : updateState?.status === 'downloading'
       ? `Downloading ${Math.floor(updateState.progress || 0)}%`
-      : updateActionBusy
-        ? 'Please wait…'
-        : updateState?.status === 'available'
-          ? updateState.canInstallInApp ? 'Download update' : 'View release'
-          : updateState?.status === 'downloaded'
-            ? 'Restart & install'
-            : 'Check for updates';
+      : updateState?.status === 'installing'
+        ? 'Installing…'
+        : updateActionBusy
+          ? 'Please wait…'
+          : updateState?.status === 'available'
+            ? updateState.canInstallInApp ? 'Download update' : 'View release'
+            : updateState?.status === 'downloaded'
+              ? 'Restart & install'
+              : updateState?.status === 'error' && updateState.errorStage === 'install'
+                ? 'Retry installation'
+                : 'Check for updates';
 
   const installedVersion = updateState?.currentVersion || APP_VERSION;
   const formattedReleaseNotes = updateState?.releaseNotes
@@ -1464,7 +1477,7 @@ export function SettingsPage() {
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-dim" aria-live="polite">
-                    {updateState?.status === 'checking' || updateState?.status === 'downloading'
+                    {updateState?.status === 'checking' || updateState?.status === 'downloading' || updateState?.status === 'installing'
                       ? <Loader2 size={13} className="shrink-0 animate-spin text-accent" />
                       : updateState?.status === 'error'
                         ? <AlertCircle size={13} className="shrink-0 text-warn" />
@@ -1504,7 +1517,7 @@ export function SettingsPage() {
                     <button
                       type="button"
                       onClick={() => void handleUpdateAction()}
-                      disabled={updateActionBusy || updateState?.status === 'checking' || updateState?.status === 'downloading'}
+                      disabled={updateActionBusy || updateState?.status === 'checking' || updateState?.status === 'downloading' || updateState?.status === 'installing'}
                       className="btn btn-primary text-xs font-medium px-3 py-1.5 shadow-xs flex items-center gap-2 transition-all rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {updateState?.status === 'available' && updateState.canInstallInApp

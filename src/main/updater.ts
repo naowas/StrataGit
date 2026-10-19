@@ -7,6 +7,7 @@ const releasePageUrl = 'https://github.com/naowas/StrataGit/releases';
 
 let getWindow: (() => BrowserWindow | null) | undefined;
 let checkInProgress: Promise<AppUpdateState> | null = null;
+let hasDownloadedUpdate = false;
 
 const canInstallInApp = () => app.isPackaged && (process.platform === 'linux' || process.platform === 'win32');
 
@@ -50,13 +51,24 @@ function applyUpdateInfo(info: UpdateInfo, status: 'available' | 'not-available'
     releaseName: info.releaseName ?? undefined,
     releaseNotes: releaseNotesText(info),
     progress: status === 'downloaded' ? 100 : undefined,
-    error: undefined
+    error: undefined,
+    errorStage: undefined
   });
 }
 
 function errorText(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error || 'Unknown update error');
   const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+
+  if (/\bpkexec\b.*exited with code 126/i.test(message)) {
+    return 'Installation was cancelled in the authorization dialog. Retry installation when you are ready, or use View releases to install manually.';
+  }
+  if (/\bpkexec\b.*exited with code 127/i.test(message)) {
+    return 'Linux could not authorize or run the package installer. Check that your desktop authorization agent is available and that the package matches your distribution. Use View releases to install manually.';
+  }
+  if (/\b(?:pkexec|gksudo|kdesudo|beesu|sudo)\b.*(?:ENOENT|not found)/i.test(message)) {
+    return 'The Linux installation helper is unavailable. Use View releases to download the package for your distribution and install it with your package manager.';
+  }
 
   const missingMetadata = message.match(/Cannot find (latest(?:-[\w-]+)?\.yml) in the latest release artifacts/i);
   if (missingMetadata) {
@@ -91,9 +103,11 @@ async function checkForUpdates(): Promise<AppUpdateState> {
   }
 
   if (checkInProgress) return checkInProgress;
+  if (state.status === 'downloading' || state.status === 'installing') return state;
 
   checkInProgress = (async () => {
-    publishState({ status: 'checking', availableVersion: undefined, releaseName: undefined, releaseNotes: undefined, progress: undefined, error: undefined });
+    hasDownloadedUpdate = false;
+    publishState({ status: 'checking', availableVersion: undefined, releaseName: undefined, releaseNotes: undefined, progress: undefined, error: undefined, errorStage: undefined });
     try {
       const result = await autoUpdater.checkForUpdates();
       // The updater emits the corresponding events. Keep a fallback for providers
@@ -102,10 +116,10 @@ async function checkForUpdates(): Promise<AppUpdateState> {
         if (result.isUpdateAvailable) applyUpdateInfo(result.updateInfo, 'available');
         else applyUpdateInfo(result.updateInfo, 'not-available');
       } else if (state.status === 'checking') {
-        publishState({ status: 'error', error: 'The update check did not return a result. Please try again.' });
+        publishState({ status: 'error', errorStage: 'check', error: 'The update check did not return a result. Please try again.' });
       }
     } catch (error) {
-      publishState({ status: 'error', error: errorText(error) });
+      publishState({ status: 'error', errorStage: 'check', error: errorText(error) });
     }
     return state;
   })();
@@ -127,15 +141,23 @@ export function registerUpdater(getWin: () => BrowserWindow | null) {
   autoUpdater.allowPrerelease = true;
 
   autoUpdater.on('checking-for-update', () => {
-    publishState({ status: 'checking', error: undefined });
+    publishState({ status: 'checking', error: undefined, errorStage: undefined });
   });
   autoUpdater.on('update-available', (info) => applyUpdateInfo(info, 'available'));
   autoUpdater.on('update-not-available', (info) => applyUpdateInfo(info, 'not-available'));
   autoUpdater.on('download-progress', (progress) => {
     publishState({ status: 'downloading', progress: Math.max(0, Math.min(100, progress.percent)), error: undefined });
   });
-  autoUpdater.on('update-downloaded', (info) => applyUpdateInfo(info, 'downloaded'));
-  autoUpdater.on('error', (error) => publishState({ status: 'error', error: errorText(error) }));
+  autoUpdater.on('update-downloaded', (info) => {
+    hasDownloadedUpdate = true;
+    applyUpdateInfo(info, 'downloaded');
+  });
+  autoUpdater.on('error', (error) => {
+    const errorStage = state.status === 'installing' || state.errorStage === 'install'
+      ? 'install'
+      : state.status === 'downloading' ? 'download' : 'check';
+    publishState({ status: 'error', errorStage, error: errorText(error) });
+  });
 
   ipcMain.handle('app-update:get-state', () => state);
   ipcMain.handle('app-update:check', () => checkForUpdates());
@@ -146,18 +168,27 @@ export function registerUpdater(getWin: () => BrowserWindow | null) {
     }
     if (state.status !== 'available') return state;
 
-    publishState({ status: 'downloading', progress: 0, error: undefined });
+    publishState({ status: 'downloading', progress: 0, error: undefined, errorStage: undefined });
     try {
       await autoUpdater.downloadUpdate();
     } catch (error) {
-      publishState({ status: 'error', error: errorText(error) });
+      publishState({ status: 'error', errorStage: 'download', error: errorText(error) });
     }
     return state;
   });
   ipcMain.handle('app-update:install', () => {
-    if (!canInstallInApp() || state.status !== 'downloaded') return false;
-    autoUpdater.quitAndInstall(false, true);
-    return true;
+    const retry = state.status === 'error' && state.errorStage === 'install';
+    if (!canInstallInApp() || !hasDownloadedUpdate || (state.status !== 'downloaded' && !retry)) return false;
+    publishState({ status: 'installing', error: undefined, errorStage: undefined });
+    try {
+      // Linux installers can report failure through the error event without
+      // throwing. Do not tell the renderer that the installation succeeded.
+      autoUpdater.quitAndInstall(false, true);
+      return state.errorStage !== 'install';
+    } catch (error) {
+      publishState({ status: 'error', errorStage: 'install', error: errorText(error) });
+      return false;
+    }
   });
   ipcMain.handle('app-update:open-release-page', async () => {
     await shell.openExternal(releasePageUrl);
