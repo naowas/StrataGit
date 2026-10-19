@@ -44,6 +44,7 @@ import { StrataLogo } from '../Common/StrataLogo';
 import { APP_VERSION } from '../../lib/appVersion';
 import { PullRequestProvidersSettings } from './PullRequestProvidersSettings';
 import { TypographySizeControl } from './TypographySizeControl';
+import { AboutPage } from './AboutPage';
 import './preferences.css';
 
 type SettingsTab = SettingsSection;
@@ -1442,48 +1443,18 @@ export function SettingsPage() {
 
             {/* TAB 7: ABOUT */}
             {activeTab === 'about' && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-base font-bold text-fg">About StrataGit</h2>
-                  <p className="text-xs text-dim mt-0.5">
-                    A modern, commit-graph-centric visual Git client for high-velocity software engineering.
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-edge bg-panel2/50 p-6 space-y-4">
-                  <div className="flex items-center gap-4">
-                    <StrataLogo size={52} />
-                    <div>
-                      <div className="text-base font-bold text-fg">
-                        Strata<span className="text-accent">Git</span> <span className="text-xs text-faint font-mono">v{installedVersion}</span>
-                      </div>
-                      <div className="text-xs text-dim mt-0.5">
-                        Built with Electron, React 19, TypeScript, Tailwind CSS v4 &amp; Vite
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-edge/60 flex items-center justify-between">
-                    <span className="text-xs text-dim">Learn the essentials and explore advanced Git workflows.</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        closeSettings();
-                        useApp.getState().openUsageGuide();
-                      }}
-                      className="btn btn-primary text-xs font-medium px-4 py-1.5 shadow-xs flex items-center gap-2 transition-all rounded-lg"
-                    >
-                      <Sparkles size={14} />
-                      <span>Explore StrataGit</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-edge bg-panel2/50 p-5 space-y-3">
+              <AboutPage
+                installedVersion={installedVersion}
+                onExplore={() => {
+                  closeSettings();
+                  useApp.getState().openUsageGuide();
+                }}
+              >
+                <div className="about-card space-y-3">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h3 className="text-sm font-semibold text-fg">Software updates</h3>
-                      <p className="text-xs text-dim mt-1">StrataGit checks quietly at startup. You can also check GitHub here.</p>
+                      <p className="text-xs text-dim mt-1">StrataGit checks for updates at startup. You can also check manually.</p>
                     </div>
                     {updateState?.status === 'available' && (
                       <span className="shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold bg-accent/15 text-accent border border-accent/30">
@@ -1508,7 +1479,7 @@ export function SettingsPage() {
                   )}
 
                   {updateState?.status === 'downloading' && (
-                    <div className="h-1.5 rounded-full bg-panel overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor(updateState.progress || 0)}>
+                    <div className="h-1.5 rounded-full bg-panel overflow-hidden" role="progressbar" aria-label="Update download progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor(updateState.progress || 0)}>
                       <div
                         className="h-full bg-accent transition-all duration-200"
                         style={{ width: `${Math.max(0, Math.min(100, updateState.progress || 0))}%` }}
@@ -1556,18 +1527,7 @@ export function SettingsPage() {
                     )}
                   </div>
                 </div>
-
-                <div className="rounded-xl border border-edge/60 bg-panel2/30 p-5 space-y-2 text-xs text-dim leading-relaxed">
-                  <div className="font-semibold text-fg text-xs">Features &amp; Highlights</div>
-                  <ul className="list-disc list-inside space-y-1 text-[11px] text-dim">
-                    <li>Multi-branch visual graph with customizable lane heights &amp; smooth Bezier strata</li>
-                    <li>Git Flow integration for Feature, Release, Bugfix and Hotfix branches</li>
-                    <li>AI Commit Message Generation powered by free open-source models</li>
-                    <li>Interactive Merge Conflict Resolver &amp; Interactive Rebase tool</li>
-                    <li>Embedded Command Palette &amp; interactive terminal execution runner</li>
-                  </ul>
-                </div>
-              </div>
+              </AboutPage>
             )}
           </div>
         </div>
